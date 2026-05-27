@@ -1,0 +1,64 @@
+package com.planohi.api.controller;
+
+import com.planohi.api.config.UserPrincipal;
+import com.planohi.api.dto.ApiResponse;
+import com.planohi.api.dto.CreateComponentRequest;
+import com.planohi.api.dto.EventComponentDto;
+import com.planohi.api.dto.EventComponentsResponse;
+import com.planohi.api.service.cached.EventComponentCachedService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import java.util.UUID;
+
+@Slf4j
+@RestController
+@RequestMapping("/api/events/{eventId}/components")
+@RequiredArgsConstructor
+public class EventComponentController {
+
+    private final EventComponentCachedService eventComponentService;
+
+    @PostMapping
+    public ResponseEntity<ApiResponse<EventComponentDto>> createComponent(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PathVariable("eventId") UUID eventId,
+            @Valid @RequestBody CreateComponentRequest request) {
+
+        log.info("Request received to create component '{}' for event {} by user {}", request.getName(), eventId,
+                userPrincipal.getId());
+        EventComponentDto created = eventComponentService.createComponent(userPrincipal.getId(), eventId, request);
+        return ResponseEntity.status(201).body(ApiResponse.success("Component created successfully", created));
+    }
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<EventComponentsResponse>> getComponents(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PathVariable("eventId") UUID eventId) {
+
+        log.info("Request received to get components for event {} by user {}", eventId, userPrincipal.getId());
+        EventComponentsResponse response = eventComponentService.getComponents(userPrincipal.getId(), eventId);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @DeleteMapping("/{componentId}")
+    public ResponseEntity<ApiResponse<Void>> deleteComponent(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PathVariable("eventId") UUID eventId,
+            @PathVariable("componentId") UUID componentId) {
+
+        log.info("Request received to delete component {} from event {} by user {}", componentId, eventId,
+                userPrincipal.getId());
+        eventComponentService.deleteComponent(userPrincipal.getId(), eventId, componentId);
+        return ResponseEntity.ok(ApiResponse.success("Component deleted successfully", null));
+    }
+}

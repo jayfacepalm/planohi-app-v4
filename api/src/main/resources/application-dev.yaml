@@ -1,0 +1,10 @@
+app:
+  security:
+    cookie-secure: false
+
+logging:
+  level:
+    com.planohi.api: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE

@@ -1,0 +1,202 @@
+import { cookies } from "next/headers";
+import { fetchApi } from "../../../lib/api-client";
+import { EventBudgetCanvas } from "../../../components/features/EventBudgetCanvas";
+import { EventTimelineCanvas } from "../../../components/features/EventTimelineCanvas";
+import { Badge } from "../../../components/ui/Badge";
+import Link from "next/link";
+import { Calendar, ChevronLeft } from "lucide-react";
+import React from "react";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Event Details Canvas | Plano.hi",
+  description: "Manage event components and dynamic budgeting plans.",
+};
+
+interface PageProps {
+  params: Promise<{
+    id: string;
+  }>;
+  searchParams: Promise<{
+    tab?: string;
+  }>;
+}
+
+export default async function EventDetailPage({ params, searchParams }: PageProps) {
+  const { id } = await params;
+  const { tab } = await searchParams;
+  const activeTab = tab || "budget";
+
+  // Forward the active session token
+  const cookieStore = await cookies();
+  const token = cookieStore.get("AUTH_TOKEN")?.value;
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers["Cookie"] = `AUTH_TOKEN=${token}`;
+  }
+
+  let event: any = null;
+  let componentsData: any = null;
+  let timelineData: any = null;
+  let errorMsg: string | null = null;
+
+  try {
+    if (activeTab === "timeline") {
+      const [eventRes, timelineRes] = await Promise.all([
+        fetchApi<any>(`/events/${id}`, { headers }),
+        fetchApi<any>(`/events/${id}/timeline`, { headers }),
+      ]);
+      event = eventRes;
+      timelineData = timelineRes;
+    } else {
+      const [eventRes, componentsRes] = await Promise.all([
+        fetchApi<any>(`/events/${id}`, { headers }),
+        fetchApi<any>(`/events/${id}/budget-summary`, { headers }),
+      ]);
+      event = eventRes;
+      componentsData = componentsRes;
+    }
+  } catch (err: any) {
+    console.error(`Failed to load event details for ${id}:`, err);
+    if (err && typeof err.status === "number" && err.status >= 400 && err.status < 500) {
+      errorMsg = err.message;
+    } else {
+      errorMsg = "An unexpected error occurred while loading this workspace. Please try again later.";
+    }
+  }
+
+  if (errorMsg || !event) {
+    return (
+      <div className="w-full max-w-2xl mx-auto px-4 py-12">
+        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-8 text-center">
+          <h4 className="text-red-400 font-heading font-semibold text-sm mb-2">Workspace Load Failure</h4>
+          <p className="text-xs text-zinc-400 leading-relaxed mb-6">{errorMsg || "Workspace not found."}</p>
+          <Link href="/events">
+            <span className="text-neon-cyan hover:underline text-xs font-heading tracking-wide uppercase flex items-center justify-center gap-1.5 cursor-pointer">
+              <ChevronLeft className="w-4 h-4" /> Return to Canvas List
+            </span>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+  };
+
+  const isSingleDay = () => {
+    const start = formatDate(event.startDate);
+    const end = formatDate(event.endDate);
+    return start === end;
+  };
+
+  const bannerUrl = event.bannerUrl ? `/api/proxy/events/${event.id}/banner` : null;
+
+  return (
+    <div className="w-full max-w-7xl mx-auto px-4 md:px-8 space-y-8">
+      {/* Back button link */}
+      <div>
+        <Link href="/events">
+          <span className="text-zinc-500 hover:text-neon-cyan text-xs font-heading font-semibold tracking-wider uppercase flex items-center gap-1 cursor-pointer transition-colors w-fit">
+            <ChevronLeft className="w-4 h-4" /> Return to Workspace Dashboard
+          </span>
+        </Link>
+      </div>
+
+      {/* Banner Cover / Title Block */}
+      {bannerUrl ? (
+        <div className="w-full h-64 md:h-80 rounded-2xl overflow-hidden border border-white/10 relative shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={bannerUrl}
+            alt={event.title}
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#070708] via-[#070708]/60 to-transparent flex flex-col justify-end p-6 md:p-8" />
+        </div>
+      ) : (
+        <div className="w-full h-48 bg-gradient-to-br from-neon-purple/5 to-neon-cyan/5 border border-white/5 rounded-2xl flex flex-col justify-end p-6 md:p-8 relative overflow-hidden">
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.003)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.003)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none" />
+        </div>
+      )}
+
+      {/* Header Info Strip */}
+      <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 pb-6 border-b border-white/5">
+        <div className="space-y-3 max-w-3xl">
+          <div className="flex items-center gap-3 flex-wrap">
+            <Badge variant="cyan" className="text-[10px] uppercase py-0.5 px-2.5">
+              Active Workspace
+            </Badge>
+            <span className="text-[11px] text-neon-cyan font-mono font-medium tracking-wide flex items-center gap-1">
+              <Calendar className="w-3.5 h-3.5" />
+              {isSingleDay() ? (
+                formatDate(event.startDate)
+              ) : (
+                `${formatDate(event.startDate)} - ${formatDate(event.endDate)}`
+              )}
+            </span>
+          </div>
+          <h1 className="text-3xl md:text-4xl font-heading font-extrabold text-white tracking-wide leading-tight">
+            {event.title}
+          </h1>
+          {event.description ? (
+            <p className="text-sm text-zinc-400 font-sans leading-relaxed">
+              {event.description}
+            </p>
+          ) : (
+            <p className="text-sm text-zinc-650 font-sans italic">
+              No description configured for this workspace...
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Navigation Tabs */}
+      <div className="flex gap-6 border-b border-white/5 pb-px">
+        <Link href={`/events/${event.id}?tab=budget`}>
+          <span className={`pb-3 font-heading text-sm font-bold tracking-wider uppercase cursor-pointer border-b-2 transition-all block ${
+            activeTab === "budget" 
+              ? "border-neon-cyan text-white drop-shadow-[0_0_8px_rgba(6,182,212,0.4)]" 
+              : "border-transparent text-zinc-500 hover:text-zinc-300"
+          }`}>
+            Budget Canvas
+          </span>
+        </Link>
+        <Link href={`/events/${event.id}?tab=timeline`}>
+          <span className={`pb-3 font-heading text-sm font-bold tracking-wider uppercase cursor-pointer border-b-2 transition-all block ${
+            activeTab === "timeline" 
+              ? "border-neon-purple text-white drop-shadow-[0_0_8px_rgba(168,85,247,0.4)]" 
+              : "border-transparent text-zinc-500 hover:text-zinc-300"
+          }`}>
+            Timeline Canvas
+          </span>
+        </Link>
+      </div>
+
+      {/* Canvas rendering content */}
+      {activeTab === "timeline" ? (
+        <EventTimelineCanvas
+          eventId={event.id}
+          initialCompletedCount={timelineData?.completedCount || 0}
+          initialTotalCount={timelineData?.totalCount || 0}
+          initialItems={timelineData?.items || []}
+          eventStartDate={event.startDate}
+          eventEndDate={event.endDate}
+        />
+      ) : (
+        <EventBudgetCanvas
+          eventId={event.id}
+          initialComponents={componentsData?.components || []}
+          initialTotalCost={componentsData?.totalEstimatedCost || 0}
+          initialTotalActualSpent={componentsData?.totalActualSpent || 0}
+        />
+      )}
+    </div>
+  );
+}

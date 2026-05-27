@@ -1,0 +1,68 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;700&family=Outfit:wght@300;400;500;600&display=swap');
+
+@import "tailwindcss";
+
+:root {
+  --background: #070708;
+  --foreground: #f4f4f5;
+}
+
+@theme {
+  /* Fonts */
+  --font-heading: "Space Grotesk", sans-serif;
+  --font-sans: "Outfit", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  /* Custom Colors */
+  --color-neon-purple: #a855f7;
+  --color-neon-cyan: #06b6d4;
+  --color-bg-dark: #070708;
+  --color-bg-surface: #121214;
+  
+  /* Animations */
+  --animate-shimmer: shimmer 2s infinite linear;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+}
+
+/* Custom glow utility */
+.shadow-neon-purple {
+  box-shadow: 0 0 15px rgba(168, 85, 247, 0.35);
+}
+
+.shadow-neon-cyan {
+  box-shadow: 0 0 15px rgba(6, 182, 212, 0.35);
+}
+
+/* Custom scrollbar for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #070708;
+}
+::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a855f7;
+}

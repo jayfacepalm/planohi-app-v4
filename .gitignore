@@ -1,0 +1,3 @@
+.env
+.env.example
+api/test_build.log
