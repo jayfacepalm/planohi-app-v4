@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { fetchApi } from "../../../lib/api-client";
 import { EventBudgetCanvas } from "../../../components/features/EventBudgetCanvas";
 import { EventTimelineCanvas } from "../../../components/features/EventTimelineCanvas";
+import { EventGuestCanvas } from "../../../components/features/EventGuestCanvas";
 import { Badge } from "../../../components/ui/Badge";
 import Link from "next/link";
 import { Calendar, ChevronLeft } from "lucide-react";
@@ -19,13 +20,17 @@ interface PageProps {
   }>;
   searchParams: Promise<{
     tab?: string;
+    page?: string;
+    search?: string;
   }>;
 }
 
 export default async function EventDetailPage({ params, searchParams }: PageProps) {
   const { id } = await params;
-  const { tab } = await searchParams;
+  const { tab, page, search } = await searchParams;
   const activeTab = tab || "budget";
+  const currentPage = page ? Number(page) : 0;
+  const currentSearch = search || "";
 
   // Forward the active session token
   const cookieStore = await cookies();
@@ -38,6 +43,8 @@ export default async function EventDetailPage({ params, searchParams }: PageProp
   let event: any = null;
   let componentsData: any = null;
   let timelineData: any = null;
+  let inviteesData: any = null;
+  let metricsData: any = null;
   let errorMsg: string | null = null;
 
   try {
@@ -48,6 +55,15 @@ export default async function EventDetailPage({ params, searchParams }: PageProp
       ]);
       event = eventRes;
       timelineData = timelineRes;
+    } else if (activeTab === "guests") {
+      const [eventRes, inviteesRes, metricsRes] = await Promise.all([
+        fetchApi<any>(`/events/${id}`, { headers }),
+        fetchApi<any>(`/events/${id}/invitees?page=${currentPage}&size=10&search=${encodeURIComponent(currentSearch)}`, { headers }),
+        fetchApi<any>(`/events/${id}/metrics`, { headers }),
+      ]);
+      event = eventRes;
+      inviteesData = inviteesRes;
+      metricsData = metricsRes;
     } else {
       const [eventRes, componentsRes] = await Promise.all([
         fetchApi<any>(`/events/${id}`, { headers }),
@@ -177,6 +193,15 @@ export default async function EventDetailPage({ params, searchParams }: PageProp
             Timeline Canvas
           </span>
         </Link>
+        <Link href={`/events/${event.id}?tab=guests`}>
+          <span className={`pb-3 font-heading text-sm font-bold tracking-wider uppercase cursor-pointer border-b-2 transition-all block ${
+            activeTab === "guests" 
+              ? "border-neon-cyan text-white drop-shadow-[0_0_8px_rgba(6,182,212,0.4)]" 
+              : "border-transparent text-zinc-500 hover:text-zinc-300"
+          }`}>
+            Guest Canvas
+          </span>
+        </Link>
       </div>
 
       {/* Canvas rendering content */}
@@ -188,6 +213,22 @@ export default async function EventDetailPage({ params, searchParams }: PageProp
           initialItems={timelineData?.items || []}
           eventStartDate={event.startDate}
           eventEndDate={event.endDate}
+        />
+      ) : activeTab === "guests" ? (
+        <EventGuestCanvas
+          eventId={event.id}
+          initialInvitees={inviteesData?.content || []}
+          initialTotalElements={inviteesData?.totalElements || 0}
+          initialMetrics={metricsData || {
+            totalInvited: 0,
+            respondedCount: 0,
+            acceptedCount: 0,
+            declinedCount: 0,
+            pendingCount: 0,
+            totalAttendingHeadcount: 0
+          }}
+          currentPage={currentPage}
+          currentSearch={currentSearch}
         />
       ) : (
         <EventBudgetCanvas

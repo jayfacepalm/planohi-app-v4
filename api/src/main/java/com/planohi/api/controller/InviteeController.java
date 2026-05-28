@@ -1,0 +1,76 @@
+package com.planohi.api.controller;
+
+import com.planohi.api.config.UserPrincipal;
+import com.planohi.api.dto.ApiResponse;
+import com.planohi.api.dto.CreateInviteeRequest;
+import com.planohi.api.dto.InviteeDto;
+import com.planohi.api.dto.InviteeMetricsDto;
+import com.planohi.api.service.InviteeService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import java.util.List;
+import java.util.UUID;
+
+@Slf4j
+@RestController
+@RequestMapping("/api/events")
+@RequiredArgsConstructor
+@Validated
+public class InviteeController {
+
+    private final InviteeService inviteeCachedService;
+
+    @PostMapping("/{eventId}/invitees")
+    public ResponseEntity<ApiResponse<Void>> addInvitees(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PathVariable UUID eventId,
+            @RequestBody @Valid List<CreateInviteeRequest> requests
+    ) {
+        log.info("REST request to add {} invitees to event {}", requests.size(), eventId);
+        inviteeCachedService.addInvitees(userPrincipal.getId(), eventId, requests);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Invitees successfully added", null));
+    }
+
+    @GetMapping("/{eventId}/invitees")
+    public ResponseEntity<ApiResponse<Page<InviteeDto>>> getInvitees(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PathVariable UUID eventId,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        log.info("REST request to list invitees for event {}, search='{}', page={}, size={}", eventId, search, page, size);
+        Page<InviteeDto> invitees = inviteeCachedService.getInvitees(
+                userPrincipal.getId(),
+                eventId,
+                search,
+                PageRequest.of(page, size)
+        );
+        return ResponseEntity.ok(ApiResponse.success("Invitees listed successfully", invitees));
+    }
+
+    @GetMapping("/{eventId}/metrics")
+    public ResponseEntity<ApiResponse<InviteeMetricsDto>> getMetrics(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PathVariable UUID eventId
+    ) {
+        log.info("REST request to get invitee metrics for event {}", eventId);
+        InviteeMetricsDto metrics = inviteeCachedService.getMetrics(userPrincipal.getId(), eventId);
+        return ResponseEntity.ok(ApiResponse.success("Invitee metrics fetched successfully", metrics));
+    }
+}

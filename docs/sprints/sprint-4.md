@@ -5,7 +5,7 @@ This sprint implements the guest RSVP tracking system, secure passwordless invit
 ---
 
 ## 1. Goal
-Provide organizers with the ability to invite guests, allocate custom headcount limits per party, and copy personalized secure URLs. Guests can RSVP (accepting or declining and indicating their party size) without logging in, updating the event's master headcount in real time.
+Provide organizers with the ability to invite guests, allocate custom headcount limits per party, and copy personalized secure URLs. Guests can RSVP (accepting or declining and indicating their party size) without logging in, updating the event's master headcount and metrics in real time.
 
 ---
 
@@ -24,7 +24,7 @@ Provide organizers with the ability to invite guests, allocate custom headcount 
 * Tracks individual invitation records.
 * Uses a high-entropy, unique cryptographic `token` to bypass login barriers for public RSVPs.
 * Enforces party-size constraints.
-* Inherits from `BaseAuditEntity`.
+* Inherits from `BaseAuditEntity` using `TIMESTAMP WITH TIME ZONE` columns for auditing.
 
 ```sql
 CREATE TABLE invitee (
@@ -35,9 +35,9 @@ CREATE TABLE invitee (
     allowed_guests INTEGER NOT NULL DEFAULT 1, -- Maximum allowed headcount for the invitee's party
     attending_guests INTEGER NOT NULL DEFAULT 0, -- Confirmed attending headcount
     status VARCHAR(20) NOT NULL DEFAULT 'PENDING', -- PENDING, ACCEPTED, DECLINED
-    responded_at TIMESTAMP,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    responded_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_by VARCHAR(100),
     updated_by VARCHAR(100),
     CONSTRAINT fk_invitee_event FOREIGN KEY (event_id) REFERENCES event(id) ON DELETE CASCADE,
@@ -69,39 +69,50 @@ CREATE INDEX idx_invitee_token ON invitee(token);
   ```
 * **Behavior**:
   - Validates that the event exists and belongs to the authenticated user.
-  - Generates a random, secure token (e.g. `UUID.randomUUID().toString()`) for each record.
-  - Saves records into `invitee` with a default status of `PENDING`.
+  - Generates a random, secure token (`UUID.randomUUID().toString()`) for each record.
+  - Saves all records into `invitee` in a bulk operation (`saveAll()`) with default status `PENDING`.
 * **Response**: `201 Created`
 
-### 2. List Invitees
-* **Endpoint**: `GET /api/events/{eventId}/invitees`
+### 2. List Invitees (Paginated & Searchable)
+* **Endpoint**: `GET /api/events/{eventId}/invitees?page={page}&size={size}&search={search}`
+* **Parameters**:
+  - `page`: Page index (default: 0)
+  - `size`: Page size (default: 10)
+  - `search`: Case-insensitive partial matches on guest names (optional)
 * **Response**: `200 OK`
   ```json
-  [
-    {
-      "id": "i11d372e-0000-4995-b91c-2ff32822a777",
-      "name": "Jane & Family",
-      "token": "49afb321-12f8-4b77-ad54-8c8f000b0373",
-      "allowedGuests": 4,
-      "attendingGuests": 0,
-      "status": "PENDING",
-      "respondedAt": null
-    }
-  ]
+  {
+    "content": [
+      {
+        "id": "i11d372e-0000-4995-b91c-2ff32822a777",
+        "name": "Jane & Family",
+        "token": "49afb321-12f8-4b77-ad54-8c8f000b0373",
+        "allowedGuests": 4,
+        "attendingGuests": 0,
+        "status": "PENDING",
+        "respondedAt": null
+      }
+    ],
+    "totalPages": 1,
+    "totalElements": 1
+  }
   ```
 
 ### 3. Public Invite Lookup (No Auth Required)
 * **Endpoint**: `GET /api/public/rsvp/{token}`
 * **Behavior**:
-  - Queries `invitee` by the path parameter `token`.
-  - Returns associated event metadata and invitee's limit.
+  - Queries `invitee` by the cryptographic path parameter `token`.
+  - Returns the associated event details and the invitee's status and allowed limits.
 * **Response**: `200 OK`
   ```json
   {
     "inviteeName": "Jane & Family",
     "allowedGuests": 4,
+    "attendingGuests": 0,
+    "status": "PENDING",
     "event": {
-      "title": " Wedding Party",
+      "id": "ac120004-9e59-1b95-819e-59dcb8b70000",
+      "title": "Wedding Party",
       "description": "Celebrating marriage in Cebu!",
       "startDate": "2026-12-18T00:00:00Z",
       "endDate": "2026-12-20T00:00:00Z",
@@ -110,7 +121,7 @@ CREATE INDEX idx_invitee_token ON invitee(token);
   }
   ```
 
-### 4. Submit RSVP Response (No Auth Required)
+### 4. Submit RSVP Response (No Auth Required / Supports Re-Submission)
 * **Endpoint**: `POST /api/public/rsvp/{token}`
 * **Request Payload**:
   ```json
@@ -120,15 +131,17 @@ CREATE INDEX idx_invitee_token ON invitee(token);
   }
   ```
 * **Behavior**:
-  - Verifies that `attendingGuests <= allowedGuests` (if `ACCEPTED`).
-  - Sets `attendingGuests = 0` if `status` is `DECLINED`.
-  - Updates the `invitee` record and populates `responded_at` with the current timestamp.
+  - Verifies that the current system time is not past the event's `endDate`. If the event has ended, rejects the submission by throwing an `IllegalArgumentException` ("The RSVP window for this event is closed").
+  - Validates that `attendingGuests` satisfies `1 <= attendingGuests <= allowedGuests` when status is `ACCEPTED`. Otherwise, throws a structured `FieldValidationException("attendingGuests", ...)`.
+  - Forces `attendingGuests = 0` when status is `DECLINED`.
+  - Performs an upsert update on the existing `invitee` record, writing/updating `status`, `attending_guests`, and populating `responded_at` with the current timestamp.
 * **Response**: `200 OK`
 
-### 5. Get Event Metrics
+### 5. Get Event Metrics (Single-Query Aggregation)
 * **Endpoint**: `GET /api/events/{eventId}/metrics`
 * **Behavior**:
   - Compiles RSVP statistics for the event dashboard.
+  - Resolves counts and headcounts in a single database roundtrip using conditional aggregates (`SUM` and `COUNT(CASE WHEN...)`) to maximize execution speed.
 * **Response**: `200 OK`
   ```json
   {
@@ -143,16 +156,35 @@ CREATE INDEX idx_invitee_token ON invitee(token);
 
 ---
 
-## 5. Frontend & Layout Work
+## 5. Caching Strategy & Eviction Chains
+To guarantee immediate consistency while maintaining high-performance reading:
+1. **List Cache (`event_invitees`)**:
+   - Caches lists returned by `GET /api/events/{eventId}/invitees`.
+   - Key: `eventId + ':' + search + ':' + page + ':' + size`.
+   - Evicted when the organizer adds/deletes a guest, or when a guest RSVPs.
+2. **Metrics Cache (`event_metrics`)**:
+   - Caches metrics returned by `GET /api/events/{eventId}/metrics`.
+   - Key: `eventId`.
+   - Evicted when the organizer adds/deletes a guest, or when a guest RSVPs.
+3. **Public Lookup Cache (`public_rsvp`)**:
+   - Caches public data returned by `GET /api/public/rsvp/{token}`.
+   - Key: `token`.
+   - Evicted when a guest submits/updates their RSVP response.
+
+---
+
+## 6. Frontend & Layout Work
 
 * **Organizer Guest Dashboard (`/events/[id]/guests`)**:
   - **Summary Metrics Strip**: Highlights counts for Total Invited, Confirmed Guests, Declined, and Pending responses.
   - **Invitee Table**: Lists guest names, their RSVP status badges (using our custom `Badge` components), allowed limits, and confirmed counts.
-  - **Share Action**: A "Copy Invite Link" action that copies `/rsvp/[token]` to the clipboard.
+  - **Empty State UX**: Displays a custom Cyberpunk-themed empty state screen when the guest list is empty (e.g., has 0 elements). This screen includes an illustrative graphic, a helpful description, and a button to trigger the quick-add guest modal.
+  - **Share Action**: A "Copy Invite Link" action that dynamically constructs the full absolute URL using the client browser's origin:
+    `const inviteUrl = window.location.origin + "/rsvp/" + token;`
   - **Quick Add**: Modal form to add a new guest with party limit.
 * **Public Guest RSVP Page (`/rsvp/[token]`)**:
   - Minimalist, premium invitation card displaying the event's banner, description, and countdown.
-  - Form allowing selection: **Will Attend** or **Will Not Attend**.
+  - **Event End Enforcement**: Detects if the event is in the past. If the event's end date has passed, renders the RSVP form in a disabled, view-only state showing: "The RSVP window for this event is closed."
+  - Detects if the guest has already responded. If so, shows their current RSVP state ("You responded: Attending with 3 guests") and displays a "Change RSVP Response" button to let them re-submit if needed.
   - Attending selector: Displays only if "Will Attend" is chosen. Shows an interactive counter capped at `allowedGuests` (e.g. "Bringing 3 out of 4 guests").
   - Transition animations to a thank-you success confirmation page upon response submission.
-
