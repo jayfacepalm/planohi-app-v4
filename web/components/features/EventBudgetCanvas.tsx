@@ -4,9 +4,11 @@ import React, { useState } from "react";
 import { AddComponentModal } from "./AddComponentModal";
 import { Modal } from "../ui/Modal";
 import { LogSpendingModal } from "./LogSpendingModal";
+import { EditComponentModal } from "./EditComponentModal";
+import { EditSpendingModal } from "./EditSpendingModal";
 import { Button } from "../ui/Button";
 import { GlowCard } from "../ui/GlowCard";
-import { Plus, Trash2, PiggyBank, Briefcase, ChevronDown, ChevronUp, DollarSign, AlertTriangle, Calendar } from "lucide-react";
+import { Plus, Trash2, PiggyBank, Briefcase, ChevronDown, ChevronUp, DollarSign, AlertTriangle, Calendar, Edit } from "lucide-react";
 import { fetchApi } from "../../lib/api-client";
 
 interface SpendingItem {
@@ -52,6 +54,26 @@ export const EventBudgetCanvas: React.FC<EventBudgetCanvasProps> = ({
   const [errorModalOpen, setErrorModalOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
+  // Edit Component States
+  const [isEditComponentOpen, setIsEditComponentOpen] = useState(false);
+  const [componentToEdit, setComponentToEdit] = useState<ComponentItem | null>(null);
+
+  // Edit Spending States
+  const [isEditSpendingOpen, setIsEditSpendingOpen] = useState(false);
+  const [spendingToEdit, setSpendingToEdit] = useState<SpendingItem | null>(null);
+  const [activeSpendingComponentId, setActiveSpendingComponentId] = useState<string>("");
+
+  // Delete Spending States
+  const [deleteSpendingConfirmOpen, setDeleteSpendingConfirmOpen] = useState(false);
+  const [spendingToDelete, setSpendingToDelete] = useState<SpendingItem | null>(null);
+  const [spendingDeleteLoading, setSpendingDeleteLoading] = useState(false);
+
+  const [mounted, setMounted] = useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-PH", {
       style: "currency",
@@ -60,10 +82,14 @@ export const EventBudgetCanvas: React.FC<EventBudgetCanvasProps> = ({
   };
 
   const formatDate = (dateString: string) => {
+    if (!mounted) return "";
     return new Date(dateString).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
     });
   };
 
@@ -117,6 +143,31 @@ export const EventBudgetCanvas: React.FC<EventBudgetCanvasProps> = ({
   const openLogSpending = (id: string, name: string) => {
     setActiveComponent({ id, name });
     setIsSpendingOpen(true);
+  };
+
+  const handleSpendingDeleteClick = (componentId: string, logItem: SpendingItem) => {
+    setActiveSpendingComponentId(componentId);
+    setSpendingToDelete(logItem);
+    setDeleteSpendingConfirmOpen(true);
+  };
+
+  const confirmSpendingDelete = async () => {
+    if (!spendingToDelete || !activeSpendingComponentId) return;
+    setSpendingDeleteLoading(true);
+    try {
+      await fetchApi(`/components/${activeSpendingComponentId}/spendings/${spendingToDelete.id}`, {
+        method: "DELETE",
+      });
+      await refreshComponents();
+      setDeleteSpendingConfirmOpen(false);
+      setSpendingToDelete(null);
+    } catch (err) {
+      console.error("Failed to delete spending transaction:", err);
+      setErrorMessage("Failed to delete spending transaction. Please try again.");
+      setErrorModalOpen(true);
+    } finally {
+      setSpendingDeleteLoading(false);
+    }
   };
 
   // Visual calculations
@@ -217,6 +268,18 @@ export const EventBudgetCanvas: React.FC<EventBudgetCanvasProps> = ({
 
                       <button
                         type="button"
+                        onClick={() => {
+                          setComponentToEdit(item);
+                          setIsEditComponentOpen(true);
+                        }}
+                        className="text-zinc-500 hover:text-neon-cyan p-1.5 rounded-lg border border-transparent hover:border-neon-cyan/20 hover:bg-neon-cyan/5 transition-all cursor-pointer"
+                        aria-label="Edit component"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={() => handleDeleteClick(item.id)}
                         disabled={deletingId === item.id}
                         className="text-zinc-500 hover:text-red-400 p-1.5 rounded-lg border border-transparent hover:border-red-500/20 hover:bg-red-500/5 transition-all cursor-pointer"
@@ -265,7 +328,8 @@ export const EventBudgetCanvas: React.FC<EventBudgetCanvasProps> = ({
                               <tr className="border-b border-white/5 bg-white/2 text-[10px] font-heading text-zinc-400 uppercase tracking-wider">
                                 <th className="p-3 pl-4">Description</th>
                                 <th className="p-3">Date Paid</th>
-                                <th className="p-3 pr-4 text-right">Amount</th>
+                                <th className="p-3 text-right">Amount</th>
+                                <th className="p-3 pr-4 text-right">Actions</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -278,8 +342,32 @@ export const EventBudgetCanvas: React.FC<EventBudgetCanvasProps> = ({
                                       {formatDate(logItem.spentAt)}
                                     </div>
                                   </td>
-                                  <td className="p-3 pr-4 text-right font-mono font-bold text-white">
+                                  <td className="p-3 text-right font-mono font-bold text-white">
                                     {formatCurrency(logItem.amount)}
+                                  </td>
+                                  <td className="p-3 pr-4 text-right">
+                                    <div className="flex items-center justify-end gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setActiveSpendingComponentId(item.id);
+                                          setSpendingToEdit(logItem);
+                                          setIsEditSpendingOpen(true);
+                                        }}
+                                        className="text-zinc-500 hover:text-neon-cyan p-1 rounded hover:bg-white/5 transition-all cursor-pointer"
+                                        aria-label="Edit transaction"
+                                      >
+                                        <Edit className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleSpendingDeleteClick(item.id, logItem)}
+                                        className="text-zinc-500 hover:text-red-400 p-1 rounded hover:bg-white/5 transition-all cursor-pointer"
+                                        aria-label="Delete transaction"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
                                   </td>
                                 </tr>
                               ))}
@@ -405,6 +493,57 @@ export const EventBudgetCanvas: React.FC<EventBudgetCanvasProps> = ({
         eventId={eventId}
         onSuccess={refreshComponents}
       />
+
+      {/* Edit Component Modal popup */}
+      <EditComponentModal
+        isOpen={isEditComponentOpen}
+        onClose={() => {
+          setIsEditComponentOpen(false);
+          setComponentToEdit(null);
+        }}
+        eventId={eventId}
+        component={componentToEdit}
+        onSuccess={refreshComponents}
+      />
+
+      {/* Edit Spending Modal popup */}
+      <EditSpendingModal
+        isOpen={isEditSpendingOpen}
+        onClose={() => {
+          setIsEditSpendingOpen(false);
+          setSpendingToEdit(null);
+        }}
+        componentId={activeSpendingComponentId}
+        spending={spendingToEdit}
+        onSuccess={refreshComponents}
+      />
+
+      {/* Delete Spending Confirmation Modal */}
+      <Modal
+        isOpen={deleteSpendingConfirmOpen}
+        onClose={() => setDeleteSpendingConfirmOpen(false)}
+        title="Confirm Transaction Deletion"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setDeleteSpendingConfirmOpen(false)} disabled={spendingDeleteLoading}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={confirmSpendingDelete} disabled={spendingDeleteLoading}>
+              {spendingDeleteLoading ? "Deleting..." : "Delete Transaction"}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-zinc-300 leading-relaxed">
+            Are you sure you want to remove the expenditure of <strong className="text-white">{spendingToDelete ? formatCurrency(spendingToDelete.amount) : ""}</strong> for <span className="text-neon-cyan font-bold">"{spendingToDelete?.description}"</span>?
+          </p>
+          <p className="text-xs text-red-400 font-mono flex items-center gap-1.5 bg-red-500/5 border border-red-500/10 rounded-lg p-2.5">
+            <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+            Warning: This action is permanent and cannot be undone.
+          </p>
+        </div>
+      </Modal>
 
       {/* Log Spending Modal popup */}
       {activeComponent && (

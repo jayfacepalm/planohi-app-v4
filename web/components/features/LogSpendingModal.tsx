@@ -150,7 +150,7 @@ export const LogSpendingModal: React.FC<LogSpendingModalProps> = ({
 
         <div className="space-y-1.5">
           <label className="text-xs font-heading font-semibold text-zinc-400 uppercase tracking-wide block">
-            Date Spent
+            Date & Time Spent
           </label>
           <Controller
             control={control}
@@ -160,7 +160,7 @@ export const LogSpendingModal: React.FC<LogSpendingModalProps> = ({
                 selected={field.value}
                 onChange={field.onChange}
                 label=""
-                placeholder="Select date spent"
+                placeholder="Select date and time spent"
                 align="bottom"
               />
             )}

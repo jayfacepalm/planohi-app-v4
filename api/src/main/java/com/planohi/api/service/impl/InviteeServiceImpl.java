@@ -1,6 +1,7 @@
 package com.planohi.api.service.impl;
 
 import com.planohi.api.dto.CreateInviteeRequest;
+import com.planohi.api.dto.UpdateInviteeRequest;
 import com.planohi.api.dto.InviteeDto;
 import com.planohi.api.dto.InviteeMetricsDto;
 import com.planohi.api.dto.PublicRsvpDetailsDto;
@@ -185,5 +186,61 @@ public class InviteeServiceImpl implements InviteeService {
                 .status(invitee.getStatus())
                 .respondedAt(invitee.getRespondedAt())
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public InviteeDto updateInvitee(UUID userId, UUID eventId, UUID inviteeId, UpdateInviteeRequest request) {
+        log.info("Updating invitee {} for event {} by user {}", inviteeId, eventId, userId);
+
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new EntityNotFoundException("Event not found"));
+
+        if (!event.getUserId().equals(userId)) {
+            throw new IllegalArgumentException("Access Denied: You do not own this event workspace");
+        }
+
+        Invitee invitee = inviteeRepository.findById(inviteeId)
+                .orElseThrow(() -> new EntityNotFoundException("Invitee not found"));
+
+        if (!invitee.getEventId().equals(eventId)) {
+            throw new IllegalArgumentException("Invitee does not belong to this event");
+        }
+
+        if (request.getAllowedGuests() < invitee.getAttendingGuests()) {
+            throw new FieldValidationException("allowedGuests",
+                    "Allowed headcount limit cannot be lower than the already confirmed RSVP party size (" + invitee.getAttendingGuests() + ")");
+        }
+
+        invitee.setName(request.getName());
+        invitee.setAllowedGuests(request.getAllowedGuests());
+        inviteeRepository.saveAndFlush(invitee);
+
+        return mapToDto(invitee);
+    }
+
+    @Override
+    @Transactional
+    public InviteeDto deleteInvitee(UUID userId, UUID eventId, UUID inviteeId) {
+        log.info("Deleting invitee {} for event {} by user {}", inviteeId, eventId, userId);
+
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new EntityNotFoundException("Event not found"));
+
+        if (!event.getUserId().equals(userId)) {
+            throw new IllegalArgumentException("Access Denied: You do not own this event workspace");
+        }
+
+        Invitee invitee = inviteeRepository.findById(inviteeId)
+                .orElseThrow(() -> new EntityNotFoundException("Invitee not found"));
+
+        if (!invitee.getEventId().equals(eventId)) {
+            throw new IllegalArgumentException("Invitee does not belong to this event");
+        }
+
+        inviteeRepository.delete(invitee);
+        inviteeRepository.flush();
+
+        return mapToDto(invitee);
     }
 }

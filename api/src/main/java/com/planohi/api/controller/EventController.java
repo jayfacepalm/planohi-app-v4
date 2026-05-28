@@ -4,6 +4,7 @@ import com.planohi.api.config.UserPrincipal;
 import com.planohi.api.dto.ApiResponse;
 import com.planohi.api.dto.BudgetSummaryResponse;
 import com.planohi.api.dto.CreateEventRequest;
+import com.planohi.api.dto.UpdateEventRequest;
 import com.planohi.api.dto.EventDto;
 import com.planohi.api.service.cached.EventComponentCachedService;
 import com.planohi.api.service.cached.EventCachedService;
@@ -18,10 +19,12 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -94,5 +97,27 @@ public class EventController {
         log.info("Request received to get budget summary for event {} by user {}", eventId, userPrincipal.getId());
         BudgetSummaryResponse summary = eventComponentService.getBudgetSummary(userPrincipal.getId(), eventId);
         return ResponseEntity.ok(ApiResponse.success(summary));
+    }
+
+    @PutMapping(value = "/{eventId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<EventDto>> updateEvent(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PathVariable("eventId") UUID eventId,
+            @Valid @ModelAttribute UpdateEventRequest request,
+            @RequestParam(value = "banner", required = false) MultipartFile banner) {
+
+        log.info("Request received to update event {} by user {}", eventId, userPrincipal.getId());
+        EventDto updated = eventService.updateEvent(userPrincipal.getId(), eventId, request, banner);
+        return ResponseEntity.ok(ApiResponse.success("Event updated successfully", updated));
+    }
+
+    @DeleteMapping("/{eventId}")
+    public ResponseEntity<ApiResponse<Void>> deleteEvent(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PathVariable("eventId") UUID eventId) {
+
+        log.info("Request received to delete event {} by user {}", eventId, userPrincipal.getId());
+        eventService.deleteEvent(userPrincipal.getId(), eventId);
+        return ResponseEntity.ok(ApiResponse.success("Event deleted successfully", null));
     }
 }

@@ -2,6 +2,7 @@ package com.planohi.api.service.impl;
 
 import com.planohi.api.dto.CreateSpendingRequest;
 import com.planohi.api.dto.EventSpendingDto;
+import com.planohi.api.dto.UpdateSpendingRequest;
 import com.planohi.api.entity.Event;
 import com.planohi.api.entity.EventComponent;
 import com.planohi.api.entity.EventSpending;
@@ -46,6 +47,10 @@ public class EventSpendingServiceImpl implements EventSpendingService {
             throw new FieldValidationException("amount", "Spending amount must be a positive number greater than 0");
         }
 
+        if (request.getSpentAt().isBefore(event.getStartDate()) || request.getSpentAt().isAfter(event.getEndDate())) {
+            throw new FieldValidationException("spentAt", "Spending date must be within the event's start and end date boundaries");
+        }
+
         EventSpending spending = EventSpending.builder()
                 .componentId(componentId)
                 .description(request.getDescription())
@@ -57,6 +62,75 @@ public class EventSpendingServiceImpl implements EventSpendingService {
         log.info("Spending recorded successfully with ID: {}", saved.getId());
 
         return mapToDto(saved, event.getId());
+    }
+
+    @Override
+    @Transactional
+    public EventSpendingDto updateSpending(UUID userId, UUID componentId, UUID spendingId, UpdateSpendingRequest request) {
+        log.info("Updating spending {} for component {} by user {}", spendingId, componentId, userId);
+
+        EventSpending spending = eventSpendingRepository.findById(spendingId)
+                .orElseThrow(() -> new EntityNotFoundException("Spending not found"));
+
+        if (!spending.getComponentId().equals(componentId)) {
+            throw new IllegalArgumentException("Spending does not belong to this component");
+        }
+
+        EventComponent component = eventComponentRepository.findById(componentId)
+                .orElseThrow(() -> new EntityNotFoundException("Component not found"));
+
+        Event event = eventRepository.findById(component.getEventId())
+                .orElseThrow(() -> new EntityNotFoundException("Event not found"));
+
+        if (!event.getUserId().equals(userId)) {
+            throw new IllegalArgumentException("Access Denied: You do not own this event workspace");
+        }
+
+        if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new FieldValidationException("amount", "Spending amount must be a positive number greater than 0");
+        }
+
+        if (request.getSpentAt().isBefore(event.getStartDate()) || request.getSpentAt().isAfter(event.getEndDate())) {
+            throw new FieldValidationException("spentAt", "Spending date must be within the event's start and end date boundaries");
+        }
+
+        spending.setDescription(request.getDescription());
+        spending.setAmount(request.getAmount());
+        spending.setSpentAt(request.getSpentAt());
+
+        EventSpending saved = eventSpendingRepository.save(spending);
+        log.info("Spending updated successfully with ID: {}", saved.getId());
+
+        return mapToDto(saved, event.getId());
+    }
+
+    @Override
+    @Transactional
+    public EventSpendingDto deleteSpending(UUID userId, UUID componentId, UUID spendingId) {
+        log.info("Deleting spending {} from component {} by user {}", spendingId, componentId, userId);
+
+        EventSpending spending = eventSpendingRepository.findById(spendingId)
+                .orElseThrow(() -> new EntityNotFoundException("Spending not found"));
+
+        if (!spending.getComponentId().equals(componentId)) {
+            throw new IllegalArgumentException("Spending does not belong to this component");
+        }
+
+        EventComponent component = eventComponentRepository.findById(componentId)
+                .orElseThrow(() -> new EntityNotFoundException("Component not found"));
+
+        Event event = eventRepository.findById(component.getEventId())
+                .orElseThrow(() -> new EntityNotFoundException("Event not found"));
+
+        if (!event.getUserId().equals(userId)) {
+            throw new IllegalArgumentException("Access Denied: You do not own this event workspace");
+        }
+
+        EventSpendingDto dto = mapToDto(spending, event.getId());
+        eventSpendingRepository.delete(spending);
+        log.info("Spending deleted successfully with ID: {}", spendingId);
+
+        return dto;
     }
 
     private EventSpendingDto mapToDto(EventSpending spending, UUID eventId) {

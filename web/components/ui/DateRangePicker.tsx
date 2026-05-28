@@ -4,6 +4,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface DateRangePickerProps {
+  initialFrom?: Date | null;
+  initialTo?: Date | null;
   onRangeChange?: (from: Date | null, to: Date | null) => void;
   className?: string;
   fromLabel?: string;
@@ -14,6 +16,8 @@ interface DateRangePickerProps {
 }
 
 export const DateRangePicker: React.FC<DateRangePickerProps> = ({
+  initialFrom,
+  initialTo,
   onRangeChange,
   className = "",
   fromLabel = "From",
@@ -23,13 +27,50 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
   maxDate
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [fromDate, setFromDate] = useState<Date | null>(null);
-  const [toDate, setToDate] = useState<Date | null>(null);
+  const [fromDate, setFromDate] = useState<Date | null>(initialFrom || null);
+  const [toDate, setToDate] = useState<Date | null>(initialTo || null);
   const [hoveredDate, setHoveredDate] = useState<Date | null>(null);
+  const [mounted, setMounted] = useState(false);
 
-  // Current calendar month view tracking (defaults to today's month)
-  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
-  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
+  // Time States
+  const [fromHour, setFromHour] = useState(initialFrom ? initialFrom.getHours() : 0);
+  const [fromMinute, setFromMinute] = useState(initialFrom ? initialFrom.getMinutes() : 0);
+  const [toHour, setToHour] = useState(initialTo ? initialTo.getHours() : 23);
+  const [toMinute, setToMinute] = useState(initialTo ? initialTo.getMinutes() : 59);
+
+  const [prevInitialFrom, setPrevInitialFrom] = useState<Date | null | undefined>(initialFrom);
+  const [prevInitialTo, setPrevInitialTo] = useState<Date | null | undefined>(initialTo);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Sync state with props during render phase to avoid effect-based cascades
+  if (initialFrom !== prevInitialFrom || initialTo !== prevInitialTo) {
+    setPrevInitialFrom(initialFrom);
+    setPrevInitialTo(initialTo);
+    setFromDate(initialFrom || null);
+    setToDate(initialTo || null);
+    if (initialFrom) {
+      setFromHour(initialFrom.getHours());
+      setFromMinute(initialFrom.getMinutes());
+    } else {
+      setFromHour(0);
+      setFromMinute(0);
+    }
+    if (initialTo) {
+      setToHour(initialTo.getHours());
+      setToMinute(initialTo.getMinutes());
+    } else {
+      setToHour(23);
+      setToMinute(59);
+    }
+  }
+
+  // Current calendar month view tracking (defaults to today's month or fromDate)
+  const baseDate = fromDate || new Date();
+  const [currentYear, setCurrentYear] = useState(baseDate.getFullYear());
+  const [currentMonth, setCurrentMonth] = useState(baseDate.getMonth());
 
   const pickerRef = useRef<HTMLDivElement>(null);
 
@@ -62,10 +103,14 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
 
   const formatDateLabel = (date: Date | null, placeholder: string) => {
     if (!date) return placeholder;
+    if (!mounted) return placeholder; // Prevent Next.js hydration mismatch
     return date.toLocaleDateString("en-US", {
-      weekday: "short",
       month: "short",
-      day: "numeric"
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
     });
   };
 
@@ -82,21 +127,66 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
     return false;
   };
 
+  const updateDateTime = (dateVal: Date | null, hr: number, min: number) => {
+    if (!dateVal) return null;
+    const d = new Date(dateVal);
+    d.setHours(hr, min, 0, 0);
+    return d;
+  };
+
   const handleDayClick = (date: Date) => {
     if (isDateDisabled(date)) return;
     if (!fromDate || (fromDate && toDate)) {
-      setFromDate(date);
+      const newFrom = updateDateTime(date, fromHour, fromMinute);
+      setFromDate(newFrom);
       setToDate(null);
-      if (onRangeChange) onRangeChange(date, null);
+      if (onRangeChange) onRangeChange(newFrom, null);
     } else if (fromDate && !toDate) {
       if (date < fromDate) {
-        setFromDate(date);
-        if (onRangeChange) onRangeChange(date, null);
+        const newFrom = updateDateTime(date, fromHour, fromMinute);
+        setFromDate(newFrom);
+        if (onRangeChange) onRangeChange(newFrom, null);
       } else {
-        setToDate(date);
-        setIsOpen(false);
-        if (onRangeChange) onRangeChange(fromDate, date);
+        const newTo = updateDateTime(date, toHour, toMinute);
+        setToDate(newTo);
+        if (onRangeChange) onRangeChange(fromDate, newTo);
       }
+    }
+  };
+
+  const handleFromHourChange = (hr: number) => {
+    setFromHour(hr);
+    if (fromDate) {
+      const newFrom = updateDateTime(fromDate, hr, fromMinute);
+      setFromDate(newFrom);
+      if (onRangeChange) onRangeChange(newFrom, toDate);
+    }
+  };
+
+  const handleFromMinuteChange = (min: number) => {
+    setFromMinute(min);
+    if (fromDate) {
+      const newFrom = updateDateTime(fromDate, fromHour, min);
+      setFromDate(newFrom);
+      if (onRangeChange) onRangeChange(newFrom, toDate);
+    }
+  };
+
+  const handleToHourChange = (hr: number) => {
+    setToHour(hr);
+    if (toDate) {
+      const newTo = updateDateTime(toDate, hr, toMinute);
+      setToDate(newTo);
+      if (onRangeChange) onRangeChange(fromDate, newTo);
+    }
+  };
+
+  const handleToMinuteChange = (min: number) => {
+    setToMinute(min);
+    if (toDate) {
+      const newTo = updateDateTime(toDate, toHour, min);
+      setToDate(newTo);
+      if (onRangeChange) onRangeChange(fromDate, newTo);
     }
   };
 
@@ -306,7 +396,6 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
                     className={btnStyles}
                   >
                     {day.getDate()}
-                    {/* Add small dots for indicators if needed */}
                     {isFrom && !toDate && !isDisabled && (
                       <span className="absolute bottom-1 w-1 h-1 bg-neon-cyan rounded-full animate-ping" />
                     )}
@@ -316,24 +405,99 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
             })}
           </div>
 
+          {/* Time Selector Section */}
+          <div className="border-t border-white/5 mt-4 pt-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-zinc-400 font-heading">Start Time</span>
+              <div className="flex items-center gap-1.5 font-mono text-xs text-white">
+                <select
+                  value={fromHour}
+                  onChange={(e) => handleFromHourChange(Number(e.target.value))}
+                  disabled={!fromDate}
+                  className="bg-[#070708] border border-white/10 rounded px-2 py-1 focus:outline-none focus:border-neon-cyan text-white text-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {Array.from({ length: 24 }).map((_, h) => (
+                    <option key={h} value={h}>
+                      {String(h).padStart(2, "0")}
+                    </option>
+                  ))}
+                </select>
+                <span>:</span>
+                <select
+                  value={fromMinute}
+                  onChange={(e) => handleFromMinuteChange(Number(e.target.value))}
+                  disabled={!fromDate}
+                  className="bg-[#070708] border border-white/10 rounded px-2 py-1 focus:outline-none focus:border-neon-cyan text-white text-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {Array.from({ length: 60 }).map((_, m) => (
+                    <option key={m} value={m}>
+                      {String(m).padStart(2, "0")}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-zinc-400 font-heading">End Time</span>
+              <div className="flex items-center gap-1.5 font-mono text-xs text-white">
+                <select
+                  value={toHour}
+                  onChange={(e) => handleToHourChange(Number(e.target.value))}
+                  disabled={!toDate}
+                  className="bg-[#070708] border border-white/10 rounded px-2 py-1 focus:outline-none focus:border-neon-cyan text-white text-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {Array.from({ length: 24 }).map((_, h) => (
+                    <option key={h} value={h}>
+                      {String(h).padStart(2, "0")}
+                    </option>
+                  ))}
+                </select>
+                <span>:</span>
+                <select
+                  value={toMinute}
+                  onChange={(e) => handleToMinuteChange(Number(e.target.value))}
+                  disabled={!toDate}
+                  className="bg-[#070708] border border-white/10 rounded px-2 py-1 focus:outline-none focus:border-neon-cyan text-white text-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {Array.from({ length: 60 }).map((_, m) => (
+                    <option key={m} value={m}>
+                      {String(m).padStart(2, "0")}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
           {/* Footer Controls */}
-          <div className="border-t border-white/5 mt-4 pt-3 flex items-center justify-between text-xs text-zinc-400">
-            <span>
-              {fromDate && !toDate ? "Choose check-out date" : "Select date range"}
-            </span>
-            {(fromDate || toDate) && (
+          <div className="border-t border-white/5 mt-4 pt-3 flex items-center justify-between text-xs">
+            {(fromDate || toDate) ? (
               <button
                 type="button"
                 onClick={() => {
                   setFromDate(null);
                   setToDate(null);
+                  setFromHour(0);
+                  setFromMinute(0);
+                  setToHour(23);
+                  setToMinute(59);
                   if (onRangeChange) onRangeChange(null, null);
                 }}
-                className="text-neon-cyan hover:underline cursor-pointer"
+                className="text-red-400 hover:underline cursor-pointer"
               >
                 Clear
               </button>
+            ) : (
+              <span className="text-zinc-500">Choose dates and times</span>
             )}
+            <button
+              type="button"
+              onClick={() => setIsOpen(false)}
+              className="text-neon-cyan hover:underline cursor-pointer font-medium"
+            >
+              Done
+            </button>
           </div>
 
         </div>

@@ -6,7 +6,10 @@ import { Button } from "../ui/Button";
 import { GlowCard } from "../ui/GlowCard";
 import { Badge } from "../ui/Badge";
 import { AddInviteeModal } from "./AddInviteeModal";
-import { Search, UserPlus, Link2, Check, AlertTriangle, Users, CheckSquare, XOctagon, HelpCircle } from "lucide-react";
+import { EditInviteeModal } from "./EditInviteeModal";
+import { Modal } from "../ui/Modal";
+import { Search, UserPlus, Link2, Check, AlertTriangle, Users, CheckSquare, XOctagon, HelpCircle, Edit, Trash2 } from "lucide-react";
+import { fetchApi } from "../../lib/api-client";
 
 interface InviteeDto {
   id: string;
@@ -50,6 +53,43 @@ export const EventGuestCanvas: React.FC<EventGuestCanvasProps> = ({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [searchVal, setSearchVal] = useState(currentSearch);
   const [debouncedSearch, setDebouncedSearch] = useState(currentSearch);
+  const [mounted, setMounted] = useState(false);
+
+  // Edit Invitee States
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [inviteeToEdit, setInviteeToEdit] = useState<InviteeDto | null>(null);
+
+  // Delete Invitee States
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [inviteeToDelete, setInviteeToDelete] = useState<InviteeDto | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Error Modal States
+  const [errorModalOpen, setErrorModalOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const confirmDelete = async () => {
+    if (!inviteeToDelete) return;
+    setDeleteLoading(true);
+    try {
+      await fetchApi(`/events/${eventId}/invitees/${inviteeToDelete.id}`, {
+        method: "DELETE",
+      });
+      setDeleteConfirmOpen(false);
+      setInviteeToDelete(null);
+      router.refresh();
+    } catch (err: any) {
+      setDeleteConfirmOpen(false);
+      setErrorMessage(err.message || "Failed to remove guest from invite list");
+      setErrorModalOpen(true);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
 
   // Debounce search input
   useEffect(() => {
@@ -101,11 +141,14 @@ export const EventGuestCanvas: React.FC<EventGuestCanvasProps> = ({
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "";
+    if (!mounted) return "";
     return new Date(dateString).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
+      year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+      hour12: false
     });
   };
 
@@ -243,7 +286,7 @@ export const EventGuestCanvas: React.FC<EventGuestCanvasProps> = ({
                     <th className="p-4 text-center">Allowed limit</th>
                     <th className="p-4 text-center">attending</th>
                     <th className="p-4">Responded at</th>
-                    <th className="p-4 pr-6 text-right">Invitation Link</th>
+                    <th className="p-4 pr-6 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -276,27 +319,53 @@ export const EventGuestCanvas: React.FC<EventGuestCanvasProps> = ({
                         {guest.respondedAt ? formatDate(guest.respondedAt) : "--"}
                       </td>
                       <td className="p-4 pr-6 text-right">
-                        <button
-                          type="button"
-                          onClick={() => handleCopyLink(guest.id, guest.token)}
-                          className={`inline-flex items-center gap-1 text-[10px] font-heading uppercase tracking-wider py-1.5 px-2.5 rounded border transition-all cursor-pointer ${
-                            copiedId === guest.id
-                              ? "bg-green-500/10 border-green-500/20 text-green-400"
-                              : "bg-[#121214] border-white/5 text-zinc-400 hover:text-white hover:border-white/10"
-                          }`}
-                        >
-                          {copiedId === guest.id ? (
-                            <>
-                              <Check className="w-3 h-3" />
-                              Copied!
-                            </>
-                          ) : (
-                            <>
-                              <Link2 className="w-3 h-3" />
-                              Copy Link
-                            </>
-                          )}
-                        </button>
+                        <div className="flex justify-end items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleCopyLink(guest.id, guest.token)}
+                            className={`inline-flex items-center gap-1 text-[10px] font-heading uppercase tracking-wider py-1.5 px-2.5 rounded border transition-all cursor-pointer ${
+                              copiedId === guest.id
+                                ? "bg-green-500/10 border-green-500/20 text-green-400"
+                                : "bg-[#121214] border-white/5 text-zinc-400 hover:text-white hover:border-white/10"
+                            }`}
+                          >
+                            {copiedId === guest.id ? (
+                              <>
+                                <Check className="w-3 h-3" />
+                                Copied!
+                              </>
+                            ) : (
+                              <>
+                                <Link2 className="w-3 h-3" />
+                                Copy Link
+                              </>
+                            )}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setInviteeToEdit(guest);
+                              setIsEditOpen(true);
+                            }}
+                            className="p-1.5 rounded border border-white/5 bg-[#121214] text-zinc-400 hover:text-white hover:border-white/10 transition-colors cursor-pointer"
+                            aria-label="Edit guest details"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setInviteeToDelete(guest);
+                              setDeleteConfirmOpen(true);
+                            }}
+                            className="p-1.5 rounded border border-red-500/10 bg-[#121214] text-red-400 hover:text-red-300 hover:bg-red-500/5 transition-colors cursor-pointer"
+                            aria-label="Remove guest record"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -347,6 +416,61 @@ export const EventGuestCanvas: React.FC<EventGuestCanvasProps> = ({
         eventId={eventId}
         onSuccess={handleSuccess}
       />
+
+      {/* Edit Guest modal popup */}
+      <EditInviteeModal
+        isOpen={isEditOpen}
+        onClose={() => {
+          setIsEditOpen(false);
+          setInviteeToEdit(null);
+        }}
+        eventId={eventId}
+        invitee={inviteeToEdit}
+        onSuccess={handleSuccess}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        title="Confirm Guest Deletion"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setDeleteConfirmOpen(false)} disabled={deleteLoading}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={confirmDelete} disabled={deleteLoading}>
+              {deleteLoading ? "Deleting..." : "Delete Guest"}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-zinc-300 leading-relaxed">
+            Are you sure you want to remove the guest record for <span className="text-neon-cyan font-bold">"{inviteeToDelete?.name}"</span>? This will invalidate their RSVP token and invitation link.
+          </p>
+          <p className="text-xs text-red-400 font-mono flex items-center gap-1.5 bg-red-500/5 border border-red-500/10 rounded-lg p-2.5">
+            <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+            Warning: This action is permanent and cannot be undone.
+          </p>
+        </div>
+      </Modal>
+
+      {/* Error Alert Modal */}
+      <Modal
+        isOpen={errorModalOpen}
+        onClose={() => setErrorModalOpen(false)}
+        title="Action Failed"
+        footer={
+          <Button variant="primary" onClick={() => setErrorModalOpen(false)}>
+            Close
+          </Button>
+        }
+      >
+        <p className="text-sm text-zinc-300">
+          {errorMessage}
+        </p>
+      </Modal>
     </div>
   );
 };

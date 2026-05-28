@@ -3,6 +3,7 @@ package com.planohi.api.controller;
 import com.planohi.api.config.UserPrincipal;
 import com.planohi.api.dto.ApiResponse;
 import com.planohi.api.dto.CreateInviteeRequest;
+import com.planohi.api.dto.UpdateInviteeRequest;
 import com.planohi.api.dto.InviteeDto;
 import com.planohi.api.dto.InviteeMetricsDto;
 import com.planohi.api.service.InviteeService;
@@ -15,9 +16,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -72,5 +75,28 @@ public class InviteeController {
         log.info("REST request to get invitee metrics for event {}", eventId);
         InviteeMetricsDto metrics = inviteeCachedService.getMetrics(userPrincipal.getId(), eventId);
         return ResponseEntity.ok(ApiResponse.success("Invitee metrics fetched successfully", metrics));
+    }
+
+    @PutMapping("/{eventId}/invitees/{inviteeId}")
+    public ResponseEntity<ApiResponse<InviteeDto>> updateInvitee(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PathVariable UUID eventId,
+            @PathVariable UUID inviteeId,
+            @RequestBody @Valid UpdateInviteeRequest request
+    ) {
+        log.info("REST request to update invitee {} for event {}", inviteeId, eventId);
+        InviteeDto updated = inviteeCachedService.updateInvitee(userPrincipal.getId(), eventId, inviteeId, request);
+        return ResponseEntity.ok(ApiResponse.success("Guest updated successfully", updated));
+    }
+
+    @DeleteMapping("/{eventId}/invitees/{inviteeId}")
+    public ResponseEntity<ApiResponse<Void>> deleteInvitee(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PathVariable UUID eventId,
+            @PathVariable UUID inviteeId
+    ) {
+        log.info("REST request to delete invitee {} for event {}", inviteeId, eventId);
+        inviteeCachedService.deleteInvitee(userPrincipal.getId(), eventId, inviteeId);
+        return ResponseEntity.ok(ApiResponse.success("Guest removed successfully", null));
     }
 }

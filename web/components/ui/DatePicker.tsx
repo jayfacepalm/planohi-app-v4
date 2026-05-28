@@ -27,11 +27,27 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [internalDate, setInternalDate] = useState<Date | null>(selected || null);
   const [prevSelected, setPrevSelected] = useState<Date | null | undefined>(selected);
+  const [mounted, setMounted] = useState(false);
+
+  // Time States
+  const [selectedHour, setSelectedHour] = useState(selected ? selected.getHours() : 0);
+  const [selectedMinute, setSelectedMinute] = useState(selected ? selected.getMinutes() : 0);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Sync state with props during render phase to avoid effect-based cascades
   if (selected !== prevSelected) {
     setPrevSelected(selected);
     setInternalDate(selected || null);
+    if (selected) {
+      setSelectedHour(selected.getHours());
+      setSelectedMinute(selected.getMinutes());
+    } else {
+      setSelectedHour(0);
+      setSelectedMinute(0);
+    }
   }
 
   // Current calendar month view tracking (defaults to selected date or today's month)
@@ -70,11 +86,14 @@ export const DatePicker: React.FC<DatePickerProps> = ({
 
   const formatDateLabel = (date: Date | null, ph: string) => {
     if (!date) return ph;
+    if (!mounted) return ph; // Prevent Next.js hydration mismatch
     return date.toLocaleDateString("en-US", {
-      weekday: "short",
       month: "short",
       day: "numeric",
-      year: "numeric"
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
     });
   };
 
@@ -91,14 +110,38 @@ export const DatePicker: React.FC<DatePickerProps> = ({
     return false;
   };
 
+  const updateDateTime = (baseDate: Date | null, hr: number, min: number) => {
+    if (!baseDate) return null;
+    const d = new Date(baseDate);
+    d.setHours(hr, min, 0, 0);
+    return d;
+  };
+
   const handleDayClick = (date: Date) => {
     if (isDateDisabled(date)) return;
-    setInternalDate(date);
-    setIsOpen(false);
-    if (onChange) onChange(date);
+    const newDate = updateDateTime(date, selectedHour, selectedMinute);
+    setInternalDate(newDate);
+    if (onChange && newDate) onChange(newDate);
   };
-  
-  // The rest of your state helpers will continue here...
+
+  const handleHourChange = (hr: number) => {
+    setSelectedHour(hr);
+    if (internalDate) {
+      const newDate = updateDateTime(internalDate, hr, selectedMinute);
+      setInternalDate(newDate);
+      if (onChange && newDate) onChange(newDate);
+    }
+  };
+
+  const handleMinuteChange = (min: number) => {
+    setSelectedMinute(min);
+    if (internalDate) {
+      const newDate = updateDateTime(internalDate, selectedHour, min);
+      setInternalDate(newDate);
+      if (onChange && newDate) onChange(newDate);
+    }
+  };
+
   const changeMonth = (offset: number) => {
     let nextMonth = currentMonth + offset;
     let nextYear = currentYear;
@@ -169,9 +212,11 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         className="w-full text-left flex items-center justify-between bg-[#121214] border border-white/10 hover:border-neon-cyan/40 rounded-xl px-4 py-3 cursor-pointer select-none transition-all shadow-[0_4px_20px_rgba(0,0,0,0.3)] focus:outline-none focus:border-neon-cyan/80 focus:shadow-[0_0_15px_rgba(6,182,212,0.2)]"
       >
         <div className="flex-1">
-          <span className="text-[10px] text-zinc-500 font-heading block uppercase tracking-wider mb-0.5">
-            {label}
-          </span>
+          {label && (
+            <span className="text-[10px] text-zinc-500 font-heading block uppercase tracking-wider mb-0.5">
+              {label}
+            </span>
+          )}
           <span className="text-sm font-sans font-medium text-white">
             {formatDateLabel(internalDate, placeholder)}
           </span>
@@ -269,21 +314,61 @@ export const DatePicker: React.FC<DatePickerProps> = ({
             })}
           </div>
 
+          {/* Time Selector Section */}
+          <div className="border-t border-white/5 mt-4 pt-3 flex items-center justify-between">
+            <span className="text-xs text-zinc-400 font-heading">Set Time</span>
+            <div className="flex items-center gap-1.5 font-mono text-xs text-white">
+              <select
+                value={selectedHour}
+                onChange={(e) => handleHourChange(Number(e.target.value))}
+                className="bg-[#070708] border border-white/10 rounded px-2 py-1 focus:outline-none focus:border-neon-cyan text-white text-xs cursor-pointer"
+              >
+                {Array.from({ length: 24 }).map((_, h) => (
+                  <option key={h} value={h}>
+                    {String(h).padStart(2, "0")}
+                  </option>
+                ))}
+              </select>
+              <span>:</span>
+              <select
+                value={selectedMinute}
+                onChange={(e) => handleMinuteChange(Number(e.target.value))}
+                className="bg-[#070708] border border-white/10 rounded px-2 py-1 focus:outline-none focus:border-neon-cyan text-white text-xs cursor-pointer"
+              >
+                {Array.from({ length: 60 }).map((_, m) => (
+                  <option key={m} value={m}>
+                    {String(m).padStart(2, "0")}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           {/* Footer Controls */}
-          <div className="border-t border-white/5 mt-4 pt-3 flex items-center justify-between text-xs text-zinc-400">
-            <span>Select single target date</span>
-            {internalDate && (
+          <div className="border-t border-white/5 mt-4 pt-3 flex items-center justify-between text-xs">
+            {internalDate ? (
               <button
                 type="button"
                 onClick={() => {
                   setInternalDate(null);
+                  setSelectedHour(0);
+                  setSelectedMinute(0);
                   if (onChange) onChange(null);
                 }}
-                className="text-neon-cyan hover:underline cursor-pointer"
+                className="text-red-400 hover:underline cursor-pointer"
               >
                 Clear
               </button>
+            ) : (
+              <span className="text-zinc-500">Choose date and time</span>
             )}
+            <button
+              type="button"
+              onClick={() => setIsOpen(false)}
+              className="text-neon-cyan hover:underline cursor-pointer font-medium"
+            >
+              Done
+            </button>
           </div>
 
         </div>

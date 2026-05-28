@@ -142,6 +142,7 @@ export const RsvpClient: React.FC<RsvpClientProps> = ({ initialDetails, token })
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+      hour12: false
     });
   };
 

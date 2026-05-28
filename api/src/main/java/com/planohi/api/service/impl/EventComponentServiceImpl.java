@@ -5,6 +5,7 @@ import com.planohi.api.dto.CreateComponentRequest;
 import com.planohi.api.dto.EventComponentDto;
 import com.planohi.api.dto.EventComponentsResponse;
 import com.planohi.api.dto.EventSpendingDto;
+import com.planohi.api.dto.UpdateComponentRequest;
 import com.planohi.api.entity.Event;
 import com.planohi.api.entity.EventComponent;
 import com.planohi.api.entity.EventSpending;
@@ -53,6 +54,33 @@ public class EventComponentServiceImpl implements EventComponentService {
 
         EventComponent saved = eventComponentRepository.save(component);
         log.info("Component successfully saved with ID {}", saved.getId());
+        return mapToDto(saved);
+    }
+
+    @Override
+    @Transactional
+    public EventComponentDto updateComponent(UUID userId, UUID eventId, UUID componentId, UpdateComponentRequest request) {
+        log.info("Updating component {} for event {} by user {}", componentId, eventId, userId);
+        
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new EntityNotFoundException("Event not found"));
+
+        if (!event.getUserId().equals(userId)) {
+            throw new IllegalArgumentException("Access Denied: You do not own this event workspace");
+        }
+
+        EventComponent component = eventComponentRepository.findById(componentId)
+                .orElseThrow(() -> new EntityNotFoundException("Component not found"));
+
+        if (!component.getEventId().equals(eventId)) {
+            throw new IllegalArgumentException("Component does not belong to this event");
+        }
+
+        component.setName(request.getName());
+        component.setEstimatedCost(request.getEstimatedCost());
+
+        EventComponent saved = eventComponentRepository.save(component);
+        log.info("Component successfully updated with ID {}", saved.getId());
         return mapToDto(saved);
     }
 

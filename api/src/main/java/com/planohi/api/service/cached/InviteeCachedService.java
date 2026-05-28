@@ -1,6 +1,7 @@
 package com.planohi.api.service.cached;
 
 import com.planohi.api.dto.CreateInviteeRequest;
+import com.planohi.api.dto.UpdateInviteeRequest;
 import com.planohi.api.dto.InviteeDto;
 import com.planohi.api.dto.InviteeMetricsDto;
 import com.planohi.api.dto.PublicRsvpDetailsDto;
@@ -57,5 +58,25 @@ public class InviteeCachedService implements InviteeService {
     })
     public UUID submitRsvpResponse(String token, SubmitRsvpRequest request) {
         return inviteeService.submitRsvpResponse(token, request);
+    }
+
+    @Override
+    @Caching(evict = {
+        @CacheEvict(value = "public_rsvp", key = "#result.token"),
+        @CacheEvict(value = "event_invitees", allEntries = true),
+        @CacheEvict(value = "event_metrics", key = "#eventId")
+    })
+    public InviteeDto updateInvitee(UUID userId, UUID eventId, UUID inviteeId, UpdateInviteeRequest request) {
+        return inviteeService.updateInvitee(userId, eventId, inviteeId, request);
+    }
+
+    @Override
+    @Caching(evict = {
+        @CacheEvict(value = "public_rsvp", key = "#result.token"),
+        @CacheEvict(value = "event_invitees", allEntries = true),
+        @CacheEvict(value = "event_metrics", key = "#eventId")
+    })
+    public InviteeDto deleteInvitee(UUID userId, UUID eventId, UUID inviteeId) {
+        return inviteeService.deleteInvitee(userId, eventId, inviteeId);
     }
 }

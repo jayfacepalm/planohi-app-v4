@@ -4,8 +4,10 @@ import { EventBudgetCanvas } from "../../../components/features/EventBudgetCanva
 import { EventTimelineCanvas } from "../../../components/features/EventTimelineCanvas";
 import { EventGuestCanvas } from "../../../components/features/EventGuestCanvas";
 import { Badge } from "../../../components/ui/Badge";
+import { EventWorkspaceHeaderActions } from "../../../components/features/EventWorkspaceHeaderActions";
+import { LocalEventDates } from "../../../components/ui/LocalEventDates";
 import Link from "next/link";
-import { Calendar, ChevronLeft } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import React from "react";
 import { Metadata } from "next";
 
@@ -149,14 +151,7 @@ export default async function EventDetailPage({ params, searchParams }: PageProp
             <Badge variant="cyan" className="text-[10px] uppercase py-0.5 px-2.5">
               Active Workspace
             </Badge>
-            <span className="text-[11px] text-neon-cyan font-mono font-medium tracking-wide flex items-center gap-1">
-              <Calendar className="w-3.5 h-3.5" />
-              {isSingleDay() ? (
-                formatDate(event.startDate)
-              ) : (
-                `${formatDate(event.startDate)} - ${formatDate(event.endDate)}`
-              )}
-            </span>
+            <LocalEventDates startDate={event.startDate} endDate={event.endDate} />
           </div>
           <h1 className="text-3xl md:text-4xl font-heading font-extrabold text-white tracking-wide leading-tight">
             {event.title}
@@ -171,6 +166,7 @@ export default async function EventDetailPage({ params, searchParams }: PageProp
             </p>
           )}
         </div>
+        <EventWorkspaceHeaderActions event={event} />
       </div>
 
       {/* Navigation Tabs */}

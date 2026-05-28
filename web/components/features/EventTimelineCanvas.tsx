@@ -41,13 +41,21 @@ export const EventTimelineCanvas: React.FC<EventTimelineCanvasProps> = ({
   const [togglingIds, setTogglingIds] = useState<Record<string, boolean>>({});
   const activeTogglesCount = useRef(0);
 
+  const [mounted, setMounted] = useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const formatDueAt = (dateString: string) => {
+    if (!mounted) return "";
     return new Date(dateString).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+      hour12: false
     });
   };
 

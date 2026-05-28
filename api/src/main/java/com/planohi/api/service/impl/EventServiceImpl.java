@@ -1,12 +1,18 @@
 package com.planohi.api.service.impl;
 
 import com.planohi.api.dto.CreateEventRequest;
+import com.planohi.api.dto.UpdateEventRequest;
 import com.planohi.api.dto.EventDto;
 import com.planohi.api.entity.Event;
+import com.planohi.api.entity.EventSpending;
 import com.planohi.api.entity.Invitee;
+import com.planohi.api.entity.TimelineItem;
 import com.planohi.api.exception.EntityNotFoundException;
+import com.planohi.api.exception.FieldValidationException;
 import com.planohi.api.repository.EventRepository;
+import com.planohi.api.repository.EventSpendingRepository;
 import com.planohi.api.repository.InviteeRepository;
+import com.planohi.api.repository.TimelineItemRepository;
 import com.planohi.api.repository.UserAccountRepository;
 import com.planohi.api.service.EventService;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +42,8 @@ public class EventServiceImpl implements EventService {
     private final EventRepository eventRepository;
     private final UserAccountRepository userAccountRepository;
     private final InviteeRepository inviteeRepository;
+    private final TimelineItemRepository timelineItemRepository;
+    private final EventSpendingRepository eventSpendingRepository;
 
     private static final String UPLOAD_DIR = "/app/uploads/banners";
     private static final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -203,5 +211,121 @@ public class EventServiceImpl implements EventService {
                 .totalEstimatedCost(BigDecimal.ZERO) // Aggregation is added in US-2.5
                 .createdAt(event.getCreatedAt())
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public EventDto updateEvent(UUID userId, UUID eventId, UpdateEventRequest request, MultipartFile bannerFile) {
+        log.info("Updating event {} for user {}", eventId, userId);
+
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new EntityNotFoundException("Event not found"));
+
+        if (!event.getUserId().equals(userId)) {
+            throw new IllegalArgumentException("Access Denied: You do not own this event workspace");
+        }
+
+        Instant startDate = request.getStartDate();
+        Instant endDate = request.getEndDate();
+
+        if (startDate.isAfter(endDate)) {
+            throw new FieldValidationException("startDate", "Start date must be before or equal to end date");
+        }
+
+        // Single-day alignment logic refactored: only normalizes if start & end are mathematically identical down to millisecond
+        if (startDate.equals(endDate)) {
+            startDate = startDate.truncatedTo(ChronoUnit.DAYS);
+            endDate = startDate.plus(1, ChronoUnit.DAYS).minus(1, ChronoUnit.MILLIS);
+            log.info("Dates aligned for single-day event. Interval set: {} to {}", startDate, endDate);
+        }
+
+        // Validate boundary against existing timeline items (GAP 18: with 24-hour buffer window)
+        Instant minBound = startDate.minus(24, ChronoUnit.HOURS);
+        Instant maxBound = endDate.plus(24, ChronoUnit.HOURS);
+        List<TimelineItem> milestones = timelineItemRepository.findByEventIdOrderByDueAtAsc(eventId);
+        for (TimelineItem milestone : milestones) {
+            if (milestone.getDueAt().isBefore(minBound) || milestone.getDueAt().isAfter(maxBound)) {
+                throw new FieldValidationException("startDate", 
+                        "New date range excludes existing milestone: '" + milestone.getTitle() + "' due at " + milestone.getDueAt());
+            }
+        }
+
+        // Validate boundary against existing spendings (GAP 19)
+        List<EventSpending> spendings = eventSpendingRepository.findByEventIdOrderBySpentAtAsc(eventId);
+        for (EventSpending spending : spendings) {
+            if (spending.getSpentAt().isBefore(startDate) || spending.getSpentAt().isAfter(endDate)) {
+                throw new FieldValidationException("startDate", 
+                        "New date range excludes logged spending transaction: '" + spending.getDescription() + "' spent at " + spending.getSpentAt());
+            }
+        }
+
+        // Save new banner file if provided
+        String oldBannerUrl = event.getBannerUrl();
+        if (bannerFile != null && !bannerFile.isEmpty()) {
+            String newBannerUrl = saveBannerFile(bannerFile);
+            event.setBannerUrl(newBannerUrl);
+
+            // Delete old banner robustly (GAP 13)
+            if (oldBannerUrl != null) {
+                deleteBannerFileRobust(oldBannerUrl);
+            }
+        }
+
+        event.setTitle(request.getTitle());
+        event.setDescription(request.getDescription());
+        event.setStartDate(startDate);
+        event.setEndDate(endDate);
+
+        Event saved = eventRepository.save(event);
+        log.info("Event successfully updated in DB: {}", saved.getId());
+
+        List<Object[]> rows = eventRepository.findByIdWithBudget(eventId);
+        if (!rows.isEmpty()) {
+            Object[] row = rows.get(0);
+            Event updatedEvent = (Event) row[0];
+            BigDecimal totalCost = (BigDecimal) row[1];
+            EventDto dto = mapToDto(updatedEvent);
+            dto.setTotalEstimatedCost(totalCost);
+            return dto;
+        }
+
+        return mapToDto(saved);
+    }
+
+    @Override
+    @Transactional
+    public void deleteEvent(UUID userId, UUID eventId) {
+        log.info("Deleting event {} for user {}", eventId, userId);
+
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new EntityNotFoundException("Event not found"));
+
+        if (!event.getUserId().equals(userId)) {
+            throw new IllegalArgumentException("Access Denied: You do not own this event workspace");
+        }
+
+        String bannerUrl = event.getBannerUrl();
+
+        // Delete the event record from database (triggers cascading deletes in DB schema)
+        eventRepository.delete(event);
+        log.info("Event successfully deleted from DB: {}", eventId);
+
+        // Delete banner file robustly (GAP 13)
+        if (bannerUrl != null) {
+            deleteBannerFileRobust(bannerUrl);
+        }
+    }
+
+    private void deleteBannerFileRobust(String bannerUrl) {
+        try {
+            String filename = bannerUrl.replace("/uploads/banners/", "");
+            Path filePath = Paths.get(UPLOAD_DIR).resolve(filename);
+            if (Files.exists(filePath)) {
+                Files.delete(filePath);
+                log.info("Banner file deleted successfully: {}", filePath);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to delete banner file robustly: {}. Error: {}", bannerUrl, e.getMessage());
+        }
     }
 }

@@ -1,12 +1,14 @@
 package com.planohi.api.service.cached;
 
 import com.planohi.api.dto.CreateEventRequest;
+import com.planohi.api.dto.UpdateEventRequest;
 import com.planohi.api.dto.EventDto;
 import com.planohi.api.service.EventService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -36,6 +38,30 @@ public class EventCachedService {
     public EventDto createEvent(UUID userId, CreateEventRequest request, MultipartFile bannerFile) {
         log.info("Evicting events_list cache due to new event creation");
         return eventService.createEvent(userId, request, bannerFile);
+    }
+
+    @Caching(evict = {
+        @CacheEvict(value = "events_detail", key = "#userId.toString() + ':' + #eventId.toString()"),
+        @CacheEvict(value = "events_list", allEntries = true),
+        @CacheEvict(value = "public_rsvp", allEntries = true)
+    })
+    public EventDto updateEvent(UUID userId, UUID eventId, UpdateEventRequest request, MultipartFile bannerFile) {
+        log.info("Evicting events_detail, events_list, and public_rsvp caches due to event update: {}", eventId);
+        return eventService.updateEvent(userId, eventId, request, bannerFile);
+    }
+
+    @Caching(evict = {
+        @CacheEvict(value = "events_detail", key = "#userId.toString() + ':' + #eventId.toString()"),
+        @CacheEvict(value = "events_list", allEntries = true),
+        @CacheEvict(value = "event_budget_summary", key = "#userId.toString() + ':' + #eventId.toString()"),
+        @CacheEvict(value = "event_components", key = "#userId.toString() + ':' + #eventId.toString()"),
+        @CacheEvict(value = "event_invitees", allEntries = true),
+        @CacheEvict(value = "event_metrics", key = "#eventId"),
+        @CacheEvict(value = "public_rsvp", allEntries = true)
+    })
+    public void deleteEvent(UUID userId, UUID eventId) {
+        log.info("Evicting all related caches due to event deletion: {}", eventId);
+        eventService.deleteEvent(userId, eventId);
     }
 
     public byte[] getEventBanner(UUID userId, UUID eventId) {

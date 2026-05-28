@@ -1,6 +1,7 @@
 package com.planohi.api.service;
 
 import com.planohi.api.dto.CreateInviteeRequest;
+import com.planohi.api.dto.UpdateInviteeRequest;
 import com.planohi.api.dto.InviteeDto;
 import com.planohi.api.dto.InviteeMetricsDto;
 import com.planohi.api.dto.PublicRsvpDetailsDto;
@@ -16,4 +17,6 @@ public interface InviteeService {
     InviteeMetricsDto getMetrics(UUID userId, UUID eventId);
     PublicRsvpDetailsDto getPublicRsvpDetails(String token);
     UUID submitRsvpResponse(String token, SubmitRsvpRequest request);
+    InviteeDto updateInvitee(UUID userId, UUID eventId, UUID inviteeId, UpdateInviteeRequest request);
+    InviteeDto deleteInvitee(UUID userId, UUID eventId, UUID inviteeId);
 }

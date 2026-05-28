@@ -14,7 +14,6 @@ import { fetchApi } from "../../lib/api-client";
 const addTimelineSchema = z.object({
   title: z.string().min(2, "Milestone title must be at least 2 characters").max(255, "Milestone title is too long"),
   dueAt: z.date(),
-  dueTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Please select a valid time"),
 });
 
 type AddTimelineFields = z.infer<typeof addTimelineSchema>;
@@ -27,13 +26,6 @@ interface AddTimelineItemModalProps {
   eventEndDate: string;
   onSuccess: () => void;
 }
-
-const combineDateAndTime = (date: Date, timeStr: string): Date => {
-  const [hours, minutes] = timeStr.split(":").map(Number);
-  const newDate = new Date(date);
-  newDate.setHours(hours, minutes, 0, 0);
-  return newDate;
-};
 
 export const AddTimelineItemModal: React.FC<AddTimelineItemModalProps> = ({
   isOpen,
@@ -61,7 +53,6 @@ export const AddTimelineItemModal: React.FC<AddTimelineItemModalProps> = ({
     defaultValues: {
       title: "",
       dueAt: minDate,
-      dueTime: "12:00",
     },
   });
 
@@ -69,12 +60,11 @@ export const AddTimelineItemModal: React.FC<AddTimelineItemModalProps> = ({
     setLoading(true);
     setError(null);
     try {
-      const combinedDueAt = combineDateAndTime(data.dueAt, data.dueTime);
       await fetchApi<any>(`/events/${eventId}/timeline`, {
         method: "POST",
         body: JSON.stringify({
           title: data.title,
-          dueAt: combinedDueAt.toISOString(),
+          dueAt: data.dueAt.toISOString(),
         }),
         headers: {
           "Content-Type": "application/json",
@@ -83,7 +73,6 @@ export const AddTimelineItemModal: React.FC<AddTimelineItemModalProps> = ({
       reset({
         title: "",
         dueAt: minDate,
-        dueTime: "12:00",
       });
       onSuccess();
       onClose();
@@ -106,7 +95,6 @@ export const AddTimelineItemModal: React.FC<AddTimelineItemModalProps> = ({
     reset({
       title: "",
       dueAt: minDate,
-      dueTime: "12:00",
     });
     setError(null);
     onClose();
@@ -155,45 +143,28 @@ export const AddTimelineItemModal: React.FC<AddTimelineItemModalProps> = ({
           {...register("title")}
         />
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label className="text-xs font-heading font-semibold text-zinc-400 uppercase tracking-wide block">
-              Target Date
-            </label>
-            <Controller
-              control={control}
-              name="dueAt"
-              render={({ field }) => (
-                <DatePicker
-                  selected={field.value}
-                  onChange={field.onChange}
-                  label=""
-                  placeholder="Select target date"
-                  minDate={minDate}
-                  maxDate={maxDate}
-                  align="bottom"
-                />
-              )}
-            />
-            {errors.dueAt && (
-              <span className="text-[10px] text-red-500 font-sans block mt-1">{errors.dueAt.message}</span>
+        <div className="space-y-1.5">
+          <label className="text-xs font-heading font-semibold text-zinc-400 uppercase tracking-wide block">
+            Target Date & Time
+          </label>
+          <Controller
+            control={control}
+            name="dueAt"
+            render={({ field }) => (
+              <DatePicker
+                selected={field.value}
+                onChange={field.onChange}
+                label=""
+                placeholder="Select target date and time"
+                minDate={minDate}
+                maxDate={maxDate}
+                align="bottom"
+              />
             )}
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-heading font-semibold text-zinc-400 uppercase tracking-wide block">
-              Target Time
-            </label>
-            <input
-              type="time"
-              disabled={loading}
-              className="w-full bg-[#18181b] border border-white/10 hover:border-neon-cyan/40 rounded-xl px-4 py-[11px] text-white focus:outline-none focus:border-neon-cyan focus:shadow-[0_0_15px_rgba(6,182,212,0.25)] transition-all font-mono text-sm disabled:opacity-50"
-              {...register("dueTime")}
-            />
-            {errors.dueTime && (
-              <span className="text-[10px] text-red-500 font-sans block mt-1">{errors.dueTime.message}</span>
-            )}
-          </div>
+          />
+          {errors.dueAt && (
+            <span className="text-[10px] text-red-500 font-sans block mt-1">{errors.dueAt.message}</span>
+          )}
         </div>
       </form>
     </Modal>

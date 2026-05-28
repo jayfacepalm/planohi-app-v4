@@ -22,12 +22,21 @@ interface EventCardProps {
 }
 
 export const EventCard: React.FC<EventCardProps> = ({ event }) => {
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const formatDate = (dateString: string) => {
+    if (!mounted) return "";
     return new Date(dateString).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",
-      timeZone: "UTC",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
     });
   };
 
@@ -39,6 +48,7 @@ export const EventCard: React.FC<EventCardProps> = ({ event }) => {
   };
 
   const isSingleDay = () => {
+    if (!mounted) return true;
     const start = formatDate(event.startDate);
     const end = formatDate(event.endDate);
     return start === end;
