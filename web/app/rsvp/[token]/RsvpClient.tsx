@@ -146,7 +146,7 @@ export const RsvpClient: React.FC<RsvpClientProps> = ({ initialDetails, token })
     });
   };
 
-  const bannerUrl = event.bannerUrl ? `/api/proxy/public/rsvp/banner?token=${token}` : null;
+  const bannerUrl = event.bannerUrl || null;
 
   return (
     <div className="min-h-screen bg-[#070708] relative overflow-hidden flex flex-col justify-center items-center px-4 py-12">

@@ -1,5 +1,6 @@
 package com.planohi.api.dto;
 
+import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -23,6 +24,7 @@ public class CreateSpendingRequest {
 
     @NotNull(message = "Spending amount is required")
     @DecimalMin(value = "0.01", message = "Spending amount must be 0.01 or greater")
+    @DecimalMax(value = "9999999999.99", message = "Spending amount must be less than 10 billion (9,999,999,999.99)")
     private BigDecimal amount;
 
     @NotNull(message = "Spent date is required")

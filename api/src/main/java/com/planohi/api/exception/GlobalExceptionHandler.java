@@ -1,6 +1,7 @@
 package com.planohi.api.exception;
 
 import com.planohi.api.dto.ApiResponse;
+import com.planohi.api.dto.ChangeProposalResponseDto;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -58,6 +59,13 @@ public class GlobalExceptionHandler {
         log.warn("Illegal argument or validation failed: {}", ex.getMessage());
         ApiResponse<Void> response = ApiResponse.failed(ex.getMessage());
         return ResponseEntity.badRequest().body(response);
+    }
+
+    @ExceptionHandler(ProposalSubmittedException.class)
+    public ResponseEntity<ApiResponse<ChangeProposalResponseDto>> handleProposalSubmittedException(ProposalSubmittedException ex) {
+        log.info("Change proposal submitted: {}", ex.getProposal().getId());
+        ApiResponse<ChangeProposalResponseDto> response = ApiResponse.success(ex.getMessage(), ex.getProposal());
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 
     @ExceptionHandler(Exception.class)

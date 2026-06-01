@@ -12,8 +12,8 @@ import { fetchApi } from "../../lib/api-client";
 
 const addComponentSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(100, "Name is too long"),
-  estimatedCost: z.string().refine((val) => !isNaN(Number(val)) && Number(val) >= 0, {
-    message: "Estimated cost must be a positive number",
+  estimatedCost: z.string().refine((val) => !isNaN(Number(val)) && Number(val) >= 0 && Number(val) <= 9999999999.99, {
+    message: "Estimated cost must be between 0 and 9,999,999,999.99",
   }),
 });
 
@@ -34,6 +34,7 @@ export const AddComponentModal: React.FC<AddComponentModalProps> = ({
 }) => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const {
     register,
@@ -53,7 +54,7 @@ export const AddComponentModal: React.FC<AddComponentModalProps> = ({
     setLoading(true);
     setError(null);
     try {
-      await fetchApi<any>(`/events/${eventId}/components`, {
+      const response = await fetchApi<any>(`/events/${eventId}/components`, {
         method: "POST",
         body: JSON.stringify({
           name: data.name,
@@ -64,8 +65,12 @@ export const AddComponentModal: React.FC<AddComponentModalProps> = ({
         },
       });
       reset();
-      onSuccess();
-      onClose();
+      if (response && response.targetType) {
+        setSuccessMessage("Change proposal submitted: Category creation queued for Organizer review.");
+      } else {
+        onSuccess();
+        onClose();
+      }
     } catch (err: any) {
       if (err.data && err.data.result && typeof err.data.result === "object") {
         Object.entries(err.data.result).forEach(([field, msg]) => {
@@ -84,32 +89,48 @@ export const AddComponentModal: React.FC<AddComponentModalProps> = ({
   const handleClose = () => {
     reset();
     setError(null);
+    setSuccessMessage(null);
     onClose();
   };
+
+  const isSuccess = !!successMessage;
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="ADD BUDGET COMPONENT"
+      title={isSuccess ? "PROPOSAL SUBMITTED" : "ADD BUDGET COMPONENT"}
       footer={
-        <div className="flex gap-3">
-          <Button variant="ghost" onClick={handleClose} disabled={loading}>
-            Cancel
+        isSuccess ? (
+          <Button variant="primary" onClick={handleClose}>
+            Got it
           </Button>
-          <Button
-            variant="gradient"
-            onClick={handleSubmit(onSubmit)}
-            disabled={loading}
-            className="flex items-center gap-1.5"
-          >
-            <Plus className="w-4 h-4" />
-            {loading ? "Adding..." : "Add Component"}
-          </Button>
-        </div>
+        ) : (
+          <div className="flex gap-3">
+            <Button variant="ghost" onClick={handleClose} disabled={loading}>
+              Cancel
+            </Button>
+            <Button
+              variant="gradient"
+              onClick={handleSubmit(onSubmit)}
+              disabled={loading}
+              className="flex items-center gap-1.5"
+            >
+              <Plus className="w-4 h-4" />
+              {loading ? "Adding..." : "Add Component"}
+            </Button>
+          </div>
+        )
       }
     >
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      {isSuccess ? (
+        <div className="space-y-4 py-2">
+          <p className="text-sm text-zinc-300 leading-relaxed">
+            {successMessage}
+          </p>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <p className="text-xs text-zinc-400 font-sans leading-relaxed">
           Define a cost category (e.g. Venue, Catering, Transportation) with its estimated expense.
         </p>
@@ -141,6 +162,7 @@ export const AddComponentModal: React.FC<AddComponentModalProps> = ({
           {...register("estimatedCost")}
         />
       </form>
+      )}
     </Modal>
   );
 };

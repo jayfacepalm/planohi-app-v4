@@ -5,8 +5,10 @@ import { Checkbox } from "../ui/Checkbox";
 import { Button } from "../ui/Button";
 import { GlowCard } from "../ui/GlowCard";
 import { AddTimelineItemModal } from "./AddTimelineItemModal";
+import { Modal } from "../ui/Modal";
 import { Calendar, Plus, AlertCircle, CheckCircle2, Circle } from "lucide-react";
 import { fetchApi } from "../../lib/api-client";
+import { UserRole, USER_ROLES, PROPOSAL_STATUSES, PROPOSAL_ACTIONS, PROPOSAL_TARGETS } from "../../lib/constants";
 
 interface TimelineItemDto {
   id: string;
@@ -14,6 +16,8 @@ interface TimelineItemDto {
   title: string;
   dueAt: string;
   isDone: boolean;
+  isPendingCreate?: boolean;
+  pendingToggle?: any;
 }
 
 interface EventTimelineCanvasProps {
@@ -23,6 +27,8 @@ interface EventTimelineCanvasProps {
   initialItems: TimelineItemDto[];
   eventStartDate: string;
   eventEndDate: string;
+  userRole?: UserRole;
+  proposals?: any[];
 }
 
 export const EventTimelineCanvas: React.FC<EventTimelineCanvasProps> = ({
@@ -32,20 +38,55 @@ export const EventTimelineCanvas: React.FC<EventTimelineCanvasProps> = ({
   initialItems,
   eventStartDate,
   eventEndDate,
+  userRole,
+  proposals: initialProposals = [],
 }) => {
   const [items, setItems] = useState<TimelineItemDto[]>(initialItems);
   const [completedCount, setCompletedCount] = useState<number>(initialCompletedCount);
   const [totalCount, setTotalCount] = useState<number>(initialTotalCount);
+  const [proposals, setProposals] = useState<any[]>(initialProposals);
+  const canEdit = userRole === USER_ROLES.OWNER || userRole === USER_ROLES.ORGANIZER || userRole === USER_ROLES.COLLABORATOR;
   
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [togglingIds, setTogglingIds] = useState<Record<string, boolean>>({});
   const activeTogglesCount = useRef(0);
+  
+  const [infoModalOpen, setInfoModalOpen] = useState(false);
+  const [infoModalMessage, setInfoModalMessage] = useState("");
+  const [errorModalOpen, setErrorModalOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const [mounted, setMounted] = useState(false);
 
   React.useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Combine real items with pending creations
+  const pendingCreations = (proposals || [])
+    .filter((p) => p.targetType === PROPOSAL_TARGETS.TIMELINE_ITEM && p.actionType === PROPOSAL_ACTIONS.CREATE && p.status === PROPOSAL_STATUSES.PENDING)
+    .map((p) => ({
+      id: `pending-create-${p.id}`,
+      eventId,
+      title: p.proposedData?.title || "Pending Milestone",
+      dueAt: p.proposedData?.dueAt || new Date().toISOString(),
+      isDone: false,
+      isPendingCreate: true,
+      proposal: p,
+    }));
+
+  const processedItems = items.map((item) => {
+    const pendingToggle = (proposals || []).find(
+      (p) => p.targetType === PROPOSAL_TARGETS.TIMELINE_ITEM && p.actionType === PROPOSAL_ACTIONS.UPDATE && p.targetId === item.id && p.status === PROPOSAL_STATUSES.PENDING
+    );
+
+    return {
+      ...item,
+      pendingToggle,
+    };
+  });
+
+  const allRenderItems: TimelineItemDto[] = [...processedItems, ...pendingCreations];
 
   const formatDueAt = (dateString: string) => {
     if (!mounted) return "";
@@ -66,12 +107,19 @@ export const EventTimelineCanvas: React.FC<EventTimelineCanvasProps> = ({
 
   const refreshTimeline = async () => {
     try {
-      const response = await fetchApi<{ completedCount: number; totalCount: number; items: TimelineItemDto[] }>(
-        `/events/${eventId}/timeline`
-      );
-      setItems(response.items || []);
-      setCompletedCount(response.completedCount || 0);
-      setTotalCount(response.totalCount || 0);
+      const [timelineRes, proposalsRes] = await Promise.all([
+        fetchApi<{ completedCount: number; totalCount: number; items: TimelineItemDto[] }>(
+          `/events/${eventId}/timeline`
+        ),
+        fetchApi<any[]>(`/events/${eventId}/proposals`).catch((err) => {
+          console.error("Failed to refresh proposals:", err);
+          return [];
+        }),
+      ]);
+      setItems(timelineRes.items || []);
+      setCompletedCount(timelineRes.completedCount || 0);
+      setTotalCount(timelineRes.totalCount || 0);
+      setProposals(proposalsRes || []);
     } catch (err) {
       console.error("Failed to refresh timeline:", err);
     }
@@ -93,7 +141,7 @@ export const EventTimelineCanvas: React.FC<EventTimelineCanvasProps> = ({
     activeTogglesCount.current += 1;
 
     try {
-      await fetchApi(`/timeline/${itemId}/toggle`, {
+      const response = await fetchApi<any>(`/timeline/${itemId}/toggle`, {
         method: "PATCH",
         body: JSON.stringify({ isDone: targetDone }),
         headers: {
@@ -106,9 +154,18 @@ export const EventTimelineCanvas: React.FC<EventTimelineCanvasProps> = ({
         delete next[itemId];
         return next;
       });
-      // Only refresh from backend if there are no more active toggles in flight
-      if (activeTogglesCount.current === 0) {
-        refreshTimeline();
+
+      if (response && response.targetType) {
+        setInfoModalMessage("Change proposal submitted: Milestone checklist toggle queued for Organizer review.");
+        setInfoModalOpen(true);
+        // Rollback optimistic UI update as it is pending review
+        setItems(previousItems);
+        setCompletedCount(previousCompleted);
+      } else {
+        // Only refresh from backend if there are no more active toggles in flight
+        if (activeTogglesCount.current === 0) {
+          refreshTimeline();
+        }
       }
     } catch (err) {
       console.error("Failed to toggle milestone:", err);
@@ -121,7 +178,8 @@ export const EventTimelineCanvas: React.FC<EventTimelineCanvasProps> = ({
         delete next[itemId];
         return next;
       });
-      alert("Failed to update status. Please try again.");
+      setErrorMessage("Failed to update status. Please try again.");
+      setErrorModalOpen(true);
     }
   };
 
@@ -147,39 +205,51 @@ export const EventTimelineCanvas: React.FC<EventTimelineCanvasProps> = ({
               Timeline Milestones & Checklist
             </h3>
           </div>
-          <Button
-            variant="gradient"
-            onClick={() => setIsAddOpen(true)}
-            className="px-4 py-1.5 font-heading text-xs tracking-wider uppercase flex items-center gap-1 h-auto"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Add Milestone
-          </Button>
+          {canEdit && (
+            <Button
+              variant="gradient"
+              onClick={() => setIsAddOpen(true)}
+              className="px-4 py-1.5 font-heading text-xs tracking-wider uppercase flex items-center gap-1 h-auto"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add Milestone
+            </Button>
+          )}
         </div>
 
-        {items.length === 0 ? (
+        {allRenderItems.length === 0 ? (
           <div className="border border-dashed border-white/10 rounded-xl p-12 text-center bg-[#121214]/20">
             <span className="text-xs text-zinc-500 italic block">
               No timeline milestones defined for this event yet.
             </span>
-            <Button
-              variant="ghost"
-              onClick={() => setIsAddOpen(true)}
-              className="mt-4 text-xs font-semibold text-neon-purple hover:underline"
-            >
-              Add your first planner milestone
-            </Button>
+            {canEdit && (
+              <Button
+                variant="ghost"
+                onClick={() => setIsAddOpen(true)}
+                className="mt-4 text-xs font-semibold text-neon-purple hover:underline"
+              >
+                Add your first planner milestone
+              </Button>
+            )}
           </div>
         ) : (
           <div className="relative pl-6 space-y-8 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-0.5 before:bg-white/5">
-            {items.map((item) => {
+            {allRenderItems.map((item) => {
               const overdue = isOverdue(item);
               
               return (
                 <div key={item.id} className="relative flex items-start gap-4 group">
                   {/* Timeline bullet indicator node */}
                   <div className="absolute -left-6 mt-1.5 flex items-center justify-center">
-                    {item.isDone ? (
+                    {item.isPendingCreate ? (
+                      <div className="w-6 h-6 rounded-full bg-yellow-500/10 border border-yellow-500/50 flex items-center justify-center text-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.3)] z-10 animate-pulse">
+                        <Circle className="w-3 h-3 text-yellow-500" />
+                      </div>
+                    ) : item.pendingToggle ? (
+                      <div className="w-6 h-6 rounded-full bg-yellow-500/10 border border-yellow-500/50 flex items-center justify-center text-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.3)] z-10">
+                        <AlertCircle className="w-3.5 h-3.5 text-yellow-500" />
+                      </div>
+                    ) : item.isDone ? (
                       <div className="w-6 h-6 rounded-full bg-neon-purple/10 border border-neon-purple flex items-center justify-center text-neon-purple shadow-[0_0_8px_rgba(168,85,247,0.3)] z-10">
                         <CheckCircle2 className="w-3.5 h-3.5" />
                       </div>
@@ -193,14 +263,18 @@ export const EventTimelineCanvas: React.FC<EventTimelineCanvasProps> = ({
                       </div>
                     )}
                   </div>
-
+ 
                   {/* Node content block */}
                   <div className={`flex-1 bg-[#121214] border rounded-xl p-4 flex items-center justify-between gap-4 transition-all shadow-[0_4px_12px_rgba(0,0,0,0.15)] ${
-                    item.isDone 
-                      ? "border-white/5 opacity-60" 
-                      : overdue 
-                        ? "border-red-500/20 bg-red-950/2" 
-                        : "border-white/5 hover:border-white/10"
+                    item.isPendingCreate 
+                      ? "border-yellow-500/20 bg-yellow-500/2 border-dashed"
+                      : item.pendingToggle
+                        ? "border-yellow-500/20 bg-yellow-500/2"
+                        : item.isDone 
+                          ? "border-white/5 opacity-60" 
+                          : overdue 
+                            ? "border-red-500/20 bg-red-950/2" 
+                            : "border-white/5 hover:border-white/10"
                   }`}>
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -214,16 +288,26 @@ export const EventTimelineCanvas: React.FC<EventTimelineCanvasProps> = ({
                             Overdue
                           </span>
                         )}
+                        {item.isPendingCreate && (
+                          <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded border border-yellow-500/20 shadow-[0_0_5px_rgba(234,179,8,0.2)]">
+                            Pending Creation
+                          </span>
+                        )}
+                        {item.pendingToggle && (
+                          <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded border border-yellow-500/20 shadow-[0_0_5px_rgba(234,179,8,0.2)]">
+                            Pending Check Toggle ({item.pendingToggle.proposedData?.isDone === true || item.pendingToggle.proposedData?.isDone === "true" ? "Complete" : "Incomplete"})
+                          </span>
+                        )}
                       </div>
                       <span className="text-[10px] font-mono text-zinc-550 block">
                         Due: {formatDueAt(item.dueAt)}
                       </span>
                     </div>
-
+ 
                     <div className="flex items-center shrink-0">
                       <Checkbox
                         checked={item.isDone}
-                        disabled={!!togglingIds[item.id]}
+                        disabled={!!togglingIds[item.id] || !canEdit || item.isPendingCreate || !!item.pendingToggle}
                         onChange={() => handleToggle(item.id, item.isDone)}
                       />
                     </div>
@@ -327,6 +411,38 @@ export const EventTimelineCanvas: React.FC<EventTimelineCanvasProps> = ({
         eventEndDate={eventEndDate}
         onSuccess={refreshTimeline}
       />
+
+      {/* Info / Proposal Confirmation Modal */}
+      <Modal
+        isOpen={infoModalOpen}
+        onClose={() => setInfoModalOpen(false)}
+        title="Change Proposal Submitted"
+        footer={
+          <Button variant="primary" onClick={() => setInfoModalOpen(false)}>
+            Got it
+          </Button>
+        }
+      >
+        <p className="text-sm text-zinc-300">
+          {infoModalMessage}
+        </p>
+      </Modal>
+
+      {/* Error Alert Modal */}
+      <Modal
+        isOpen={errorModalOpen}
+        onClose={() => setErrorModalOpen(false)}
+        title="Action Failed"
+        footer={
+          <Button variant="primary" onClick={() => setErrorModalOpen(false)}>
+            Close
+          </Button>
+        }
+      >
+        <p className="text-sm text-zinc-300">
+          {errorMessage}
+        </p>
+      </Modal>
     </div>
   );
 };

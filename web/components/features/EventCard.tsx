@@ -54,10 +54,8 @@ export const EventCard: React.FC<EventCardProps> = ({ event }) => {
     return start === end;
   };
 
-  // Securely load the banner through Next.js proxy route
-  const imageUrl = event.bannerUrl
-    ? `/api/proxy/events/${event.id}/banner`
-    : null;
+  // Securely load the banner
+  const imageUrl = event.bannerUrl || null;
 
   return (
     <Link href={`/events/${event.id}`} className="block group">

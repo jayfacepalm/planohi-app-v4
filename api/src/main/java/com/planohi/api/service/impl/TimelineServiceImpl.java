@@ -3,13 +3,20 @@ package com.planohi.api.service.impl;
 import com.planohi.api.dto.CreateTimelineItemRequest;
 import com.planohi.api.dto.EventTimelineResponse;
 import com.planohi.api.dto.TimelineItemDto;
+import com.planohi.api.dto.ChangeProposalResponseDto;
+import com.planohi.api.enums.ChangeProposalAction;
+import com.planohi.api.enums.ChangeProposalTarget;
 import com.planohi.api.entity.Event;
+import com.planohi.api.enums.EventCuratorRole;
 import com.planohi.api.entity.TimelineItem;
 import com.planohi.api.exception.EntityNotFoundException;
 import com.planohi.api.exception.FieldValidationException;
+import com.planohi.api.exception.ProposalSubmittedException;
 import com.planohi.api.repository.EventRepository;
 import com.planohi.api.repository.TimelineItemRepository;
+import com.planohi.api.service.ChangeProposalService;
 import com.planohi.api.service.TimelineService;
+import com.planohi.api.service.WorkspaceSecurityService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,6 +34,8 @@ public class TimelineServiceImpl implements TimelineService {
 
     private final EventRepository eventRepository;
     private final TimelineItemRepository timelineItemRepository;
+    private final WorkspaceSecurityService workspaceSecurityService;
+    private final ChangeProposalService changeProposalService;
 
     @Override
     @Transactional
@@ -36,8 +45,9 @@ public class TimelineServiceImpl implements TimelineService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new EntityNotFoundException("Event not found"));
 
-        if (!event.getUserId().equals(userId)) {
-            throw new IllegalArgumentException("Access Denied: You do not own this event workspace");
+        EventCuratorRole role = workspaceSecurityService.getCuratorRole(userId, eventId);
+        if (role == EventCuratorRole.VIEWER) {
+            throw new IllegalArgumentException("Access Denied: Viewers cannot modify event timeline");
         }
 
         // Apply a 24-hour buffer window to due date comparisons to accommodate timezone offsets
@@ -46,6 +56,18 @@ public class TimelineServiceImpl implements TimelineService {
 
         if (request.getDueAt().isBefore(minBound) || request.getDueAt().isAfter(maxBound)) {
             throw new FieldValidationException("dueAt", "Due date must be within the event's start and end date boundaries");
+        }
+
+        if (role == EventCuratorRole.COLLABORATOR) {
+            ChangeProposalResponseDto proposal = changeProposalService.createProposal(
+                    eventId,
+                    userId,
+                    ChangeProposalTarget.TIMELINE_ITEM,
+                    ChangeProposalAction.CREATE,
+                    null,
+                    request
+            );
+            throw new ProposalSubmittedException(proposal);
         }
 
         TimelineItem item = TimelineItem.builder()
@@ -69,9 +91,7 @@ public class TimelineServiceImpl implements TimelineService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new EntityNotFoundException("Event not found"));
 
-        if (!event.getUserId().equals(userId)) {
-            throw new IllegalArgumentException("Access Denied: You do not own this event workspace");
-        }
+        workspaceSecurityService.checkReadAccess(userId, eventId);
 
         List<TimelineItem> items = timelineItemRepository.findByEventIdOrderByDueAtAsc(eventId);
 
@@ -100,8 +120,22 @@ public class TimelineServiceImpl implements TimelineService {
         Event event = eventRepository.findById(item.getEventId())
                 .orElseThrow(() -> new EntityNotFoundException("Event not found"));
 
-        if (!event.getUserId().equals(userId)) {
-            throw new IllegalArgumentException("Access Denied: You do not own this event workspace");
+        EventCuratorRole role = workspaceSecurityService.getCuratorRole(userId, event.getId());
+        if (role == EventCuratorRole.VIEWER) {
+            throw new IllegalArgumentException("Access Denied: Viewers cannot modify event timeline");
+        }
+
+        if (role == EventCuratorRole.COLLABORATOR) {
+            // Include isDone inside proposedData for proposal
+            ChangeProposalResponseDto proposal = changeProposalService.createProposal(
+                    event.getId(),
+                    userId,
+                    ChangeProposalTarget.TIMELINE_ITEM,
+                    ChangeProposalAction.UPDATE,
+                    itemId,
+                    java.util.Map.of("isDone", isDone)
+            );
+            throw new ProposalSubmittedException(proposal);
         }
 
         item.setDone(isDone);

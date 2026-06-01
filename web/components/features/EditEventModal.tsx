@@ -185,7 +185,7 @@ export const EditEventModal: React.FC<EditEventModalProps> = ({
     onClose();
   };
 
-  const currentBannerUrl = event?.bannerUrl ? `/api/proxy/events/${event.id}/banner` : null;
+  const currentBannerUrl = event?.bannerUrl || null;
 
   return (
     <Modal

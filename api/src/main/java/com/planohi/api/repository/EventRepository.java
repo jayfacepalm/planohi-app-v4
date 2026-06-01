@@ -14,7 +14,7 @@ import java.util.UUID;
 @Repository
 public interface EventRepository extends JpaRepository<Event, UUID> {
 
-    @Query("SELECT e FROM Event e WHERE e.userId = :userId AND " +
+    @Query("SELECT e FROM Event e WHERE (e.userId = :userId OR EXISTS (SELECT 1 FROM EventCurator ec WHERE ec.eventId = e.id AND ec.userId = :userId AND ec.status = 'ACCEPTED')) AND " +
            "(:search IS NULL OR :search = '' OR " +
            "LOWER(e.title) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(e.description) LIKE LOWER(CONCAT('%', :search, '%')))")
@@ -24,7 +24,7 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
 
     @Query("SELECT e, COALESCE(SUM(c.estimatedCost), 0.00) FROM Event e " +
            "LEFT JOIN EventComponent c ON c.eventId = e.id " +
-           "WHERE e.userId = :userId AND " +
+           "WHERE (e.userId = :userId OR EXISTS (SELECT 1 FROM EventCurator ec WHERE ec.eventId = e.id AND ec.userId = :userId AND ec.status = 'ACCEPTED')) AND " +
            "(:search IS NULL OR :search = '' OR " +
            "LOWER(e.title) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(e.description) LIKE LOWER(CONCAT('%', :search, '%'))) " +

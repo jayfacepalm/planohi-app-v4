@@ -7,6 +7,7 @@ import { Modal } from "../ui/Modal";
 import { EditEventModal } from "./EditEventModal";
 import { Edit, Trash2 } from "lucide-react";
 import { fetchApi } from "../../lib/api-client";
+import { UserRole, USER_ROLES } from "../../lib/constants";
 
 interface EventWorkspaceHeaderActionsProps {
   event: {
@@ -16,6 +17,7 @@ interface EventWorkspaceHeaderActionsProps {
     startDate: string;
     endDate: string;
     bannerUrl?: string;
+    userRole?: UserRole;
   };
 }
 
@@ -51,26 +53,35 @@ export const EventWorkspaceHeaderActions: React.FC<EventWorkspaceHeaderActionsPr
     window.location.reload();
   };
 
+  const showEdit = event.userRole === USER_ROLES.OWNER || event.userRole === USER_ROLES.ORGANIZER;
+  const showDelete = event.userRole === USER_ROLES.OWNER;
+
   return (
     <>
-      <div className="flex items-center gap-3 w-full sm:w-auto">
-        <Button
-          variant="ghost"
-          onClick={() => setIsEditOpen(true)}
-          className="flex-1 sm:flex-initial flex items-center justify-center gap-2 border border-white/10 hover:border-white/20 px-4 py-2"
-        >
-          <Edit className="w-4 h-4 text-zinc-400" />
-          Edit Workspace
-        </Button>
-        <Button
-          variant="ghost"
-          onClick={() => setIsDeleteConfirmOpen(true)}
-          className="flex-1 sm:flex-initial flex items-center justify-center gap-2 border border-red-500/20 hover:border-red-500/40 hover:bg-red-500/5 text-red-400 hover:text-red-300 px-4 py-2"
-        >
-          <Trash2 className="w-4 h-4" />
-          Delete Workspace
-        </Button>
-      </div>
+      {(showEdit || showDelete) && (
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          {showEdit && (
+            <Button
+              variant="ghost"
+              onClick={() => setIsEditOpen(true)}
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-2 border border-white/10 hover:border-white/20 px-4 py-2"
+            >
+              <Edit className="w-4 h-4 text-zinc-400" />
+              Edit Workspace
+            </Button>
+          )}
+          {showDelete && (
+            <Button
+              variant="ghost"
+              onClick={() => setIsDeleteConfirmOpen(true)}
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-2 border border-red-500/20 hover:border-red-500/40 hover:bg-red-500/5 text-red-400 hover:text-red-300 px-4 py-2"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete Workspace
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Edit Event Details Modal */}
       <EditEventModal

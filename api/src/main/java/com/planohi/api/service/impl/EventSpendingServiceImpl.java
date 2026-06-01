@@ -3,15 +3,22 @@ package com.planohi.api.service.impl;
 import com.planohi.api.dto.CreateSpendingRequest;
 import com.planohi.api.dto.EventSpendingDto;
 import com.planohi.api.dto.UpdateSpendingRequest;
+import com.planohi.api.dto.ChangeProposalResponseDto;
+import com.planohi.api.enums.ChangeProposalAction;
+import com.planohi.api.enums.ChangeProposalTarget;
 import com.planohi.api.entity.Event;
 import com.planohi.api.entity.EventComponent;
+import com.planohi.api.enums.EventCuratorRole;
 import com.planohi.api.entity.EventSpending;
 import com.planohi.api.exception.EntityNotFoundException;
 import com.planohi.api.exception.FieldValidationException;
+import com.planohi.api.exception.ProposalSubmittedException;
 import com.planohi.api.repository.EventComponentRepository;
 import com.planohi.api.repository.EventRepository;
 import com.planohi.api.repository.EventSpendingRepository;
+import com.planohi.api.service.ChangeProposalService;
 import com.planohi.api.service.EventSpendingService;
+import com.planohi.api.service.WorkspaceSecurityService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,6 +34,8 @@ public class EventSpendingServiceImpl implements EventSpendingService {
     private final EventRepository eventRepository;
     private final EventComponentRepository eventComponentRepository;
     private final EventSpendingRepository eventSpendingRepository;
+    private final WorkspaceSecurityService workspaceSecurityService;
+    private final ChangeProposalService changeProposalService;
 
     @Override
     @Transactional
@@ -39,8 +48,9 @@ public class EventSpendingServiceImpl implements EventSpendingService {
         Event event = eventRepository.findById(component.getEventId())
                 .orElseThrow(() -> new EntityNotFoundException("Event not found"));
 
-        if (!event.getUserId().equals(userId)) {
-            throw new IllegalArgumentException("Access Denied: You do not own this event workspace");
+        EventCuratorRole role = workspaceSecurityService.getCuratorRole(userId, event.getId());
+        if (role == EventCuratorRole.VIEWER) {
+            throw new IllegalArgumentException("Access Denied: Viewers cannot modify event spending");
         }
 
         if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
@@ -49,6 +59,25 @@ public class EventSpendingServiceImpl implements EventSpendingService {
 
         if (request.getSpentAt().isBefore(event.getStartDate()) || request.getSpentAt().isAfter(event.getEndDate())) {
             throw new FieldValidationException("spentAt", "Spending date must be within the event's start and end date boundaries");
+        }
+
+        if (role == EventCuratorRole.COLLABORATOR) {
+            // Include componentId inside proposedData since createSpending body doesn't contain it directly
+            java.util.Map<String, Object> data = new java.util.HashMap<>();
+            data.put("componentId", componentId.toString());
+            data.put("description", request.getDescription());
+            data.put("amount", request.getAmount());
+            data.put("spentAt", request.getSpentAt().toString());
+
+            ChangeProposalResponseDto proposal = changeProposalService.createProposal(
+                    event.getId(),
+                    userId,
+                    ChangeProposalTarget.SPENDING,
+                    ChangeProposalAction.CREATE,
+                    null,
+                    data
+            );
+            throw new ProposalSubmittedException(proposal);
         }
 
         EventSpending spending = EventSpending.builder()
@@ -82,8 +111,9 @@ public class EventSpendingServiceImpl implements EventSpendingService {
         Event event = eventRepository.findById(component.getEventId())
                 .orElseThrow(() -> new EntityNotFoundException("Event not found"));
 
-        if (!event.getUserId().equals(userId)) {
-            throw new IllegalArgumentException("Access Denied: You do not own this event workspace");
+        EventCuratorRole role = workspaceSecurityService.getCuratorRole(userId, event.getId());
+        if (role == EventCuratorRole.VIEWER) {
+            throw new IllegalArgumentException("Access Denied: Viewers cannot modify event spending");
         }
 
         if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
@@ -92,6 +122,24 @@ public class EventSpendingServiceImpl implements EventSpendingService {
 
         if (request.getSpentAt().isBefore(event.getStartDate()) || request.getSpentAt().isAfter(event.getEndDate())) {
             throw new FieldValidationException("spentAt", "Spending date must be within the event's start and end date boundaries");
+        }
+
+        if (role == EventCuratorRole.COLLABORATOR) {
+            java.util.Map<String, Object> data = new java.util.HashMap<>();
+            data.put("componentId", componentId.toString());
+            data.put("description", request.getDescription());
+            data.put("amount", request.getAmount());
+            data.put("spentAt", request.getSpentAt().toString());
+
+            ChangeProposalResponseDto proposal = changeProposalService.createProposal(
+                    event.getId(),
+                    userId,
+                    ChangeProposalTarget.SPENDING,
+                    ChangeProposalAction.UPDATE,
+                    spendingId,
+                    data
+            );
+            throw new ProposalSubmittedException(proposal);
         }
 
         spending.setDescription(request.getDescription());
@@ -122,8 +170,21 @@ public class EventSpendingServiceImpl implements EventSpendingService {
         Event event = eventRepository.findById(component.getEventId())
                 .orElseThrow(() -> new EntityNotFoundException("Event not found"));
 
-        if (!event.getUserId().equals(userId)) {
-            throw new IllegalArgumentException("Access Denied: You do not own this event workspace");
+        EventCuratorRole role = workspaceSecurityService.getCuratorRole(userId, event.getId());
+        if (role == EventCuratorRole.VIEWER) {
+            throw new IllegalArgumentException("Access Denied: Viewers cannot modify event spending");
+        }
+
+        if (role == EventCuratorRole.COLLABORATOR) {
+            ChangeProposalResponseDto proposal = changeProposalService.createProposal(
+                    event.getId(),
+                    userId,
+                    ChangeProposalTarget.SPENDING,
+                    ChangeProposalAction.DELETE,
+                    spendingId,
+                    java.util.Map.of("id", spendingId.toString(), "description", spending.getDescription())
+            );
+            throw new ProposalSubmittedException(proposal);
         }
 
         EventSpendingDto dto = mapToDto(spending, event.getId());

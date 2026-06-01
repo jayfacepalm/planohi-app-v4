@@ -50,13 +50,35 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-planohipassword}
       SPRING_DATA_REDIS_HOST: cache
       SPRING_DATA_REDIS_PORT: 6379
+      AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-planohi-banners}
+      AWS_S3_ENDPOINT: ${AWS_S3_ENDPOINT:-http://localstack:4566}
+      AWS_S3_PRESIGNER_ENDPOINT: ${AWS_S3_PRESIGNER_ENDPOINT:-http://localhost:4566}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-mockkey}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-mocksecret}
+      AWS_REGION: ${AWS_REGION:-ap-northeast-1}
     depends_on:
       db:
         condition: service_healthy
       cache:
         condition: service_healthy
+      localstack:
+        condition: service_started
     volumes:
       - ./uploads:/app/uploads
+    networks:
+      - app-network
+
+  localstack:
+    image: localstack/localstack:latest
+    container_name: planohi-localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=s3
+      - AWS_DEFAULT_REGION=ap-northeast-1
+    volumes:
+      - ./infra/localstack:/etc/localstack/init/ready.d
+      - localstack-data:/var/lib/localstack
     networks:
       - app-network
 
@@ -78,6 +100,7 @@ services:
 volumes:
   pgdata:
   redisdata:
+  localstack-data:
 
 networks:
   app-network:

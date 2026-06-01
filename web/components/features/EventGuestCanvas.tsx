@@ -10,6 +10,7 @@ import { EditInviteeModal } from "./EditInviteeModal";
 import { Modal } from "../ui/Modal";
 import { Search, UserPlus, Link2, Check, AlertTriangle, Users, CheckSquare, XOctagon, HelpCircle, Edit, Trash2 } from "lucide-react";
 import { fetchApi } from "../../lib/api-client";
+import { UserRole, USER_ROLES } from "../../lib/constants";
 
 interface InviteeDto {
   id: string;
@@ -38,6 +39,7 @@ interface EventGuestCanvasProps {
   initialMetrics: InviteeMetricsDto;
   currentPage?: number;
   currentSearch?: string;
+  userRole?: UserRole;
 }
 
 export const EventGuestCanvas: React.FC<EventGuestCanvasProps> = ({
@@ -47,7 +49,9 @@ export const EventGuestCanvas: React.FC<EventGuestCanvasProps> = ({
   initialMetrics,
   currentPage = 0,
   currentSearch = "",
+  userRole,
 }) => {
+  const canEdit = userRole === USER_ROLES.OWNER || userRole === USER_ROLES.ORGANIZER;
   const router = useRouter();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -241,14 +245,16 @@ export const EventGuestCanvas: React.FC<EventGuestCanvasProps> = ({
           </div>
 
           {/* Action Trigger button */}
-          <Button
-            variant="gradient"
-            onClick={() => setIsAddOpen(true)}
-            className="w-full sm:w-auto px-4 py-2 font-heading text-xs tracking-wider uppercase flex items-center justify-center gap-1.5 h-auto"
-          >
-            <UserPlus className="w-4 h-4" />
-            Add Guest Invitation
-          </Button>
+          {canEdit && (
+            <Button
+              variant="gradient"
+              onClick={() => setIsAddOpen(true)}
+              className="w-full sm:w-auto px-4 py-2 font-heading text-xs tracking-wider uppercase flex items-center justify-center gap-1.5 h-auto"
+            >
+              <UserPlus className="w-4 h-4" />
+              Add Guest Invitation
+            </Button>
+          )}
         </div>
 
         {/* Data list Table */}
@@ -266,14 +272,16 @@ export const EventGuestCanvas: React.FC<EventGuestCanvasProps> = ({
                 Invite guests or families, allocate maximum headcount limits per party, and copy personalized secure lookup RSVP links.
               </p>
             </div>
-            <Button
-              variant="secondary"
-              onClick={() => setIsAddOpen(true)}
-              className="mt-2 text-xs font-heading tracking-wider uppercase flex items-center gap-1.5 h-auto py-2"
-            >
-              <UserPlus className="w-3.5 h-3.5" />
-              Quick Add Guest
-            </Button>
+            {canEdit && (
+              <Button
+                variant="secondary"
+                onClick={() => setIsAddOpen(true)}
+                className="mt-2 text-xs font-heading tracking-wider uppercase flex items-center gap-1.5 h-auto py-2"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                Quick Add Guest
+              </Button>
+            )}
           </div>
         ) : (
           <div className="space-y-6">
@@ -342,29 +350,33 @@ export const EventGuestCanvas: React.FC<EventGuestCanvasProps> = ({
                             )}
                           </button>
 
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setInviteeToEdit(guest);
-                              setIsEditOpen(true);
-                            }}
-                            className="p-1.5 rounded border border-white/5 bg-[#121214] text-zinc-400 hover:text-white hover:border-white/10 transition-colors cursor-pointer"
-                            aria-label="Edit guest details"
-                          >
-                            <Edit className="w-3.5 h-3.5" />
-                          </button>
+                          {canEdit && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setInviteeToEdit(guest);
+                                  setIsEditOpen(true);
+                                }}
+                                className="p-1.5 rounded border border-white/5 bg-[#121214] text-zinc-400 hover:text-white hover:border-white/10 transition-colors cursor-pointer"
+                                aria-label="Edit guest details"
+                              >
+                                <Edit className="w-3.5 h-3.5" />
+                              </button>
 
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setInviteeToDelete(guest);
-                              setDeleteConfirmOpen(true);
-                            }}
-                            className="p-1.5 rounded border border-red-500/10 bg-[#121214] text-red-400 hover:text-red-300 hover:bg-red-500/5 transition-colors cursor-pointer"
-                            aria-label="Remove guest record"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setInviteeToDelete(guest);
+                                  setDeleteConfirmOpen(true);
+                                }}
+                                className="p-1.5 rounded border border-red-500/10 bg-[#121214] text-red-400 hover:text-red-300 hover:bg-red-500/5 transition-colors cursor-pointer"
+                                aria-label="Remove guest record"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>

@@ -26,6 +26,7 @@ export default async function EventsPage({ searchParams }: Readonly<PageProps>) 
   }
 
   let eventPageData: any = null;
+  let invitations: any[] = [];
   let errorMsg: string | null = null;
 
   try {
@@ -46,6 +47,12 @@ export default async function EventsPage({ searchParams }: Readonly<PageProps>) 
     }
   }
 
+  try {
+    invitations = await fetchApi<any[]>("/curators/invitations", { headers });
+  } catch (err) {
+    console.error("Failed to fetch pending invitations:", err);
+  }
+
   const events = eventPageData?.content || [];
   const totalPages = eventPageData?.totalPages || 0;
   const totalElements = eventPageData?.totalElements || 0;
@@ -55,6 +62,7 @@ export default async function EventsPage({ searchParams }: Readonly<PageProps>) 
   return (
     <EventsDashboardClient
       events={events}
+      invitations={invitations}
       page={page}
       totalPages={totalPages}
       totalElements={totalElements}

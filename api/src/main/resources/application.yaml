@@ -33,3 +33,12 @@ spring:
 app:
   security:
     cookie-secure: true
+
+aws:
+  s3:
+    bucket-name: ${AWS_S3_BUCKET_NAME:planohi-banners}
+    endpoint: ${AWS_S3_ENDPOINT:http://localhost:4566}
+    presigner-endpoint: ${AWS_S3_PRESIGNER_ENDPOINT:http://localhost:4566}
+    access-key: ${AWS_ACCESS_KEY_ID:mockkey}
+    secret-key: ${AWS_SECRET_ACCESS_KEY:mocksecret}
+    region: ${AWS_REGION:ap-northeast-1}

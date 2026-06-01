@@ -6,14 +6,21 @@ import com.planohi.api.dto.EventComponentDto;
 import com.planohi.api.dto.EventComponentsResponse;
 import com.planohi.api.dto.EventSpendingDto;
 import com.planohi.api.dto.UpdateComponentRequest;
+import com.planohi.api.dto.ChangeProposalResponseDto;
+import com.planohi.api.enums.ChangeProposalAction;
+import com.planohi.api.enums.ChangeProposalTarget;
 import com.planohi.api.entity.Event;
 import com.planohi.api.entity.EventComponent;
+import com.planohi.api.enums.EventCuratorRole;
 import com.planohi.api.entity.EventSpending;
 import com.planohi.api.exception.EntityNotFoundException;
+import com.planohi.api.exception.ProposalSubmittedException;
 import com.planohi.api.repository.EventComponentRepository;
 import com.planohi.api.repository.EventRepository;
 import com.planohi.api.repository.EventSpendingRepository;
+import com.planohi.api.service.ChangeProposalService;
 import com.planohi.api.service.EventComponentService;
+import com.planohi.api.service.WorkspaceSecurityService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -33,6 +40,8 @@ public class EventComponentServiceImpl implements EventComponentService {
     private final EventRepository eventRepository;
     private final EventComponentRepository eventComponentRepository;
     private final EventSpendingRepository eventSpendingRepository;
+    private final WorkspaceSecurityService workspaceSecurityService;
+    private final ChangeProposalService changeProposalService;
 
     @Override
     @Transactional
@@ -42,8 +51,21 @@ public class EventComponentServiceImpl implements EventComponentService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new EntityNotFoundException("Event not found"));
 
-        if (!event.getUserId().equals(userId)) {
-            throw new IllegalArgumentException("Access Denied: You do not own this event workspace");
+        EventCuratorRole role = workspaceSecurityService.getCuratorRole(userId, eventId);
+        if (role == EventCuratorRole.VIEWER) {
+            throw new IllegalArgumentException("Access Denied: Viewers cannot modify event components");
+        }
+
+        if (role == EventCuratorRole.COLLABORATOR) {
+            ChangeProposalResponseDto proposal = changeProposalService.createProposal(
+                    eventId,
+                    userId,
+                    ChangeProposalTarget.COMPONENT,
+                    ChangeProposalAction.CREATE,
+                    null,
+                    request
+            );
+            throw new ProposalSubmittedException(proposal);
         }
 
         EventComponent component = EventComponent.builder()
@@ -65,8 +87,9 @@ public class EventComponentServiceImpl implements EventComponentService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new EntityNotFoundException("Event not found"));
 
-        if (!event.getUserId().equals(userId)) {
-            throw new IllegalArgumentException("Access Denied: You do not own this event workspace");
+        EventCuratorRole role = workspaceSecurityService.getCuratorRole(userId, eventId);
+        if (role == EventCuratorRole.VIEWER) {
+            throw new IllegalArgumentException("Access Denied: Viewers cannot modify event components");
         }
 
         EventComponent component = eventComponentRepository.findById(componentId)
@@ -74,6 +97,18 @@ public class EventComponentServiceImpl implements EventComponentService {
 
         if (!component.getEventId().equals(eventId)) {
             throw new IllegalArgumentException("Component does not belong to this event");
+        }
+
+        if (role == EventCuratorRole.COLLABORATOR) {
+            ChangeProposalResponseDto proposal = changeProposalService.createProposal(
+                    eventId,
+                    userId,
+                    ChangeProposalTarget.COMPONENT,
+                    ChangeProposalAction.UPDATE,
+                    componentId,
+                    request
+            );
+            throw new ProposalSubmittedException(proposal);
         }
 
         component.setName(request.getName());
@@ -92,9 +127,7 @@ public class EventComponentServiceImpl implements EventComponentService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new EntityNotFoundException("Event not found"));
 
-        if (!event.getUserId().equals(userId)) {
-            throw new IllegalArgumentException("Access Denied: You do not own this event workspace");
-        }
+        workspaceSecurityService.checkReadAccess(userId, eventId);
 
         List<EventComponent> components = eventComponentRepository.findByEventId(eventId);
         
@@ -120,8 +153,9 @@ public class EventComponentServiceImpl implements EventComponentService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new EntityNotFoundException("Event not found"));
 
-        if (!event.getUserId().equals(userId)) {
-            throw new IllegalArgumentException("Access Denied: You do not own this event workspace");
+        EventCuratorRole role = workspaceSecurityService.getCuratorRole(userId, eventId);
+        if (role == EventCuratorRole.VIEWER) {
+            throw new IllegalArgumentException("Access Denied: Viewers cannot modify event components");
         }
 
         EventComponent component = eventComponentRepository.findById(componentId)
@@ -129,6 +163,18 @@ public class EventComponentServiceImpl implements EventComponentService {
 
         if (!component.getEventId().equals(eventId)) {
             throw new IllegalArgumentException("Component does not belong to this event");
+        }
+
+        if (role == EventCuratorRole.COLLABORATOR) {
+            ChangeProposalResponseDto proposal = changeProposalService.createProposal(
+                    eventId,
+                    userId,
+                    ChangeProposalTarget.COMPONENT,
+                    ChangeProposalAction.DELETE,
+                    componentId,
+                    Map.of("id", componentId, "name", component.getName())
+            );
+            throw new ProposalSubmittedException(proposal);
         }
 
         eventComponentRepository.delete(component);
@@ -152,9 +198,7 @@ public class EventComponentServiceImpl implements EventComponentService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new EntityNotFoundException("Event not found"));
 
-        if (!event.getUserId().equals(userId)) {
-            throw new IllegalArgumentException("Access Denied: You do not own this event workspace");
-        }
+        workspaceSecurityService.checkReadAccess(userId, eventId);
 
         List<Object[]> results = eventComponentRepository.findComponentsWithSpendingByEventId(eventId);
         

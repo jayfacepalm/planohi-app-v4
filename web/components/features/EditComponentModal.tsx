@@ -12,8 +12,8 @@ import { fetchApi } from "../../lib/api-client";
 
 const editComponentSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(100, "Name is too long"),
-  estimatedCost: z.string().refine((val) => !isNaN(Number(val)) && Number(val) >= 0, {
-    message: "Estimated cost must be a positive number",
+  estimatedCost: z.string().refine((val) => !isNaN(Number(val)) && Number(val) >= 0 && Number(val) <= 9999999999.99, {
+    message: "Estimated cost must be between 0 and 9,999,999,999.99",
   }),
 });
 
@@ -40,6 +40,7 @@ export const EditComponentModal: React.FC<EditComponentModalProps> = ({
 }) => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const {
     register,
@@ -71,7 +72,7 @@ export const EditComponentModal: React.FC<EditComponentModalProps> = ({
     setLoading(true);
     setError(null);
     try {
-      await fetchApi<any>(`/events/${eventId}/components/${component.id}`, {
+      const response = await fetchApi<any>(`/events/${eventId}/components/${component.id}`, {
         method: "PUT",
         body: JSON.stringify({
           name: data.name,
@@ -81,8 +82,12 @@ export const EditComponentModal: React.FC<EditComponentModalProps> = ({
           "Content-Type": "application/json",
         },
       });
-      onSuccess();
-      onClose();
+      if (response && response.targetType) {
+        setSuccessMessage("Change proposal submitted: Category update queued for Organizer review.");
+      } else {
+        onSuccess();
+        onClose();
+      }
     } catch (err: any) {
       if (err.data && err.data.result && typeof err.data.result === "object") {
         Object.entries(err.data.result).forEach(([field, msg]) => {
@@ -100,32 +105,48 @@ export const EditComponentModal: React.FC<EditComponentModalProps> = ({
 
   const handleClose = () => {
     setError(null);
+    setSuccessMessage(null);
     onClose();
   };
+
+  const isSuccess = !!successMessage;
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="EDIT BUDGET COMPONENT"
+      title={isSuccess ? "PROPOSAL SUBMITTED" : "EDIT BUDGET COMPONENT"}
       footer={
-        <div className="flex gap-3">
-          <Button variant="ghost" onClick={handleClose} disabled={loading}>
-            Cancel
+        isSuccess ? (
+          <Button variant="primary" onClick={handleClose}>
+            Got it
           </Button>
-          <Button
-            variant="gradient"
-            onClick={handleSubmit(onSubmit)}
-            disabled={loading}
-            className="flex items-center gap-1.5"
-          >
-            <Save className="w-4 h-4" />
-            {loading ? "Saving..." : "Save Changes"}
-          </Button>
-        </div>
+        ) : (
+          <div className="flex gap-3">
+            <Button variant="ghost" onClick={handleClose} disabled={loading}>
+              Cancel
+            </Button>
+            <Button
+              variant="gradient"
+              onClick={handleSubmit(onSubmit)}
+              disabled={loading}
+              className="flex items-center gap-1.5"
+            >
+              <Save className="w-4 h-4" />
+              {loading ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
+        )
       }
     >
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      {isSuccess ? (
+        <div className="space-y-4 py-2">
+          <p className="text-sm text-zinc-300 leading-relaxed">
+            {successMessage}
+          </p>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <p className="text-xs text-zinc-400 font-sans leading-relaxed">
           Update the name or estimated expense limits for this category (e.g. Venue, Catering, Transportation).
         </p>
@@ -157,6 +178,7 @@ export const EditComponentModal: React.FC<EditComponentModalProps> = ({
           {...register("estimatedCost")}
         />
       </form>
+      )}
     </Modal>
   );
 };

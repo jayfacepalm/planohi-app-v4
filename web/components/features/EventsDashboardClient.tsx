@@ -8,6 +8,7 @@ import { DashboardPagination } from "./DashboardPagination";
 import { Button } from "../ui/Button";
 import { CreateEventModal } from "./CreateEventModal";
 import { Calendar } from "lucide-react";
+import { InvitationsBanner } from "./InvitationsBanner";
 
 interface EventItem {
   id: string;
@@ -20,8 +21,18 @@ interface EventItem {
   createdAt: string;
 }
 
+interface InvitationItem {
+  id: string;
+  eventId: string;
+  eventTitle: string;
+  inviterAlias: string;
+  role: string;
+  status: string;
+}
+
 interface EventsDashboardClientProps {
   events: EventItem[];
+  invitations: InvitationItem[];
   page: number;
   totalPages: number;
   totalElements: number;
@@ -33,6 +44,7 @@ interface EventsDashboardClientProps {
 
 export const EventsDashboardClient: React.FC<EventsDashboardClientProps> = ({
   events,
+  invitations,
   page,
   totalPages,
   totalElements,
@@ -124,6 +136,8 @@ export const EventsDashboardClient: React.FC<EventsDashboardClientProps> = ({
           </Button>
         </div>
       </div>
+
+      <InvitationsBanner invitations={invitations} />
 
       {dashboardContent}
 

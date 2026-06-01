@@ -4,6 +4,7 @@ import com.planohi.api.dto.CreateEventRequest;
 import com.planohi.api.dto.UpdateEventRequest;
 import com.planohi.api.dto.EventDto;
 import com.planohi.api.entity.Event;
+import com.planohi.api.enums.EventCuratorRole;
 import com.planohi.api.entity.EventSpending;
 import com.planohi.api.entity.Invitee;
 import com.planohi.api.entity.TimelineItem;
@@ -15,6 +16,8 @@ import com.planohi.api.repository.InviteeRepository;
 import com.planohi.api.repository.TimelineItemRepository;
 import com.planohi.api.repository.UserAccountRepository;
 import com.planohi.api.service.EventService;
+import com.planohi.api.service.S3StorageService;
+import com.planohi.api.service.WorkspaceSecurityService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -44,9 +47,8 @@ public class EventServiceImpl implements EventService {
     private final InviteeRepository inviteeRepository;
     private final TimelineItemRepository timelineItemRepository;
     private final EventSpendingRepository eventSpendingRepository;
-
-    private static final String UPLOAD_DIR = "/app/uploads/banners";
-    private static final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    private final S3StorageService s3StorageService;
+    private final WorkspaceSecurityService workspaceSecurityService;
 
     @Override
     @Transactional
@@ -59,7 +61,7 @@ public class EventServiceImpl implements EventService {
 
         String bannerUrl = null;
         if (bannerFile != null && !bannerFile.isEmpty()) {
-            bannerUrl = saveBannerFile(bannerFile);
+            bannerUrl = s3StorageService.uploadBanner(bannerFile);
         }
 
         // Handle single-day vs range dates
@@ -85,7 +87,7 @@ public class EventServiceImpl implements EventService {
         Event saved = eventRepository.save(event);
         log.info("Event successfully created in DB: {} with ID: {}", saved.getTitle(), saved.getId());
 
-        return mapToDto(saved);
+        return mapToDto(saved, userId);
     }
 
     @Override
@@ -96,7 +98,7 @@ public class EventServiceImpl implements EventService {
         return results.map(row -> {
             Event event = (Event) row[0];
             BigDecimal totalCost = (BigDecimal) row[1];
-            EventDto dto = mapToDto(event);
+            EventDto dto = mapToDto(event, userId);
             dto.setTotalEstimatedCost(totalCost);
             return dto;
         });
@@ -115,11 +117,9 @@ public class EventServiceImpl implements EventService {
         Event event = (Event) row[0];
         BigDecimal totalCost = (BigDecimal) row[1];
 
-        if (!event.getUserId().equals(userId)) {
-            throw new IllegalArgumentException("Access Denied: You do not own this event workspace");
-        }
+        workspaceSecurityService.checkReadAccess(userId, eventId);
 
-        EventDto dto = mapToDto(event);
+        EventDto dto = mapToDto(event, userId);
         dto.setTotalEstimatedCost(totalCost);
         return dto;
     }
@@ -131,11 +131,9 @@ public class EventServiceImpl implements EventService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new EntityNotFoundException("Event not found"));
 
-        if (!event.getUserId().equals(userId)) {
-            throw new IllegalArgumentException("Access Denied: You do not own this event workspace");
-        }
+        workspaceSecurityService.checkReadAccess(userId, eventId);
 
-        return readFileBytes(event.getBannerUrl());
+        return s3StorageService.fetchBannerBytes(event.getBannerUrl());
     }
 
     @Override
@@ -148,66 +146,31 @@ public class EventServiceImpl implements EventService {
         Event event = eventRepository.findById(invitee.getEventId())
                 .orElseThrow(() -> new EntityNotFoundException("Event not found for this invitation"));
 
-        return readFileBytes(event.getBannerUrl());
+        return s3StorageService.fetchBannerBytes(event.getBannerUrl());
     }
 
-    private String saveBannerFile(MultipartFile file) {
-        // Validate Size
-        if (file.getSize() > MAX_FILE_SIZE) {
-            throw new IllegalArgumentException("Banner image size exceeds 5MB limit");
-        }
 
-        // Validate Type
-        String contentType = file.getContentType();
-        if (contentType == null || (!contentType.equals("image/png") && !contentType.equals("image/jpeg") && !contentType.equals("image/jpg"))) {
-            throw new IllegalArgumentException("Only PNG and JPEG images are supported");
-        }
 
-        try {
-            Path uploadPath = Paths.get(UPLOAD_DIR);
-            if (!Files.exists(uploadPath)) {
-                Files.createDirectories(uploadPath);
+    private EventDto mapToDto(Event event, UUID callerUserId) {
+        EventCuratorRole role = EventCuratorRole.VIEWER;
+        if (event.getUserId().equals(callerUserId)) {
+            role = EventCuratorRole.OWNER;
+        } else {
+            try {
+                role = workspaceSecurityService.getCuratorRole(callerUserId, event.getId());
+            } catch (Exception e) {
+                // ignore
             }
-
-            String filename = UUID.randomUUID().toString() + "_" + StringUtils.cleanPath(file.getOriginalFilename());
-            Path filePath = uploadPath.resolve(filename);
-            Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
-
-            log.info("Banner file stored successfully at: {}", filePath);
-            return "/uploads/banners/" + filename; // Return relative web url key
-        } catch (IOException e) {
-            log.error("Failed to store banner file", e);
-            throw new RuntimeException("Could not store image file. Please try again.");
         }
-    }
-
-    private byte[] readFileBytes(String bannerUrl) {
-        if (bannerUrl == null) {
-            return new byte[0];
-        }
-        try {
-            // bannerUrl is like /uploads/banners/{filename}
-            String filename = bannerUrl.replace("/uploads/banners/", "");
-            Path filePath = Paths.get(UPLOAD_DIR).resolve(filename);
-            if (!Files.exists(filePath)) {
-                log.warn("Banner file does not exist on disk: {}", filePath);
-                return new byte[0];
-            }
-            return Files.readAllBytes(filePath);
-        } catch (IOException e) {
-            log.error("Failed to read banner file", e);
-            return new byte[0];
-        }
-    }
-
-    private EventDto mapToDto(Event event) {
         return EventDto.builder()
                 .id(event.getId())
+                .userId(event.getUserId())
+                .userRole(role)
                 .title(event.getTitle())
                 .description(event.getDescription())
                 .startDate(event.getStartDate())
                 .endDate(event.getEndDate())
-                .bannerUrl(event.getBannerUrl())
+                .bannerUrl(s3StorageService.generatePresignedUrl(event.getBannerUrl()))
                 .totalEstimatedCost(BigDecimal.ZERO) // Aggregation is added in US-2.5
                 .createdAt(event.getCreatedAt())
                 .build();
@@ -221,9 +184,7 @@ public class EventServiceImpl implements EventService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new EntityNotFoundException("Event not found"));
 
-        if (!event.getUserId().equals(userId)) {
-            throw new IllegalArgumentException("Access Denied: You do not own this event workspace");
-        }
+        workspaceSecurityService.checkWriteAccess(userId, eventId);
 
         Instant startDate = request.getStartDate();
         Instant endDate = request.getEndDate();
@@ -262,12 +223,12 @@ public class EventServiceImpl implements EventService {
         // Save new banner file if provided
         String oldBannerUrl = event.getBannerUrl();
         if (bannerFile != null && !bannerFile.isEmpty()) {
-            String newBannerUrl = saveBannerFile(bannerFile);
+            String newBannerUrl = s3StorageService.uploadBanner(bannerFile);
             event.setBannerUrl(newBannerUrl);
 
             // Delete old banner robustly (GAP 13)
             if (oldBannerUrl != null) {
-                deleteBannerFileRobust(oldBannerUrl);
+                s3StorageService.deleteBanner(oldBannerUrl);
             }
         }
 
@@ -284,12 +245,12 @@ public class EventServiceImpl implements EventService {
             Object[] row = rows.get(0);
             Event updatedEvent = (Event) row[0];
             BigDecimal totalCost = (BigDecimal) row[1];
-            EventDto dto = mapToDto(updatedEvent);
+            EventDto dto = mapToDto(updatedEvent, userId);
             dto.setTotalEstimatedCost(totalCost);
             return dto;
         }
 
-        return mapToDto(saved);
+        return mapToDto(saved, userId);
     }
 
     @Override
@@ -301,7 +262,7 @@ public class EventServiceImpl implements EventService {
                 .orElseThrow(() -> new EntityNotFoundException("Event not found"));
 
         if (!event.getUserId().equals(userId)) {
-            throw new IllegalArgumentException("Access Denied: You do not own this event workspace");
+            throw new IllegalArgumentException("Access Denied: Only the owner of the event workspace can delete it");
         }
 
         String bannerUrl = event.getBannerUrl();
@@ -312,20 +273,7 @@ public class EventServiceImpl implements EventService {
 
         // Delete banner file robustly (GAP 13)
         if (bannerUrl != null) {
-            deleteBannerFileRobust(bannerUrl);
-        }
-    }
-
-    private void deleteBannerFileRobust(String bannerUrl) {
-        try {
-            String filename = bannerUrl.replace("/uploads/banners/", "");
-            Path filePath = Paths.get(UPLOAD_DIR).resolve(filename);
-            if (Files.exists(filePath)) {
-                Files.delete(filePath);
-                log.info("Banner file deleted successfully: {}", filePath);
-            }
-        } catch (Exception e) {
-            log.warn("Failed to delete banner file robustly: {}. Error: {}", bannerUrl, e.getMessage());
+            s3StorageService.deleteBanner(bannerUrl);
         }
     }
 }

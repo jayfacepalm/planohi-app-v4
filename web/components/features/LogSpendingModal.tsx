@@ -13,8 +13,8 @@ import { fetchApi } from "../../lib/api-client";
 
 const logSpendingSchema = z.object({
   description: z.string().min(2, "Description must be at least 2 characters").max(255, "Description is too long"),
-  amount: z.string().refine((val) => !isNaN(Number(val)) && Number(val) > 0, {
-    message: "Spending amount must be a positive number greater than 0",
+  amount: z.string().refine((val) => !isNaN(Number(val)) && Number(val) > 0 && Number(val) <= 9999999999.99, {
+    message: "Spending amount must be between 0.01 and 9,999,999,999.99",
   }),
   spentAt: z.date(),
 });
@@ -38,6 +38,7 @@ export const LogSpendingModal: React.FC<LogSpendingModalProps> = ({
 }) => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const {
     register,
@@ -59,7 +60,7 @@ export const LogSpendingModal: React.FC<LogSpendingModalProps> = ({
     setLoading(true);
     setError(null);
     try {
-      await fetchApi<any>(`/components/${componentId}/spendings`, {
+      const response = await fetchApi<any>(`/components/${componentId}/spendings`, {
         method: "POST",
         body: JSON.stringify({
           description: data.description,
@@ -71,8 +72,12 @@ export const LogSpendingModal: React.FC<LogSpendingModalProps> = ({
         },
       });
       reset();
-      onSuccess();
-      onClose();
+      if (response && response.targetType) {
+        setSuccessMessage("Change proposal submitted: Spending log queued for Organizer review.");
+      } else {
+        onSuccess();
+        onClose();
+      }
     } catch (err: any) {
       if (err.data && err.data.result && typeof err.data.result === "object") {
         Object.entries(err.data.result).forEach(([field, msg]) => {
@@ -91,32 +96,48 @@ export const LogSpendingModal: React.FC<LogSpendingModalProps> = ({
   const handleClose = () => {
     reset();
     setError(null);
+    setSuccessMessage(null);
     onClose();
   };
+
+  const isSuccess = !!successMessage;
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title={`LOG EXPENSE FOR ${componentName.toUpperCase()}`}
+      title={isSuccess ? "PROPOSAL SUBMITTED" : `LOG EXPENSE FOR ${componentName.toUpperCase()}`}
       footer={
-        <div className="flex gap-3">
-          <Button variant="ghost" onClick={handleClose} disabled={loading}>
-            Cancel
+        isSuccess ? (
+          <Button variant="primary" onClick={handleClose}>
+            Got it
           </Button>
-          <Button
-            variant="gradient"
-            onClick={handleSubmit(onSubmit)}
-            disabled={loading}
-            className="flex items-center gap-1.5"
-          >
-            <Plus className="w-4 h-4" />
-            {loading ? "Logging..." : "Log Expense"}
-          </Button>
-        </div>
+        ) : (
+          <div className="flex gap-3">
+            <Button variant="ghost" onClick={handleClose} disabled={loading}>
+              Cancel
+            </Button>
+            <Button
+              variant="gradient"
+              onClick={handleSubmit(onSubmit)}
+              disabled={loading}
+              className="flex items-center gap-1.5"
+            >
+              <Plus className="w-4 h-4" />
+              {loading ? "Logging..." : "Log Expense"}
+            </Button>
+          </div>
+        )
       }
     >
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      {isSuccess ? (
+        <div className="space-y-4 py-2">
+          <p className="text-sm text-zinc-300 leading-relaxed">
+            {successMessage}
+          </p>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <p className="text-xs text-zinc-400 font-sans leading-relaxed">
           Record a payment or transaction amount logged against the component <strong>{componentName}</strong>.
         </p>
@@ -170,6 +191,7 @@ export const LogSpendingModal: React.FC<LogSpendingModalProps> = ({
           )}
         </div>
       </form>
+      )}
     </Modal>
   );
 };

@@ -10,13 +10,18 @@ import { Button } from "../ui/Button";
 import { GlowCard } from "../ui/GlowCard";
 import { Plus, Trash2, PiggyBank, Briefcase, ChevronDown, ChevronUp, DollarSign, AlertTriangle, Calendar, Edit } from "lucide-react";
 import { fetchApi } from "../../lib/api-client";
+import { UserRole, USER_ROLES, PROPOSAL_STATUSES, PROPOSAL_ACTIONS, PROPOSAL_TARGETS } from "../../lib/constants";
 
 interface SpendingItem {
   id: string;
   description: string;
   amount: number;
   spentAt: string;
-  createdAt: string;
+  createdAt?: string;
+  isPendingCreate?: boolean;
+  pendingUpdate?: any;
+  pendingDelete?: any;
+  proposal?: any;
 }
 
 interface ComponentItem {
@@ -25,6 +30,10 @@ interface ComponentItem {
   estimatedCost: number;
   actualSpent: number;
   spendings: SpendingItem[];
+  isPendingCreate?: boolean;
+  pendingUpdate?: any;
+  pendingDelete?: any;
+  proposal?: any;
 }
 
 interface EventBudgetCanvasProps {
@@ -32,6 +41,8 @@ interface EventBudgetCanvasProps {
   initialComponents: ComponentItem[];
   initialTotalCost: number;
   initialTotalActualSpent: number;
+  userRole?: UserRole;
+  proposals?: any[];
 }
 
 export const EventBudgetCanvas: React.FC<EventBudgetCanvasProps> = ({
@@ -39,10 +50,14 @@ export const EventBudgetCanvas: React.FC<EventBudgetCanvasProps> = ({
   initialComponents,
   initialTotalCost,
   initialTotalActualSpent,
+  userRole,
+  proposals: initialProposals = [],
 }) => {
   const [components, setComponents] = useState<ComponentItem[]>(initialComponents);
   const [totalCost, setTotalCost] = useState<number>(initialTotalCost);
   const [totalActualSpent, setTotalActualSpent] = useState<number>(initialTotalActualSpent);
+  const [proposals, setProposals] = useState<any[]>(initialProposals);
+  const canEdit = userRole === USER_ROLES.OWNER || userRole === USER_ROLES.ORGANIZER || userRole === USER_ROLES.COLLABORATOR;
   
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isSpendingOpen, setIsSpendingOpen] = useState(false);
@@ -53,6 +68,8 @@ export const EventBudgetCanvas: React.FC<EventBudgetCanvasProps> = ({
   const [componentToDelete, setComponentToDelete] = useState<string | null>(null);
   const [errorModalOpen, setErrorModalOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [infoModalOpen, setInfoModalOpen] = useState(false);
+  const [infoModalMessage, setInfoModalMessage] = useState("");
 
   // Edit Component States
   const [isEditComponentOpen, setIsEditComponentOpen] = useState(false);
@@ -73,6 +90,67 @@ export const EventBudgetCanvas: React.FC<EventBudgetCanvasProps> = ({
   React.useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Combine components with pending creations and attach pending updates/deletions
+  const pendingCreations = (proposals || [])
+    .filter((p) => p.targetType === PROPOSAL_TARGETS.COMPONENT && p.actionType === PROPOSAL_ACTIONS.CREATE && p.status === PROPOSAL_STATUSES.PENDING)
+    .map((p) => ({
+      id: `pending-create-${p.id}`,
+      name: p.proposedData?.name || "Pending Category",
+      estimatedCost: p.proposedData?.estimatedCost || 0,
+      actualSpent: 0,
+      spendings: [],
+      isPendingCreate: true,
+      proposal: p,
+    }));
+
+  const processedComponents = components.map((c) => {
+    const pendingUpdate = (proposals || []).find(
+      (p) => p.targetType === PROPOSAL_TARGETS.COMPONENT && p.actionType === PROPOSAL_ACTIONS.UPDATE && p.targetId === c.id && p.status === PROPOSAL_STATUSES.PENDING
+    );
+    const pendingDelete = (proposals || []).find(
+      (p) => p.targetType === PROPOSAL_TARGETS.COMPONENT && p.actionType === PROPOSAL_ACTIONS.DELETE && p.targetId === c.id && p.status === PROPOSAL_STATUSES.PENDING
+    );
+
+    // Also get pending spending creations for this component
+    const pendingSpendings = (proposals || [])
+      .filter(
+        (p) => p.targetType === PROPOSAL_TARGETS.SPENDING && p.actionType === PROPOSAL_ACTIONS.CREATE && p.status === PROPOSAL_STATUSES.PENDING && p.proposedData?.componentId === c.id
+      )
+      .map((p) => ({
+        id: `pending-spending-${p.id}`,
+        description: p.proposedData?.description || "Pending Expense",
+        amount: p.proposedData?.amount || 0,
+        spentAt: p.proposedData?.spentAt || new Date().toISOString(),
+        isPendingCreate: true,
+        proposal: p,
+      }));
+
+    // Attach pending updates/deletions on existing spendings
+    const processedSpendings = (c.spendings || []).map((s) => {
+      const spendingUpdate = (proposals || []).find(
+        (p) => p.targetType === PROPOSAL_TARGETS.SPENDING && p.actionType === PROPOSAL_ACTIONS.UPDATE && p.targetId === s.id && p.status === PROPOSAL_STATUSES.PENDING
+      );
+      const spendingDelete = (proposals || []).find(
+        (p) => p.targetType === PROPOSAL_TARGETS.SPENDING && p.actionType === PROPOSAL_ACTIONS.DELETE && p.targetId === s.id && p.status === PROPOSAL_STATUSES.PENDING
+      );
+
+      return {
+        ...s,
+        pendingUpdate,
+        pendingDelete,
+      };
+    });
+
+    return {
+      ...c,
+      spendings: [...processedSpendings, ...pendingSpendings],
+      pendingUpdate,
+      pendingDelete,
+    };
+  });
+
+  const allRenderComponents: ComponentItem[] = [...processedComponents, ...pendingCreations];
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-PH", {
@@ -95,12 +173,19 @@ export const EventBudgetCanvas: React.FC<EventBudgetCanvasProps> = ({
 
   const refreshComponents = async () => {
     try {
-      const response = await fetchApi<{ components: ComponentItem[]; totalEstimatedCost: number; totalActualSpent: number }>(
-        `/events/${eventId}/budget-summary`
-      );
-      setComponents(response.components || []);
-      setTotalCost(response.totalEstimatedCost || 0);
-      setTotalActualSpent(response.totalActualSpent || 0);
+      const [budgetRes, proposalsRes] = await Promise.all([
+        fetchApi<{ components: ComponentItem[]; totalEstimatedCost: number; totalActualSpent: number }>(
+          `/events/${eventId}/budget-summary`
+        ),
+        fetchApi<any[]>(`/events/${eventId}/proposals`).catch((err) => {
+          console.error("Failed to refresh proposals:", err);
+          return [];
+        }),
+      ]);
+      setComponents(budgetRes.components || []);
+      setTotalCost(budgetRes.totalEstimatedCost || 0);
+      setTotalActualSpent(budgetRes.totalActualSpent || 0);
+      setProposals(proposalsRes || []);
     } catch (err) {
       console.error("Failed to refresh components:", err);
     }
@@ -120,10 +205,15 @@ export const EventBudgetCanvas: React.FC<EventBudgetCanvasProps> = ({
     setDeletingId(targetId);
     
     try {
-      await fetchApi(`/events/${eventId}/components/${targetId}`, {
+      const response = await fetchApi<any>(`/events/${eventId}/components/${targetId}`, {
         method: "DELETE",
       });
-      await refreshComponents();
+      if (response && response.targetType) {
+        setInfoModalMessage("Change proposal submitted: Category deletion queued for Organizer review.");
+        setInfoModalOpen(true);
+      } else {
+        await refreshComponents();
+      }
     } catch (err) {
       console.error("Failed to delete component:", err);
       setErrorMessage("Failed to delete component. Please try again.");
@@ -155,10 +245,15 @@ export const EventBudgetCanvas: React.FC<EventBudgetCanvasProps> = ({
     if (!spendingToDelete || !activeSpendingComponentId) return;
     setSpendingDeleteLoading(true);
     try {
-      await fetchApi(`/components/${activeSpendingComponentId}/spendings/${spendingToDelete.id}`, {
+      const response = await fetchApi<any>(`/components/${activeSpendingComponentId}/spendings/${spendingToDelete.id}`, {
         method: "DELETE",
       });
-      await refreshComponents();
+      if (response && response.targetType) {
+        setInfoModalMessage("Change proposal submitted: Spending deletion queued for Organizer review.");
+        setInfoModalOpen(true);
+      } else {
+        await refreshComponents();
+      }
       setDeleteSpendingConfirmOpen(false);
       setSpendingToDelete(null);
     } catch (err) {
@@ -187,49 +282,68 @@ export const EventBudgetCanvas: React.FC<EventBudgetCanvasProps> = ({
               Expense Categories Breakdown
             </h3>
           </div>
-          <Button
-            variant="gradient"
-            onClick={() => setIsAddOpen(true)}
-            className="px-4 py-1.5 font-heading text-xs tracking-wider uppercase flex items-center gap-1 h-auto"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Add Category
-          </Button>
+          {canEdit && (
+            <Button
+              variant="gradient"
+              onClick={() => setIsAddOpen(true)}
+              className="px-4 py-1.5 font-heading text-xs tracking-wider uppercase flex items-center gap-1 h-auto"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add Category
+            </Button>
+          )}
         </div>
 
-        {components.length === 0 ? (
+        {allRenderComponents.length === 0 ? (
           <div className="border border-dashed border-white/10 rounded-xl p-12 text-center bg-[#121214]/20">
             <span className="text-xs text-zinc-500 italic block">
               No budgeting components defined for this workspace yet.
             </span>
-            <Button
-              variant="ghost"
-              onClick={() => setIsAddOpen(true)}
-              className="mt-4 text-xs font-semibold text-neon-cyan hover:underline"
-            >
-              Define your first cost category
-            </Button>
+            {canEdit && (
+              <Button
+                variant="ghost"
+                onClick={() => setIsAddOpen(true)}
+                className="mt-4 text-xs font-semibold text-neon-cyan hover:underline"
+              >
+                Define your first cost category
+              </Button>
+            )}
           </div>
         ) : (
           <div className="space-y-4">
-            {components.map((item) => {
+            {allRenderComponents.map((item) => {
               const isOverBudget = item.actualSpent > item.estimatedCost;
               const usagePercent = item.estimatedCost > 0 
                 ? Math.min(100, (item.actualSpent / item.estimatedCost) * 100) 
                 : 0;
               const isExpanded = !!expandedIds[item.id];
 
+              // Custom styles for pending states
+              let cardBorderClass = "border-white/5 hover:border-white/10";
+              let cardBgClass = "bg-[#121214]";
+              if (item.isPendingCreate) {
+                cardBorderClass = "border-yellow-500/30 border-dashed";
+                cardBgClass = "bg-yellow-500/3";
+              } else if (item.pendingDelete) {
+                cardBorderClass = "border-red-500/30 border-dashed bg-red-950/5";
+                cardBgClass = "bg-red-950/5";
+              } else if (item.pendingUpdate) {
+                cardBorderClass = "border-yellow-500/20";
+                cardBgClass = "bg-yellow-500/2";
+              } else if (isOverBudget) {
+                cardBorderClass = "border-red-500/30 bg-red-950/5";
+                cardBgClass = "bg-red-950/5";
+              }
+
               return (
                 <div
                   key={item.id}
-                  className={`flex flex-col bg-[#121214] border rounded-xl overflow-hidden transition-all shadow-[0_4px_12px_rgba(0,0,0,0.15)] ${
-                    isOverBudget ? "border-red-500/30 bg-red-950/5" : "border-white/5 hover:border-white/10"
-                  }`}
+                  className={`flex flex-col border rounded-xl overflow-hidden transition-all shadow-[0_4px_12px_rgba(0,0,0,0.15)] ${cardBorderClass} ${cardBgClass}`}
                 >
                   {/* Category Header Row */}
                   <div className="flex items-center justify-between p-4 flex-wrap gap-4">
                     <div className="flex-1 min-w-[200px]">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <h4 className="text-sm font-heading font-bold text-white tracking-wide">
                           {item.name}
                         </h4>
@@ -238,12 +352,33 @@ export const EventBudgetCanvas: React.FC<EventBudgetCanvasProps> = ({
                             Over Budget
                           </span>
                         )}
+                        {item.isPendingCreate && (
+                          <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded border border-yellow-500/20 shadow-[0_0_5px_rgba(234,179,8,0.2)]">
+                            Pending Creation
+                          </span>
+                        )}
+                        {item.pendingDelete && (
+                          <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20 shadow-[0_0_5px_rgba(239,68,68,0.2)]">
+                            Pending Deletion
+                          </span>
+                        )}
+                        {item.pendingUpdate && (
+                          <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded border border-yellow-500/20 shadow-[0_0_5px_rgba(234,179,8,0.2)]">
+                            Pending Update
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-3 text-[10px] text-zinc-500 font-mono mt-1">
                         <span>Est: <strong className="text-zinc-300">{formatCurrency(item.estimatedCost)}</strong></span>
                         <span>•</span>
                         <span>Spent: <strong className={isOverBudget ? "text-red-400" : "text-neon-cyan"}>{formatCurrency(item.actualSpent)}</strong></span>
                       </div>
+
+                      {item.pendingUpdate && (
+                        <div className="text-[10px] text-yellow-500 font-sans mt-2 bg-yellow-500/5 border border-yellow-500/10 px-2 py-1 rounded w-fit">
+                          Proposed values: <span className="text-zinc-400">"{item.pendingUpdate.proposedData?.name}"</span> (Est: <strong className="text-white">{formatCurrency(item.pendingUpdate.proposedData?.estimatedCost)}</strong>)
+                        </div>
+                      )}
                       
                       {/* Estimate vs Actual Mini Progress Bar */}
                       <div className="w-full max-w-md h-1.5 bg-zinc-850 rounded-full mt-3 overflow-hidden">
@@ -257,36 +392,42 @@ export const EventBudgetCanvas: React.FC<EventBudgetCanvasProps> = ({
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <Button
-                        variant="secondary"
-                        onClick={() => openLogSpending(item.id, item.name)}
-                        className="px-3 py-1 text-[10px] uppercase font-heading tracking-wider flex items-center gap-1 h-auto"
-                      >
-                        <Plus className="w-3 h-3" />
-                        Log Expense
-                      </Button>
+                      {canEdit && (
+                        <>
+                          <Button
+                            variant="secondary"
+                            onClick={() => openLogSpending(item.id, item.name)}
+                            disabled={item.isPendingCreate || !!item.pendingDelete}
+                            className="px-3 py-1 text-[10px] uppercase font-heading tracking-wider flex items-center gap-1 h-auto disabled:opacity-50"
+                          >
+                            <Plus className="w-3 h-3" />
+                            Log Expense
+                          </Button>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setComponentToEdit(item);
-                          setIsEditComponentOpen(true);
-                        }}
-                        className="text-zinc-500 hover:text-neon-cyan p-1.5 rounded-lg border border-transparent hover:border-neon-cyan/20 hover:bg-neon-cyan/5 transition-all cursor-pointer"
-                        aria-label="Edit component"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setComponentToEdit(item);
+                              setIsEditComponentOpen(true);
+                            }}
+                            disabled={item.isPendingCreate || !!item.pendingDelete || !!item.pendingUpdate}
+                            className="text-zinc-500 hover:text-neon-cyan p-1.5 rounded-lg border border-transparent hover:border-neon-cyan/20 hover:bg-neon-cyan/5 transition-all cursor-pointer disabled:opacity-30 disabled:hover:border-transparent disabled:hover:bg-transparent"
+                            aria-label="Edit component"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
 
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteClick(item.id)}
-                        disabled={deletingId === item.id}
-                        className="text-zinc-500 hover:text-red-400 p-1.5 rounded-lg border border-transparent hover:border-red-500/20 hover:bg-red-500/5 transition-all cursor-pointer"
-                        aria-label="Remove component"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteClick(item.id)}
+                            disabled={deletingId === item.id || item.isPendingCreate || !!item.pendingDelete || !!item.pendingUpdate}
+                            className="text-zinc-500 hover:text-red-400 p-1.5 rounded-lg border border-transparent hover:border-red-500/20 hover:bg-red-500/5 transition-all cursor-pointer disabled:opacity-30 disabled:hover:border-transparent disabled:hover:bg-transparent"
+                            aria-label="Remove component"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
 
                       <button
                         type="button"
@@ -313,13 +454,15 @@ export const EventBudgetCanvas: React.FC<EventBudgetCanvasProps> = ({
                           <span className="text-xs text-zinc-650 italic block">
                             No expenses logged for this category yet.
                           </span>
-                          <button
-                            type="button"
-                            onClick={() => openLogSpending(item.id, item.name)}
-                            className="mt-2 text-[10px] text-neon-cyan hover:underline font-mono font-medium"
-                          >
-                            + Record your first payment transaction
-                          </button>
+                          {canEdit && !item.isPendingCreate && !item.pendingDelete && (
+                            <button
+                              type="button"
+                              onClick={() => openLogSpending(item.id, item.name)}
+                              className="mt-2 text-[10px] text-neon-cyan hover:underline font-mono font-medium"
+                            >
+                              + Record your first payment transaction
+                            </button>
+                          )}
                         </div>
                       ) : (
                         <div className="overflow-x-auto rounded-lg border border-white/5">
@@ -329,48 +472,80 @@ export const EventBudgetCanvas: React.FC<EventBudgetCanvasProps> = ({
                                 <th className="p-3 pl-4">Description</th>
                                 <th className="p-3">Date Paid</th>
                                 <th className="p-3 text-right">Amount</th>
-                                <th className="p-3 pr-4 text-right">Actions</th>
+                                {canEdit && <th className="p-3 pr-4 text-right">Actions</th>}
                               </tr>
                             </thead>
                             <tbody>
-                              {item.spendings.map((logItem) => (
-                                <tr key={logItem.id} className="border-b border-white/5 hover:bg-white/1 text-zinc-300">
-                                  <td className="p-3 pl-4 font-medium">{logItem.description}</td>
-                                  <td className="p-3 text-zinc-500 font-mono">
-                                    <div className="flex items-center gap-1.5">
-                                      <Calendar className="w-3.5 h-3.5 text-zinc-650" />
-                                      {formatDate(logItem.spentAt)}
-                                    </div>
-                                  </td>
-                                  <td className="p-3 text-right font-mono font-bold text-white">
-                                    {formatCurrency(logItem.amount)}
-                                  </td>
-                                  <td className="p-3 pr-4 text-right">
-                                    <div className="flex items-center justify-end gap-2">
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setActiveSpendingComponentId(item.id);
-                                          setSpendingToEdit(logItem);
-                                          setIsEditSpendingOpen(true);
-                                        }}
-                                        className="text-zinc-500 hover:text-neon-cyan p-1 rounded hover:bg-white/5 transition-all cursor-pointer"
-                                        aria-label="Edit transaction"
-                                      >
-                                        <Edit className="w-3.5 h-3.5" />
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => handleSpendingDeleteClick(item.id, logItem)}
-                                        className="text-zinc-500 hover:text-red-400 p-1 rounded hover:bg-white/5 transition-all cursor-pointer"
-                                        aria-label="Delete transaction"
-                                      >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                      </button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))}
+                              {item.spendings.map((logItem) => {
+                                let rowClass = "hover:bg-white/1 text-zinc-300";
+                                if (logItem.isPendingCreate) {
+                                  rowClass = "bg-yellow-500/2 hover:bg-yellow-500/3 text-zinc-400 opacity-80 border-dashed border-yellow-500/10";
+                                } else if (logItem.pendingDelete) {
+                                  rowClass = "bg-red-500/2 hover:bg-red-500/3 text-zinc-400 opacity-80 line-through decoration-red-500/30";
+                                } else if (logItem.pendingUpdate) {
+                                  rowClass = "bg-yellow-500/2 hover:bg-yellow-500/3 text-zinc-300";
+                                }
+
+                                return (
+                                  <tr key={logItem.id} className={`border-b border-white/5 ${rowClass}`}>
+                                    <td className="p-3 pl-4 font-medium">
+                                      <div className="flex flex-col">
+                                        <span>{logItem.description}</span>
+                                        {logItem.isPendingCreate && (
+                                          <span className="text-[8px] font-bold text-yellow-500 uppercase tracking-widest mt-0.5">Pending Creation</span>
+                                        )}
+                                        {logItem.pendingDelete && (
+                                          <span className="text-[8px] font-bold text-red-400 uppercase tracking-widest mt-0.5">Pending Deletion</span>
+                                        )}
+                                        {logItem.pendingUpdate && (
+                                          <span className="text-[8px] font-bold text-yellow-500 uppercase tracking-widest mt-0.5">
+                                            Pending Update: "{logItem.pendingUpdate.proposedData?.description}" ({formatCurrency(logItem.pendingUpdate.proposedData?.amount)})
+                                          </span>
+                                        )}
+                                      </div>
+                                    </td>
+                                    <td className="p-3 text-zinc-500 font-mono">
+                                      <div className="flex items-center gap-1.5">
+                                        <Calendar className="w-3.5 h-3.5 text-zinc-650" />
+                                        {formatDate(logItem.spentAt)}
+                                      </div>
+                                    </td>
+                                    <td className="p-3 text-right font-mono font-bold text-white">
+                                      {formatCurrency(logItem.amount)}
+                                    </td>
+                                    {canEdit && (
+                                      <td className="p-3 pr-4 text-right">
+                                        {!logItem.isPendingCreate && !logItem.pendingDelete && !logItem.pendingUpdate ? (
+                                          <div className="flex items-center justify-end gap-2">
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setActiveSpendingComponentId(item.id);
+                                                setSpendingToEdit(logItem);
+                                                setIsEditSpendingOpen(true);
+                                              }}
+                                              className="text-zinc-500 hover:text-neon-cyan p-1 rounded hover:bg-white/5 transition-all cursor-pointer"
+                                              aria-label="Edit transaction"
+                                            >
+                                              <Edit className="w-3.5 h-3.5" />
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => handleSpendingDeleteClick(item.id, logItem)}
+                                              className="text-zinc-500 hover:text-red-400 p-1 rounded hover:bg-white/5 transition-all cursor-pointer"
+                                              aria-label="Delete transaction"
+                                            >
+                                              <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                          </div>
+                                        ) : (
+                                          <span className="text-[9px] font-bold text-zinc-500 uppercase italic">Locked</span>
+                                        )}
+                                      </td>
+                                    )}
+                                  </tr>
+                                );
+                              })}
                             </tbody>
                           </table>
                         </div>
@@ -599,6 +774,22 @@ export const EventBudgetCanvas: React.FC<EventBudgetCanvasProps> = ({
       >
         <p className="text-sm text-zinc-300">
           {errorMessage}
+        </p>
+      </Modal>
+
+      {/* Info / Proposal Confirmation Modal */}
+      <Modal
+        isOpen={infoModalOpen}
+        onClose={() => setInfoModalOpen(false)}
+        title="Change Proposal Submitted"
+        footer={
+          <Button variant="primary" onClick={() => setInfoModalOpen(false)}>
+            Got it
+          </Button>
+        }
+      >
+        <p className="text-sm text-zinc-300">
+          {infoModalMessage}
         </p>
       </Modal>
     </div>

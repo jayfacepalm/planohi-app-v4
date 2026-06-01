@@ -14,6 +14,8 @@ import com.planohi.api.exception.FieldValidationException;
 import com.planohi.api.repository.EventRepository;
 import com.planohi.api.repository.InviteeRepository;
 import com.planohi.api.service.InviteeService;
+import com.planohi.api.service.S3StorageService;
+import com.planohi.api.service.WorkspaceSecurityService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -32,6 +34,8 @@ public class InviteeServiceImpl implements InviteeService {
 
     private final EventRepository eventRepository;
     private final InviteeRepository inviteeRepository;
+    private final S3StorageService s3StorageService;
+    private final WorkspaceSecurityService workspaceSecurityService;
 
     @Override
     @Transactional
@@ -41,9 +45,7 @@ public class InviteeServiceImpl implements InviteeService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new EntityNotFoundException("Event not found"));
 
-        if (!event.getUserId().equals(userId)) {
-            throw new IllegalArgumentException("Access Denied: You do not own this event workspace");
-        }
+        workspaceSecurityService.checkWriteAccess(userId, eventId);
 
         List<Invitee> invitees = new ArrayList<>();
         for (CreateInviteeRequest request : requests) {
@@ -68,9 +70,7 @@ public class InviteeServiceImpl implements InviteeService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new EntityNotFoundException("Event not found"));
 
-        if (!event.getUserId().equals(userId)) {
-            throw new IllegalArgumentException("Access Denied: You do not own this event workspace");
-        }
+        workspaceSecurityService.checkReadAccess(userId, eventId);
 
         Page<Invitee> inviteesPage;
         if (search != null && !search.trim().isEmpty()) {
@@ -90,9 +90,7 @@ public class InviteeServiceImpl implements InviteeService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new EntityNotFoundException("Event not found"));
 
-        if (!event.getUserId().equals(userId)) {
-            throw new IllegalArgumentException("Access Denied: You do not own this event workspace");
-        }
+        workspaceSecurityService.checkReadAccess(userId, eventId);
 
         InviteeMetricsDto metrics = inviteeRepository.getMetricsByEventId(eventId);
         if (metrics == null || metrics.getTotalInvited() == 0L) {
@@ -124,7 +122,7 @@ public class InviteeServiceImpl implements InviteeService {
                 .description(event.getDescription())
                 .startDate(event.getStartDate())
                 .endDate(event.getEndDate())
-                .bannerUrl(event.getBannerUrl())
+                .bannerUrl(s3StorageService.generatePresignedUrl(event.getBannerUrl()))
                 .build();
 
         return PublicRsvpDetailsDto.builder()
@@ -196,9 +194,7 @@ public class InviteeServiceImpl implements InviteeService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new EntityNotFoundException("Event not found"));
 
-        if (!event.getUserId().equals(userId)) {
-            throw new IllegalArgumentException("Access Denied: You do not own this event workspace");
-        }
+        workspaceSecurityService.checkWriteAccess(userId, eventId);
 
         Invitee invitee = inviteeRepository.findById(inviteeId)
                 .orElseThrow(() -> new EntityNotFoundException("Invitee not found"));
@@ -227,9 +223,7 @@ public class InviteeServiceImpl implements InviteeService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new EntityNotFoundException("Event not found"));
 
-        if (!event.getUserId().equals(userId)) {
-            throw new IllegalArgumentException("Access Denied: You do not own this event workspace");
-        }
+        workspaceSecurityService.checkWriteAccess(userId, eventId);
 
         Invitee invitee = inviteeRepository.findById(inviteeId)
                 .orElseThrow(() -> new EntityNotFoundException("Invitee not found"));

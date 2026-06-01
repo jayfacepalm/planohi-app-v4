@@ -3,6 +3,8 @@ import { fetchApi } from "../../../lib/api-client";
 import { EventBudgetCanvas } from "../../../components/features/EventBudgetCanvas";
 import { EventTimelineCanvas } from "../../../components/features/EventTimelineCanvas";
 import { EventGuestCanvas } from "../../../components/features/EventGuestCanvas";
+import { EventCuratorsCanvas } from "../../../components/features/EventCuratorsCanvas";
+import { EventApprovalsCanvas } from "../../../components/features/EventApprovalsCanvas";
 import { Badge } from "../../../components/ui/Badge";
 import { EventWorkspaceHeaderActions } from "../../../components/features/EventWorkspaceHeaderActions";
 import { LocalEventDates } from "../../../components/ui/LocalEventDates";
@@ -47,32 +49,53 @@ export default async function EventDetailPage({ params, searchParams }: PageProp
   let timelineData: any = null;
   let inviteesData: any = null;
   let metricsData: any = null;
+  let curatorsData: any = null;
+  let proposalsData: any = null;
   let errorMsg: string | null = null;
 
   try {
+    const eventPromise = fetchApi<any>(`/events/${id}`, { headers });
+    const proposalsPromise = fetchApi<any>(`/events/${id}/proposals`, { headers }).catch(err => {
+      console.error("Failed to fetch proposals for user preview:", err);
+      return [];
+    });
+    let tabPromise;
+
     if (activeTab === "timeline") {
-      const [eventRes, timelineRes] = await Promise.all([
-        fetchApi<any>(`/events/${id}`, { headers }),
-        fetchApi<any>(`/events/${id}/timeline`, { headers }),
-      ]);
-      event = eventRes;
-      timelineData = timelineRes;
+      tabPromise = fetchApi<any>(`/events/${id}/timeline`, { headers });
     } else if (activeTab === "guests") {
-      const [eventRes, inviteesRes, metricsRes] = await Promise.all([
-        fetchApi<any>(`/events/${id}`, { headers }),
+      tabPromise = Promise.all([
         fetchApi<any>(`/events/${id}/invitees?page=${currentPage}&size=10&search=${encodeURIComponent(currentSearch)}`, { headers }),
         fetchApi<any>(`/events/${id}/metrics`, { headers }),
       ]);
-      event = eventRes;
-      inviteesData = inviteesRes;
-      metricsData = metricsRes;
+    } else if (activeTab === "curators") {
+      tabPromise = fetchApi<any>(`/events/${id}/curators`, { headers });
+    } else if (activeTab === "approvals") {
+      tabPromise = Promise.resolve(null);
     } else {
-      const [eventRes, componentsRes] = await Promise.all([
-        fetchApi<any>(`/events/${id}`, { headers }),
-        fetchApi<any>(`/events/${id}/budget-summary`, { headers }),
-      ]);
-      event = eventRes;
-      componentsData = componentsRes;
+      tabPromise = fetchApi<any>(`/events/${id}/budget-summary`, { headers });
+    }
+
+    const [eventRes, proposalsRes, tabRes] = await Promise.all([
+      eventPromise,
+      proposalsPromise,
+      tabPromise,
+    ]);
+
+    event = eventRes;
+    proposalsData = proposalsRes;
+
+    if (activeTab === "timeline") {
+      timelineData = tabRes;
+    } else if (activeTab === "guests") {
+      inviteesData = tabRes[0];
+      metricsData = tabRes[1];
+    } else if (activeTab === "curators") {
+      curatorsData = tabRes;
+    } else if (activeTab === "approvals") {
+      // proposalsData is set above
+    } else {
+      componentsData = tabRes;
     }
   } catch (err: any) {
     console.error(`Failed to load event details for ${id}:`, err);
@@ -114,7 +137,7 @@ export default async function EventDetailPage({ params, searchParams }: PageProp
     return start === end;
   };
 
-  const bannerUrl = event.bannerUrl ? `/api/proxy/events/${event.id}/banner` : null;
+  const bannerUrl = event.bannerUrl || null;
 
   return (
     <div className="w-full max-w-7xl mx-auto px-4 md:px-8 space-y-8">
@@ -198,6 +221,31 @@ export default async function EventDetailPage({ params, searchParams }: PageProp
             Guest Canvas
           </span>
         </Link>
+        <Link href={`/events/${event.id}?tab=curators`}>
+          <span className={`pb-3 font-heading text-sm font-bold tracking-wider uppercase cursor-pointer border-b-2 transition-all block ${
+            activeTab === "curators" 
+              ? "border-neon-purple text-white drop-shadow-[0_0_8px_rgba(168,85,247,0.4)]" 
+              : "border-transparent text-zinc-500 hover:text-zinc-300"
+          }`}>
+            Curators
+          </span>
+        </Link>
+        {(event.userRole === "OWNER" || event.userRole === "ORGANIZER") && (
+          <Link href={`/events/${event.id}?tab=approvals`}>
+            <span className={`pb-3 font-heading text-sm font-bold tracking-wider uppercase cursor-pointer border-b-2 transition-all flex items-center gap-1.5 ${
+              activeTab === "approvals" 
+                ? "border-neon-purple text-white drop-shadow-[0_0_8px_rgba(168,85,247,0.4)]" 
+                : "border-transparent text-zinc-500 hover:text-zinc-300"
+            }`}>
+              <span>Approvals</span>
+              {proposalsData && proposalsData.length > 0 && (
+                <span className="bg-neon-purple text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center border border-neon-purple/50 shadow-[0_0_5px_rgba(168,85,247,0.5)]">
+                  {proposalsData.length}
+                </span>
+              )}
+            </span>
+          </Link>
+        )}
       </div>
 
       {/* Canvas rendering content */}
@@ -209,6 +257,8 @@ export default async function EventDetailPage({ params, searchParams }: PageProp
           initialItems={timelineData?.items || []}
           eventStartDate={event.startDate}
           eventEndDate={event.endDate}
+          userRole={event.userRole}
+          proposals={proposalsData || []}
         />
       ) : activeTab === "guests" ? (
         <EventGuestCanvas
@@ -225,6 +275,18 @@ export default async function EventDetailPage({ params, searchParams }: PageProp
           }}
           currentPage={currentPage}
           currentSearch={currentSearch}
+          userRole={event.userRole}
+        />
+      ) : activeTab === "curators" ? (
+        <EventCuratorsCanvas
+          eventId={event.id}
+          initialCurators={curatorsData || []}
+          userRole={event.userRole}
+        />
+      ) : activeTab === "approvals" && (event.userRole === "OWNER" || event.userRole === "ORGANIZER") ? (
+        <EventApprovalsCanvas
+          eventId={event.id}
+          initialProposals={proposalsData || []}
         />
       ) : (
         <EventBudgetCanvas
@@ -232,6 +294,8 @@ export default async function EventDetailPage({ params, searchParams }: PageProp
           initialComponents={componentsData?.components || []}
           initialTotalCost={componentsData?.totalEstimatedCost || 0}
           initialTotalActualSpent={componentsData?.totalActualSpent || 0}
+          userRole={event.userRole}
+          proposals={proposalsData || []}
         />
       )}
     </div>

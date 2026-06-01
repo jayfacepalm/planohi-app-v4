@@ -1,5 +1,6 @@
 package com.planohi.api.dto;
 
+import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -22,5 +23,6 @@ public class UpdateComponentRequest {
 
     @NotNull(message = "Estimated cost is required")
     @DecimalMin(value = "0.00", message = "Estimated cost must be 0.00 or greater")
+    @DecimalMax(value = "9999999999.99", message = "Estimated cost must be less than 10 billion (9,999,999,999.99)")
     private BigDecimal estimatedCost;
 }

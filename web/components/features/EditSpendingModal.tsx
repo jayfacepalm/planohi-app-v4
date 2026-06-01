@@ -13,8 +13,8 @@ import { fetchApi } from "../../lib/api-client";
 
 const editSpendingSchema = z.object({
   description: z.string().min(2, "Description must be at least 2 characters").max(255, "Description is too long"),
-  amount: z.string().refine((val) => !isNaN(Number(val)) && Number(val) > 0, {
-    message: "Spending amount must be a positive number greater than 0",
+  amount: z.string().refine((val) => !isNaN(Number(val)) && Number(val) > 0 && Number(val) <= 9999999999.99, {
+    message: "Spending amount must be between 0.01 and 9,999,999,999.99",
   }),
   spentAt: z.date(),
 });
@@ -43,6 +43,7 @@ export const EditSpendingModal: React.FC<EditSpendingModalProps> = ({
 }) => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const {
     register,
@@ -77,7 +78,7 @@ export const EditSpendingModal: React.FC<EditSpendingModalProps> = ({
     setLoading(true);
     setError(null);
     try {
-      await fetchApi<any>(`/components/${componentId}/spendings/${spending.id}`, {
+      const response = await fetchApi<any>(`/components/${componentId}/spendings/${spending.id}`, {
         method: "PUT",
         body: JSON.stringify({
           description: data.description,
@@ -88,8 +89,12 @@ export const EditSpendingModal: React.FC<EditSpendingModalProps> = ({
           "Content-Type": "application/json",
         },
       });
-      onSuccess();
-      onClose();
+      if (response && response.targetType) {
+        setSuccessMessage("Change proposal submitted: Spending update queued for Organizer review.");
+      } else {
+        onSuccess();
+        onClose();
+      }
     } catch (err: any) {
       if (err.data && err.data.result && typeof err.data.result === "object") {
         Object.entries(err.data.result).forEach(([field, msg]) => {
@@ -107,32 +112,48 @@ export const EditSpendingModal: React.FC<EditSpendingModalProps> = ({
 
   const handleClose = () => {
     setError(null);
+    setSuccessMessage(null);
     onClose();
   };
+
+  const isSuccess = !!successMessage;
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="EDIT SPENDING TRANSACTION"
+      title={isSuccess ? "PROPOSAL SUBMITTED" : "EDIT SPENDING TRANSACTION"}
       footer={
-        <div className="flex gap-3">
-          <Button variant="ghost" onClick={handleClose} disabled={loading}>
-            Cancel
+        isSuccess ? (
+          <Button variant="primary" onClick={handleClose}>
+            Got it
           </Button>
-          <Button
-            variant="gradient"
-            onClick={handleSubmit(onSubmit)}
-            disabled={loading}
-            className="flex items-center gap-1.5"
-          >
-            <Save className="w-4 h-4" />
-            {loading ? "Saving..." : "Save Changes"}
-          </Button>
-        </div>
+        ) : (
+          <div className="flex gap-3">
+            <Button variant="ghost" onClick={handleClose} disabled={loading}>
+              Cancel
+            </Button>
+            <Button
+              variant="gradient"
+              onClick={handleSubmit(onSubmit)}
+              disabled={loading}
+              className="flex items-center gap-1.5"
+            >
+              <Save className="w-4 h-4" />
+              {loading ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
+        )
       }
     >
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      {isSuccess ? (
+        <div className="space-y-4 py-2">
+          <p className="text-sm text-zinc-300 leading-relaxed">
+            {successMessage}
+          </p>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <p className="text-xs text-zinc-400 font-sans leading-relaxed">
           Update the transaction details, purchase description, or actual amount logged for this expense.
         </p>
@@ -186,6 +207,7 @@ export const EditSpendingModal: React.FC<EditSpendingModalProps> = ({
           )}
         </div>
       </form>
+      )}
     </Modal>
   );
 };

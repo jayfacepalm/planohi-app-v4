@@ -1,5 +1,6 @@
 package com.planohi.api.dto;
 
+import com.planohi.api.enums.EventCuratorRole;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,6 +15,8 @@ import java.util.UUID;
 @AllArgsConstructor
 public class EventDto {
     private UUID id;
+    private UUID userId;
+    private EventCuratorRole userRole;
     private String title;
     private String description;
     private Instant startDate;
