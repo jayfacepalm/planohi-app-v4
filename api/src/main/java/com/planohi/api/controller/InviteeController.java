@@ -99,4 +99,15 @@ public class InviteeController {
         inviteeCachedService.deleteInvitee(userPrincipal.getId(), eventId, inviteeId);
         return ResponseEntity.ok(ApiResponse.success("Guest removed successfully", null));
     }
+
+    @PostMapping("/{eventId}/invitees/{inviteeId}/send-invite")
+    public ResponseEntity<ApiResponse<Void>> sendRsvpInvite(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PathVariable UUID eventId,
+            @PathVariable UUID inviteeId
+    ) {
+        log.info("REST request to send RSVP invite for invitee {} in event {}", inviteeId, eventId);
+        inviteeCachedService.sendRsvpInvite(userPrincipal.getId(), eventId, inviteeId);
+        return ResponseEntity.ok(ApiResponse.success("Invitation sent successfully", null));
+    }
 }

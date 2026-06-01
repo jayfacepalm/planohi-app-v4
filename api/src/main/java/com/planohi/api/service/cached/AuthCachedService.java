@@ -4,15 +4,19 @@ import java.security.SecureRandom;
 
 import org.springframework.stereotype.Service;
 
+import com.planohi.api.dto.EmailMessageDto;
 import com.planohi.api.dto.LoginRequest;
 import com.planohi.api.dto.RegisterOtpRequest;
 import com.planohi.api.dto.RegisterRequest;
 import com.planohi.api.dto.UserDto;
 import com.planohi.api.exception.InvalidOtpException;
 import com.planohi.api.service.AuthService;
+import com.planohi.api.service.EmailPublisher;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -21,6 +25,7 @@ public class AuthCachedService {
 
     private final AuthService authService;
     private final OtpCacheService otpCacheService;
+    private final EmailPublisher emailPublisher;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public void requestRegistrationOtp(RegisterOtpRequest request) {
@@ -32,6 +37,15 @@ public class AuthCachedService {
         // Store OTP in cache using annotation-driven service
         otpCacheService.putOtp(request.getEmail(), otp);
         log.info("OTP generated and cached for email: {} [OTP code = {}]", request.getEmail(), otp);
+
+        // Publish registration OTP email notification request
+        EmailMessageDto emailMessageDto = EmailMessageDto.builder()
+                .templateId("REGISTRATION_OTP")
+                .recipientTos(List.of(request.getEmail()))
+                .metadata(Map.of("otpCode", otp))
+                .userId("SYSTEM")
+                .build();
+        emailPublisher.publishEmail(emailMessageDto);
     }
 
     public UserDto completeRegistration(RegisterRequest request) {

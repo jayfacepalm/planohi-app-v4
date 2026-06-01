@@ -22,4 +22,8 @@ public class UpdateInviteeRequest {
     @NotNull(message = "Allowed guest headcount limit is required")
     @Min(value = 1, message = "Allowed guest headcount limit must be at least 1")
     private Integer allowedGuests;
+
+    @jakarta.validation.constraints.Email(message = "Invalid email format")
+    @Size(max = 255, message = "Email must not exceed 255 characters")
+    private String email;
 }

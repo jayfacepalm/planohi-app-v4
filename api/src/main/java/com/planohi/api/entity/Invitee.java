@@ -47,6 +47,9 @@ public class Invitee extends BaseAuditEntity {
     @Column(name = "status", nullable = false, length = 20)
     private String status;
 
+    @Column(name = "email", length = 255)
+    private String email;
+
     @Column(name = "responded_at")
     private Instant respondedAt;
 }

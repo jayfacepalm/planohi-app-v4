@@ -8,7 +8,7 @@ import { Badge } from "../ui/Badge";
 import { AddInviteeModal } from "./AddInviteeModal";
 import { EditInviteeModal } from "./EditInviteeModal";
 import { Modal } from "../ui/Modal";
-import { Search, UserPlus, Link2, Check, AlertTriangle, Users, CheckSquare, XOctagon, HelpCircle, Edit, Trash2 } from "lucide-react";
+import { Search, UserPlus, Link2, Check, AlertTriangle, Users, CheckSquare, XOctagon, HelpCircle, Edit, Trash2, Send } from "lucide-react";
 import { fetchApi } from "../../lib/api-client";
 import { UserRole, USER_ROLES } from "../../lib/constants";
 
@@ -20,6 +20,7 @@ interface InviteeDto {
   allowedGuests: number;
   attendingGuests: number;
   status: string;
+  email?: string | null;
   respondedAt: string | null;
 }
 
@@ -72,6 +73,11 @@ export const EventGuestCanvas: React.FC<EventGuestCanvasProps> = ({
   const [errorModalOpen, setErrorModalOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
+  // Success Modal States
+  const [successModalOpen, setSuccessModalOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [sendLoading, setSendLoading] = useState<string | null>(null);
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -92,6 +98,27 @@ export const EventGuestCanvas: React.FC<EventGuestCanvasProps> = ({
       setErrorModalOpen(true);
     } finally {
       setDeleteLoading(false);
+    }
+  };
+
+  const handleSendInvite = async (guest: InviteeDto) => {
+    if (!guest.email) {
+      setErrorMessage("Cannot send invitation because no email is registered for this guest.");
+      setErrorModalOpen(true);
+      return;
+    }
+    setSendLoading(guest.id);
+    try {
+      await fetchApi(`/events/${eventId}/invitees/${guest.id}/send-invite`, {
+        method: "POST",
+      });
+      setSuccessMessage(`RSVP invitation successfully queued for ${guest.name} (${guest.email})`);
+      setSuccessModalOpen(true);
+    } catch (err: any) {
+      setErrorMessage(err.message || "Failed to send email invitation");
+      setErrorModalOpen(true);
+    } finally {
+      setSendLoading(null);
     }
   };
 
@@ -290,6 +317,7 @@ export const EventGuestCanvas: React.FC<EventGuestCanvasProps> = ({
                 <thead>
                   <tr className="border-b border-white/5 bg-white/2 text-[10px] font-heading text-zinc-400 uppercase tracking-wider">
                     <th className="p-4 pl-6">Guest Party Name</th>
+                    <th className="p-4">Email</th>
                     <th className="p-4">Status</th>
                     <th className="p-4 text-center">Allowed limit</th>
                     <th className="p-4 text-center">attending</th>
@@ -301,6 +329,7 @@ export const EventGuestCanvas: React.FC<EventGuestCanvasProps> = ({
                   {initialInvitees.map((guest) => (
                     <tr key={guest.id} className="border-b border-white/5 hover:bg-white/1 text-zinc-300 transition-colors">
                       <td className="p-4 pl-6 font-medium text-white">{guest.name}</td>
+                      <td className="p-4 font-mono text-[11px] text-zinc-450">{guest.email || "--"}</td>
                       <td className="p-4">
                         <Badge
                           variant={
@@ -349,6 +378,19 @@ export const EventGuestCanvas: React.FC<EventGuestCanvasProps> = ({
                               </>
                             )}
                           </button>
+
+                          {canEdit && (
+                            <button
+                              type="button"
+                              onClick={() => handleSendInvite(guest)}
+                              disabled={!guest.email || sendLoading === guest.id}
+                              className={`inline-flex items-center gap-1 text-[10px] font-heading uppercase tracking-wider py-1.5 px-2.5 rounded border transition-all cursor-pointer bg-[#121214] border-white/5 text-zinc-400 hover:text-white hover:border-white/10 disabled:opacity-30 disabled:hover:text-zinc-400 disabled:hover:border-white/5 disabled:cursor-not-allowed`}
+                              title={guest.email ? "Send email invitation" : "No email address configured"}
+                            >
+                              <Send className="w-3 h-3" />
+                              {sendLoading === guest.id ? "Sending..." : "Send Invite"}
+                            </button>
+                          )}
 
                           {canEdit && (
                             <>
@@ -481,6 +523,22 @@ export const EventGuestCanvas: React.FC<EventGuestCanvasProps> = ({
       >
         <p className="text-sm text-zinc-300">
           {errorMessage}
+        </p>
+      </Modal>
+
+      {/* Success Alert Modal */}
+      <Modal
+        isOpen={successModalOpen}
+        onClose={() => setSuccessModalOpen(false)}
+        title="Action Successful"
+        footer={
+          <Button variant="primary" onClick={() => setSuccessModalOpen(false)}>
+            Dismiss
+          </Button>
+        }
+      >
+        <p className="text-sm text-zinc-300 leading-relaxed">
+          {successMessage}
         </p>
       </Modal>
     </div>

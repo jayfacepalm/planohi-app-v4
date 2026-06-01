@@ -79,4 +79,9 @@ public class InviteeCachedService implements InviteeService {
     public InviteeDto deleteInvitee(UUID userId, UUID eventId, UUID inviteeId) {
         return inviteeService.deleteInvitee(userId, eventId, inviteeId);
     }
+
+    @Override
+    public void sendRsvpInvite(UUID userId, UUID eventId, UUID inviteeId) {
+        inviteeService.sendRsvpInvite(userId, eventId, inviteeId);
+    }
 }

@@ -19,4 +19,5 @@ public interface InviteeService {
     UUID submitRsvpResponse(String token, SubmitRsvpRequest request);
     InviteeDto updateInvitee(UUID userId, UUID eventId, UUID inviteeId, UpdateInviteeRequest request);
     InviteeDto deleteInvitee(UUID userId, UUID eventId, UUID inviteeId);
+    void sendRsvpInvite(UUID userId, UUID eventId, UUID inviteeId);
 }

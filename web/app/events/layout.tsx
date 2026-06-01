@@ -1,9 +1,9 @@
 import React from "react";
+import { cookies } from "next/headers";
 import { Navbar } from "@/components/ui/Navbar";
 import { Footer } from "@/components/ui/Footer";
-import { LogoutButton } from "@/components/features/LogoutButton";
 
-export default function EventsLayout({
+export default async function EventsLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -12,11 +12,21 @@ export default function EventsLayout({
     { label: "Dashboard", href: "/events", active: true },
   ];
 
-  const actions = (
-    <div className="flex items-center gap-4">
-      <LogoutButton />
-    </div>
-  );
+  // Decode the user alias from AUTH_TOKEN HttpOnly cookie on the server
+  const cookieStore = await cookies();
+  const token = cookieStore.get("AUTH_TOKEN")?.value;
+  let alias: string | undefined = undefined;
+
+  if (token) {
+    try {
+      const payloadBase64 = token.split(".")[1];
+      const payloadJson = Buffer.from(payloadBase64, "base64").toString("utf-8");
+      const claims = JSON.parse(payloadJson);
+      alias = claims.alias;
+    } catch (e) {
+      console.error("Failed to decode user alias from AUTH_TOKEN", e);
+    }
+  }
 
   return (
     <div className="min-h-screen flex flex-col justify-between bg-[#070708] text-[#f4f4f5] selection:bg-neon-purple selection:text-white relative overflow-hidden">
@@ -28,7 +38,7 @@ export default function EventsLayout({
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.007)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.007)_1px,transparent_1px)] bg-[size:30px_30px] pointer-events-none" />
 
       {/* Navbar header */}
-      <Navbar navItems={navItems} actions={actions} />
+      <Navbar navItems={navItems} userAlias={alias} />
 
       {/* Main content */}
       <main className="flex-1 flex flex-col justify-start items-center px-6 py-12 relative z-10 w-full">

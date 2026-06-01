@@ -15,6 +15,7 @@ const editInviteeSchema = z.object({
   allowedGuests: z.string().refine((val) => !isNaN(Number(val)) && Number(val) >= 1, {
     message: "Allowed guests must be at least 1",
   }),
+  email: z.string().email("Invalid email format").optional().or(z.literal("")),
 });
 
 type EditInviteeFields = z.infer<typeof editInviteeSchema>;
@@ -28,6 +29,7 @@ interface EditInviteeModalProps {
     name: string;
     allowedGuests: number;
     attendingGuests: number;
+    email?: string | null;
   } | null;
   onSuccess: () => void;
 }
@@ -53,6 +55,7 @@ export const EditInviteeModal: React.FC<EditInviteeModalProps> = ({
     defaultValues: {
       name: "",
       allowedGuests: "1",
+      email: "",
     },
   });
 
@@ -62,6 +65,7 @@ export const EditInviteeModal: React.FC<EditInviteeModalProps> = ({
       reset({
         name: invitee.name,
         allowedGuests: String(invitee.allowedGuests),
+        email: invitee.email || "",
       });
       setError(null);
     }
@@ -77,6 +81,7 @@ export const EditInviteeModal: React.FC<EditInviteeModalProps> = ({
         body: JSON.stringify({
           name: data.name,
           allowedGuests: Number(data.allowedGuests),
+          email: data.email || null,
         }),
         headers: {
           "Content-Type": "application/json",
@@ -156,6 +161,16 @@ export const EditInviteeModal: React.FC<EditInviteeModalProps> = ({
           error={errors.allowedGuests?.message}
           disabled={loading}
           {...register("allowedGuests")}
+        />
+
+        <Input
+          id="edit-invitee-email"
+          label="Guest Email (Optional)"
+          type="email"
+          placeholder="e.g. jane@example.com"
+          error={errors.email?.message}
+          disabled={loading}
+          {...register("email")}
         />
 
         {invitee && invitee.attendingGuests > 0 && (

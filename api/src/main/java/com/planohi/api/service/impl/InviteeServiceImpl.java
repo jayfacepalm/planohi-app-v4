@@ -22,6 +22,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.planohi.api.dto.EmailMessageDto;
+import com.planohi.api.service.EmailPublisher;
+import org.springframework.beans.factory.annotation.Value;
+import java.util.Map;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -36,6 +40,10 @@ public class InviteeServiceImpl implements InviteeService {
     private final InviteeRepository inviteeRepository;
     private final S3StorageService s3StorageService;
     private final WorkspaceSecurityService workspaceSecurityService;
+    private final EmailPublisher emailPublisher;
+
+    @Value("${app.frontend-url}")
+    private String frontendUrl;
 
     @Override
     @Transactional
@@ -56,6 +64,7 @@ public class InviteeServiceImpl implements InviteeService {
                     .allowedGuests(request.getAllowedGuests())
                     .attendingGuests(0)
                     .status("PENDING")
+                    .email(request.getEmail())
                     .build());
         }
 
@@ -182,6 +191,7 @@ public class InviteeServiceImpl implements InviteeService {
                 .allowedGuests(invitee.getAllowedGuests())
                 .attendingGuests(invitee.getAttendingGuests())
                 .status(invitee.getStatus())
+                .email(invitee.getEmail())
                 .respondedAt(invitee.getRespondedAt())
                 .build();
     }
@@ -210,8 +220,9 @@ public class InviteeServiceImpl implements InviteeService {
 
         invitee.setName(request.getName());
         invitee.setAllowedGuests(request.getAllowedGuests());
+        invitee.setEmail(request.getEmail());
         inviteeRepository.saveAndFlush(invitee);
-
+ 
         return mapToDto(invitee);
     }
 
@@ -236,5 +247,45 @@ public class InviteeServiceImpl implements InviteeService {
         inviteeRepository.flush();
 
         return mapToDto(invitee);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public void sendRsvpInvite(UUID userId, UUID eventId, UUID inviteeId) {
+        log.info("Sending RSVP invite for invitee {} in event {} by user {}", inviteeId, eventId, userId);
+
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new EntityNotFoundException("Event not found"));
+
+        workspaceSecurityService.checkWriteAccess(userId, eventId);
+
+        Invitee invitee = inviteeRepository.findById(inviteeId)
+                .orElseThrow(() -> new EntityNotFoundException("Invitee not found"));
+
+        if (!invitee.getEventId().equals(eventId)) {
+            throw new IllegalArgumentException("Invitee does not belong to this event");
+        }
+
+        if (invitee.getEmail() == null || invitee.getEmail().trim().isEmpty()) {
+            throw new IllegalArgumentException("Invitee email is not configured");
+        }
+
+        String rsvpLink = String.format("%s/rsvp/%s", frontendUrl, invitee.getToken());
+
+        Map<String, Object> metadata = Map.of(
+                "inviteeName", invitee.getName(),
+                "eventName", event.getTitle(),
+                "allowedGuests", invitee.getAllowedGuests(),
+                "rsvpLink", rsvpLink
+        );
+
+        EmailMessageDto emailMessage = EmailMessageDto.builder()
+                .templateId("GUEST_INVITATION")
+                .recipientTos(List.of(invitee.getEmail()))
+                .metadata(metadata)
+                .userId(userId.toString())
+                .build();
+
+        emailPublisher.publishEmail(emailMessage);
     }
 }

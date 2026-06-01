@@ -19,5 +19,6 @@ public class InviteeDto {
     private int allowedGuests;
     private int attendingGuests;
     private String status;
+    private String email;
     private Instant respondedAt;
 }

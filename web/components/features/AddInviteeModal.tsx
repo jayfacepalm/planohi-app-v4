@@ -15,6 +15,7 @@ const addInviteeSchema = z.object({
   allowedGuests: z.string().refine((val) => !isNaN(Number(val)) && Number(val) >= 1, {
     message: "Allowed guests must be at least 1",
   }),
+  email: z.string().email("Invalid email format").optional().or(z.literal("")),
 });
 
 type AddInviteeFields = z.infer<typeof addInviteeSchema>;
@@ -46,6 +47,7 @@ export const AddInviteeModal: React.FC<AddInviteeModalProps> = ({
     defaultValues: {
       name: "",
       allowedGuests: "1",
+      email: "",
     },
   });
 
@@ -58,6 +60,7 @@ export const AddInviteeModal: React.FC<AddInviteeModalProps> = ({
         body: JSON.stringify([{
           name: data.name,
           allowedGuests: Number(data.allowedGuests),
+          email: data.email || null,
         }]),
         headers: {
           "Content-Type": "application/json",
@@ -139,6 +142,16 @@ export const AddInviteeModal: React.FC<AddInviteeModalProps> = ({
           error={errors.allowedGuests?.message}
           disabled={loading}
           {...register("allowedGuests")}
+        />
+
+        <Input
+          id="invitee-email"
+          label="Guest Email (Optional)"
+          type="email"
+          placeholder="e.g. jane@example.com"
+          error={errors.email?.message}
+          disabled={loading}
+          {...register("email")}
         />
       </form>
     </Modal>
