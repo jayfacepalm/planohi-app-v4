@@ -4,9 +4,10 @@ import React, { useState } from "react";
 import { Button } from "../ui/Button";
 import { GlowCard } from "../ui/GlowCard";
 import { Modal } from "../ui/Modal";
-import { fetchApi } from "../../lib/api-client";
+import { fetchApi, setRoleToken } from "../../lib/api-client";
 import { UserRole, USER_ROLES } from "../../lib/constants";
 import { UserPlus, Trash2, Users, Clock, Check, ShieldAlert } from "lucide-react";
+import { decodeRoleToken } from "../../lib/security";
 
 interface CuratorItem {
   id: string;
@@ -21,7 +22,7 @@ interface CuratorItem {
 interface EventCuratorsCanvasProps {
   eventId: string;
   initialCurators: CuratorItem[];
-  userRole: UserRole;
+  userRole: string;
 }
 
 export const EventCuratorsCanvas: React.FC<EventCuratorsCanvasProps> = ({
@@ -44,7 +45,14 @@ export const EventCuratorsCanvas: React.FC<EventCuratorsCanvasProps> = ({
   const [errorModalOpen, setErrorModalOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
-  const canManage = userRole === USER_ROLES.OWNER;
+  React.useEffect(() => {
+    if (userRole) {
+      setRoleToken(userRole);
+    }
+  }, [userRole]);
+
+  const decodedRole = decodeRoleToken(userRole);
+  const canManage = decodedRole === USER_ROLES.OWNER;
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -231,7 +239,7 @@ export const EventCuratorsCanvas: React.FC<EventCuratorsCanvasProps> = ({
                   <th className="px-6 py-4">Curator</th>
                   <th className="px-6 py-4">Role</th>
                   <th className="px-6 py-4">Status</th>
-                  {userRole === USER_ROLES.OWNER && <th className="px-6 py-4 text-right">Actions</th>}
+                  {decodedRole === USER_ROLES.OWNER && <th className="px-6 py-4 text-right">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -278,7 +286,7 @@ export const EventCuratorsCanvas: React.FC<EventCuratorsCanvasProps> = ({
                     </td>
 
                     {/* Actions (revoke access) */}
-                    {userRole === USER_ROLES.OWNER && (
+                    {decodedRole === USER_ROLES.OWNER && (
                       <td className="px-6 py-4 text-right">
                         {curator.role !== USER_ROLES.OWNER && (
                           <Button

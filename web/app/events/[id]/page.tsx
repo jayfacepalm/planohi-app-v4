@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { fetchApi } from "../../../lib/api-client";
+import { decodeRoleToken } from "../../../lib/security";
 import { EventBudgetCanvas } from "../../../components/features/EventBudgetCanvas";
 import { EventTimelineCanvas } from "../../../components/features/EventTimelineCanvas";
 import { EventGuestCanvas } from "../../../components/features/EventGuestCanvas";
@@ -230,7 +231,7 @@ export default async function EventDetailPage({ params, searchParams }: PageProp
             Curators
           </span>
         </Link>
-        {(event.userRole === "OWNER" || event.userRole === "ORGANIZER") && (
+        {((decodeRoleToken(event.userRole) === "OWNER" || decodeRoleToken(event.userRole) === "ORGANIZER")) && (
           <Link href={`/events/${event.id}?tab=approvals`}>
             <span className={`pb-3 font-heading text-sm font-bold tracking-wider uppercase cursor-pointer border-b-2 transition-all flex items-center gap-1.5 ${
               activeTab === "approvals" 
@@ -283,7 +284,7 @@ export default async function EventDetailPage({ params, searchParams }: PageProp
           initialCurators={curatorsData || []}
           userRole={event.userRole}
         />
-      ) : activeTab === "approvals" && (event.userRole === "OWNER" || event.userRole === "ORGANIZER") ? (
+      ) : activeTab === "approvals" && (decodeRoleToken(event.userRole) === "OWNER" || decodeRoleToken(event.userRole) === "ORGANIZER") ? (
         <EventApprovalsCanvas
           eventId={event.id}
           initialProposals={proposalsData || []}

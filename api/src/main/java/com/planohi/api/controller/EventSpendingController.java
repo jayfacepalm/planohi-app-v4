@@ -18,6 +18,11 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import com.planohi.api.repository.EventComponentRepository;
+import com.planohi.api.service.WorkspaceSecurityService;
+import com.planohi.api.enums.EventCuratorRole;
+import com.planohi.api.exception.EntityNotFoundException;
+import org.springframework.web.bind.annotation.RequestHeader;
 import java.util.UUID;
 
 @Slf4j
@@ -27,15 +32,25 @@ import java.util.UUID;
 public class EventSpendingController {
 
     private final EventSpendingCachedService eventSpendingCachedService;
+    private final EventComponentRepository eventComponentRepository;
+    private final WorkspaceSecurityService workspaceSecurityService;
+
+    private UUID getEventId(UUID componentId) {
+        return eventComponentRepository.findById(componentId)
+                .orElseThrow(() -> new EntityNotFoundException("Component not found"))
+                .getEventId();
+    }
 
     @PostMapping
     public ResponseEntity<ApiResponse<EventSpendingDto>> createSpending(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestHeader(value = WorkspaceSecurityService.ROLE_TOKEN_HEADER, required = false) String roleToken,
             @PathVariable("componentId") UUID componentId,
             @Valid @RequestBody CreateSpendingRequest request) {
 
         log.info("Request received to log spending of {} on component {} by user {}", request.getAmount(), componentId, userPrincipal.getId());
 
+        workspaceSecurityService.validateRoleToken(roleToken, userPrincipal.getId(), getEventId(componentId), EventCuratorRole.COLLABORATOR);
         EventSpendingDto created = eventSpendingCachedService.createSpending(userPrincipal.getId(), componentId, request);
         return ResponseEntity.status(201).body(ApiResponse.success("Spending recorded successfully", created));
     }
@@ -43,12 +58,14 @@ public class EventSpendingController {
     @PutMapping("/{spendingId}")
     public ResponseEntity<ApiResponse<EventSpendingDto>> updateSpending(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestHeader(value = WorkspaceSecurityService.ROLE_TOKEN_HEADER, required = false) String roleToken,
             @PathVariable("componentId") UUID componentId,
             @PathVariable("spendingId") UUID spendingId,
             @Valid @RequestBody UpdateSpendingRequest request) {
 
         log.info("Request received to update spending {} on component {} by user {}", spendingId, componentId, userPrincipal.getId());
 
+        workspaceSecurityService.validateRoleToken(roleToken, userPrincipal.getId(), getEventId(componentId), EventCuratorRole.COLLABORATOR);
         EventSpendingDto updated = eventSpendingCachedService.updateSpending(userPrincipal.getId(), componentId, spendingId, request);
         return ResponseEntity.ok(ApiResponse.success("Spending updated successfully", updated));
     }
@@ -56,11 +73,13 @@ public class EventSpendingController {
     @DeleteMapping("/{spendingId}")
     public ResponseEntity<ApiResponse<Void>> deleteSpending(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestHeader(value = WorkspaceSecurityService.ROLE_TOKEN_HEADER, required = false) String roleToken,
             @PathVariable("componentId") UUID componentId,
             @PathVariable("spendingId") UUID spendingId) {
 
         log.info("Request received to delete spending {} from component {} by user {}", spendingId, componentId, userPrincipal.getId());
 
+        workspaceSecurityService.validateRoleToken(roleToken, userPrincipal.getId(), getEventId(componentId), EventCuratorRole.COLLABORATOR);
         eventSpendingCachedService.deleteSpending(userPrincipal.getId(), componentId, spendingId);
         return ResponseEntity.ok(ApiResponse.success("Spending deleted successfully", null));
     }

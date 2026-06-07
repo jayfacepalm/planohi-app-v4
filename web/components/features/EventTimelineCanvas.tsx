@@ -7,8 +7,9 @@ import { GlowCard } from "../ui/GlowCard";
 import { AddTimelineItemModal } from "./AddTimelineItemModal";
 import { Modal } from "../ui/Modal";
 import { Calendar, Plus, AlertCircle, CheckCircle2, Circle } from "lucide-react";
-import { fetchApi } from "../../lib/api-client";
+import { fetchApi, setRoleToken } from "../../lib/api-client";
 import { UserRole, USER_ROLES, PROPOSAL_STATUSES, PROPOSAL_ACTIONS, PROPOSAL_TARGETS } from "../../lib/constants";
+import { decodeRoleToken } from "../../lib/security";
 
 interface TimelineItemDto {
   id: string;
@@ -27,7 +28,7 @@ interface EventTimelineCanvasProps {
   initialItems: TimelineItemDto[];
   eventStartDate: string;
   eventEndDate: string;
-  userRole?: UserRole;
+  userRole?: string;
   proposals?: any[];
 }
 
@@ -45,7 +46,14 @@ export const EventTimelineCanvas: React.FC<EventTimelineCanvasProps> = ({
   const [completedCount, setCompletedCount] = useState<number>(initialCompletedCount);
   const [totalCount, setTotalCount] = useState<number>(initialTotalCount);
   const [proposals, setProposals] = useState<any[]>(initialProposals);
-  const canEdit = userRole === USER_ROLES.OWNER || userRole === USER_ROLES.ORGANIZER || userRole === USER_ROLES.COLLABORATOR;
+  React.useEffect(() => {
+    if (userRole) {
+      setRoleToken(userRole);
+    }
+  }, [userRole]);
+
+  const decodedRole = decodeRoleToken(userRole);
+  const canEdit = decodedRole === USER_ROLES.OWNER || decodedRole === USER_ROLES.ORGANIZER || decodedRole === USER_ROLES.COLLABORATOR;
   
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [togglingIds, setTogglingIds] = useState<Record<string, boolean>>({});

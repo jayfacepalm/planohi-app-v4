@@ -18,6 +18,7 @@ import com.planohi.api.repository.UserAccountRepository;
 import com.planohi.api.service.EventService;
 import com.planohi.api.service.S3StorageService;
 import com.planohi.api.service.WorkspaceSecurityService;
+import com.planohi.api.config.JwtService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -49,6 +50,7 @@ public class EventServiceImpl implements EventService {
     private final EventSpendingRepository eventSpendingRepository;
     private final S3StorageService s3StorageService;
     private final WorkspaceSecurityService workspaceSecurityService;
+    private final JwtService jwtService;
 
     @Override
     @Transactional
@@ -162,10 +164,12 @@ public class EventServiceImpl implements EventService {
                 // ignore
             }
         }
+        String signedRoleToken = jwtService.generateRoleToken(callerUserId, event.getId(), role);
+
         return EventDto.builder()
                 .id(event.getId())
                 .userId(event.getUserId())
-                .userRole(role)
+                .userRole(signedRoleToken)
                 .title(event.getTitle())
                 .description(event.getDescription())
                 .startDate(event.getStartDate())

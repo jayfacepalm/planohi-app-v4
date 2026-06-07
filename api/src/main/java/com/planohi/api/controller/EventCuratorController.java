@@ -8,6 +8,8 @@ import com.planohi.api.dto.InviteCuratorRequest;
 import com.planohi.api.dto.UpdateCuratorRoleRequest;
 import com.planohi.api.dto.RespondInvitationRequest;
 import com.planohi.api.service.EventCuratorService;
+import com.planohi.api.service.WorkspaceSecurityService;
+import com.planohi.api.enums.EventCuratorRole;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestHeader;
 import java.util.List;
 import java.util.UUID;
 
@@ -31,14 +34,17 @@ import java.util.UUID;
 public class EventCuratorController {
 
     private final EventCuratorService eventCuratorService;
+    private final WorkspaceSecurityService workspaceSecurityService;
 
     @PostMapping("/events/{eventId}/curators")
     public ResponseEntity<ApiResponse<EventCuratorResponseDto>> inviteCurator(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestHeader(value = WorkspaceSecurityService.ROLE_TOKEN_HEADER, required = false) String roleToken,
             @PathVariable("eventId") UUID eventId,
             @Valid @RequestBody InviteCuratorRequest request) {
 
         log.info("Request to invite curator {} to event {} by user {}", request.getEmail(), eventId, userPrincipal.getId());
+        workspaceSecurityService.validateRoleToken(roleToken, userPrincipal.getId(), eventId, EventCuratorRole.OWNER);
         EventCuratorResponseDto response = eventCuratorService.inviteCurator(
                 userPrincipal.getId(), eventId, request.getEmail(), request.getRole());
         return ResponseEntity.status(201).body(ApiResponse.success("Curator invited successfully", response));
@@ -57,11 +63,13 @@ public class EventCuratorController {
     @PutMapping("/events/{eventId}/curators/{curatorId}")
     public ResponseEntity<ApiResponse<EventCuratorResponseDto>> updateCuratorRole(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestHeader(value = WorkspaceSecurityService.ROLE_TOKEN_HEADER, required = false) String roleToken,
             @PathVariable("eventId") UUID eventId,
             @PathVariable("curatorId") UUID curatorId,
             @Valid @RequestBody UpdateCuratorRoleRequest request) {
 
         log.info("Request to update curator {} role in event {} to {} by user {}", curatorId, eventId, request.getRole(), userPrincipal.getId());
+        workspaceSecurityService.validateRoleToken(roleToken, userPrincipal.getId(), eventId, EventCuratorRole.OWNER);
         EventCuratorResponseDto response = eventCuratorService.updateCuratorRole(
                 userPrincipal.getId(), eventId, curatorId, request.getRole());
         return ResponseEntity.ok(ApiResponse.success("Curator role updated successfully", response));
@@ -70,10 +78,12 @@ public class EventCuratorController {
     @DeleteMapping("/events/{eventId}/curators/{curatorId}")
     public ResponseEntity<ApiResponse<Void>> revokeCuratorAccess(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestHeader(value = WorkspaceSecurityService.ROLE_TOKEN_HEADER, required = false) String roleToken,
             @PathVariable("eventId") UUID eventId,
             @PathVariable("curatorId") UUID curatorId) {
 
         log.info("Request to revoke curator {} access in event {} by user {}", curatorId, eventId, userPrincipal.getId());
+        workspaceSecurityService.validateRoleToken(roleToken, userPrincipal.getId(), eventId, EventCuratorRole.OWNER);
         eventCuratorService.revokeCuratorAccess(userPrincipal.getId(), eventId, curatorId);
         return ResponseEntity.ok(ApiResponse.success("Curator access revoked successfully", null));
     }

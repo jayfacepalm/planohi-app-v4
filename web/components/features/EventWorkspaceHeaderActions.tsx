@@ -1,13 +1,14 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "../ui/Button";
 import { Modal } from "../ui/Modal";
 import { EditEventModal } from "./EditEventModal";
 import { Edit, Trash2 } from "lucide-react";
-import { fetchApi } from "../../lib/api-client";
+import { fetchApi, setRoleToken } from "../../lib/api-client";
 import { UserRole, USER_ROLES } from "../../lib/constants";
+import { decodeRoleToken } from "../../lib/security";
 
 interface EventWorkspaceHeaderActionsProps {
   event: {
@@ -17,7 +18,7 @@ interface EventWorkspaceHeaderActionsProps {
     startDate: string;
     endDate: string;
     bannerUrl?: string;
-    userRole?: UserRole;
+    userRole?: string;
   };
 }
 
@@ -27,6 +28,12 @@ export const EventWorkspaceHeaderActions: React.FC<EventWorkspaceHeaderActionsPr
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (event.userRole) {
+      setRoleToken(event.userRole);
+    }
+  }, [event.userRole]);
 
   const handleDelete = async () => {
     setDeleteLoading(true);
@@ -53,8 +60,9 @@ export const EventWorkspaceHeaderActions: React.FC<EventWorkspaceHeaderActionsPr
     window.location.reload();
   };
 
-  const showEdit = event.userRole === USER_ROLES.OWNER || event.userRole === USER_ROLES.ORGANIZER;
-  const showDelete = event.userRole === USER_ROLES.OWNER;
+  const decodedRole = decodeRoleToken(event.userRole);
+  const showEdit = decodedRole === USER_ROLES.OWNER || decodedRole === USER_ROLES.ORGANIZER;
+  const showDelete = decodedRole === USER_ROLES.OWNER;
 
   return (
     <>

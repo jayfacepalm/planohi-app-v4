@@ -58,7 +58,7 @@ public class EventSpendingServiceImpl implements EventSpendingService {
         }
 
         if (request.getSpentAt().isBefore(event.getStartDate()) || request.getSpentAt().isAfter(event.getEndDate())) {
-            throw new FieldValidationException("spentAt", "Spending date must be within the event's start and end date boundaries");
+            throw new FieldValidationException("spentAt", "Spending date must be within the event's start and end date boundaries: " + event.getStartDate() + " to " + event.getEndDate());
         }
 
         if (role == EventCuratorRole.COLLABORATOR) {
@@ -121,7 +121,7 @@ public class EventSpendingServiceImpl implements EventSpendingService {
         }
 
         if (request.getSpentAt().isBefore(event.getStartDate()) || request.getSpentAt().isAfter(event.getEndDate())) {
-            throw new FieldValidationException("spentAt", "Spending date must be within the event's start and end date boundaries");
+            throw new FieldValidationException("spentAt", "Spending date must be within the event's start and end date boundaries: " + event.getStartDate() + " to " + event.getEndDate());
         }
 
         if (role == EventCuratorRole.COLLABORATOR) {

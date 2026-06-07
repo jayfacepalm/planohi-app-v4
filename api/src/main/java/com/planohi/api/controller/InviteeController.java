@@ -7,6 +7,8 @@ import com.planohi.api.dto.UpdateInviteeRequest;
 import com.planohi.api.dto.InviteeDto;
 import com.planohi.api.dto.InviteeMetricsDto;
 import com.planohi.api.service.InviteeService;
+import com.planohi.api.service.WorkspaceSecurityService;
+import com.planohi.api.enums.EventCuratorRole;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +27,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestHeader;
 import java.util.List;
 import java.util.UUID;
 
@@ -36,14 +39,17 @@ import java.util.UUID;
 public class InviteeController {
 
     private final InviteeService inviteeCachedService;
+    private final WorkspaceSecurityService workspaceSecurityService;
 
     @PostMapping("/{eventId}/invitees")
     public ResponseEntity<ApiResponse<Void>> addInvitees(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestHeader(value = WorkspaceSecurityService.ROLE_TOKEN_HEADER, required = false) String roleToken,
             @PathVariable UUID eventId,
             @RequestBody @Valid List<CreateInviteeRequest> requests
     ) {
         log.info("REST request to add {} invitees to event {}", requests.size(), eventId);
+        workspaceSecurityService.validateRoleToken(roleToken, userPrincipal.getId(), eventId, EventCuratorRole.ORGANIZER);
         inviteeCachedService.addInvitees(userPrincipal.getId(), eventId, requests);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Invitees successfully added", null));
@@ -80,11 +86,13 @@ public class InviteeController {
     @PutMapping("/{eventId}/invitees/{inviteeId}")
     public ResponseEntity<ApiResponse<InviteeDto>> updateInvitee(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestHeader(value = WorkspaceSecurityService.ROLE_TOKEN_HEADER, required = false) String roleToken,
             @PathVariable UUID eventId,
             @PathVariable UUID inviteeId,
             @RequestBody @Valid UpdateInviteeRequest request
     ) {
         log.info("REST request to update invitee {} for event {}", inviteeId, eventId);
+        workspaceSecurityService.validateRoleToken(roleToken, userPrincipal.getId(), eventId, EventCuratorRole.ORGANIZER);
         InviteeDto updated = inviteeCachedService.updateInvitee(userPrincipal.getId(), eventId, inviteeId, request);
         return ResponseEntity.ok(ApiResponse.success("Guest updated successfully", updated));
     }
@@ -92,10 +100,12 @@ public class InviteeController {
     @DeleteMapping("/{eventId}/invitees/{inviteeId}")
     public ResponseEntity<ApiResponse<Void>> deleteInvitee(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestHeader(value = WorkspaceSecurityService.ROLE_TOKEN_HEADER, required = false) String roleToken,
             @PathVariable UUID eventId,
             @PathVariable UUID inviteeId
     ) {
         log.info("REST request to delete invitee {} for event {}", inviteeId, eventId);
+        workspaceSecurityService.validateRoleToken(roleToken, userPrincipal.getId(), eventId, EventCuratorRole.ORGANIZER);
         inviteeCachedService.deleteInvitee(userPrincipal.getId(), eventId, inviteeId);
         return ResponseEntity.ok(ApiResponse.success("Guest removed successfully", null));
     }
@@ -103,10 +113,12 @@ public class InviteeController {
     @PostMapping("/{eventId}/invitees/{inviteeId}/send-invite")
     public ResponseEntity<ApiResponse<Void>> sendRsvpInvite(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestHeader(value = WorkspaceSecurityService.ROLE_TOKEN_HEADER, required = false) String roleToken,
             @PathVariable UUID eventId,
             @PathVariable UUID inviteeId
     ) {
         log.info("REST request to send RSVP invite for invitee {} in event {}", inviteeId, eventId);
+        workspaceSecurityService.validateRoleToken(roleToken, userPrincipal.getId(), eventId, EventCuratorRole.ORGANIZER);
         inviteeCachedService.sendRsvpInvite(userPrincipal.getId(), eventId, inviteeId);
         return ResponseEntity.ok(ApiResponse.success("Invitation sent successfully", null));
     }

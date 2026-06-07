@@ -9,8 +9,9 @@ import { EditSpendingModal } from "./EditSpendingModal";
 import { Button } from "../ui/Button";
 import { GlowCard } from "../ui/GlowCard";
 import { Plus, Trash2, PiggyBank, Briefcase, ChevronDown, ChevronUp, DollarSign, AlertTriangle, Calendar, Edit } from "lucide-react";
-import { fetchApi } from "../../lib/api-client";
+import { fetchApi, setRoleToken } from "../../lib/api-client";
 import { UserRole, USER_ROLES, PROPOSAL_STATUSES, PROPOSAL_ACTIONS, PROPOSAL_TARGETS } from "../../lib/constants";
+import { decodeRoleToken } from "../../lib/security";
 
 interface SpendingItem {
   id: string;
@@ -41,7 +42,7 @@ interface EventBudgetCanvasProps {
   initialComponents: ComponentItem[];
   initialTotalCost: number;
   initialTotalActualSpent: number;
-  userRole?: UserRole;
+  userRole?: string;
   proposals?: any[];
 }
 
@@ -57,7 +58,15 @@ export const EventBudgetCanvas: React.FC<EventBudgetCanvasProps> = ({
   const [totalCost, setTotalCost] = useState<number>(initialTotalCost);
   const [totalActualSpent, setTotalActualSpent] = useState<number>(initialTotalActualSpent);
   const [proposals, setProposals] = useState<any[]>(initialProposals);
-  const canEdit = userRole === USER_ROLES.OWNER || userRole === USER_ROLES.ORGANIZER || userRole === USER_ROLES.COLLABORATOR;
+
+  React.useEffect(() => {
+    if (userRole) {
+      setRoleToken(userRole);
+    }
+  }, [userRole]);
+
+  const decodedRole = decodeRoleToken(userRole);
+  const canEdit = decodedRole === USER_ROLES.OWNER || decodedRole === USER_ROLES.ORGANIZER || decodedRole === USER_ROLES.COLLABORATOR;
   
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isSpendingOpen, setIsSpendingOpen] = useState(false);

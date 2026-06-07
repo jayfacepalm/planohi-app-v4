@@ -9,8 +9,9 @@ import { AddInviteeModal } from "./AddInviteeModal";
 import { EditInviteeModal } from "./EditInviteeModal";
 import { Modal } from "../ui/Modal";
 import { Search, UserPlus, Link2, Check, AlertTriangle, Users, CheckSquare, XOctagon, HelpCircle, Edit, Trash2, Send } from "lucide-react";
-import { fetchApi } from "../../lib/api-client";
+import { fetchApi, setRoleToken } from "../../lib/api-client";
 import { UserRole, USER_ROLES } from "../../lib/constants";
+import { decodeRoleToken } from "../../lib/security";
 
 interface InviteeDto {
   id: string;
@@ -40,7 +41,7 @@ interface EventGuestCanvasProps {
   initialMetrics: InviteeMetricsDto;
   currentPage?: number;
   currentSearch?: string;
-  userRole?: UserRole;
+  userRole?: string;
 }
 
 export const EventGuestCanvas: React.FC<EventGuestCanvasProps> = ({
@@ -52,7 +53,14 @@ export const EventGuestCanvas: React.FC<EventGuestCanvasProps> = ({
   currentSearch = "",
   userRole,
 }) => {
-  const canEdit = userRole === USER_ROLES.OWNER || userRole === USER_ROLES.ORGANIZER;
+  useEffect(() => {
+    if (userRole) {
+      setRoleToken(userRole);
+    }
+  }, [userRole]);
+
+  const decodedRole = decodeRoleToken(userRole);
+  const canEdit = decodedRole === USER_ROLES.OWNER || decodedRole === USER_ROLES.ORGANIZER;
   const router = useRouter();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);

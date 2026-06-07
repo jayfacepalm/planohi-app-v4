@@ -29,6 +29,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import com.planohi.api.service.WorkspaceSecurityService;
+import com.planohi.api.enums.EventCuratorRole;
+import org.springframework.web.bind.annotation.RequestHeader;
 import java.util.UUID;
 
 @Slf4j
@@ -39,6 +42,7 @@ public class EventController {
 
     private final EventCachedService eventService;
     private final EventComponentCachedService eventComponentService;
+    private final WorkspaceSecurityService workspaceSecurityService;
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<EventDto>> createEvent(
@@ -102,11 +106,13 @@ public class EventController {
     @PutMapping(value = "/{eventId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<EventDto>> updateEvent(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestHeader(value = WorkspaceSecurityService.ROLE_TOKEN_HEADER, required = false) String roleToken,
             @PathVariable("eventId") UUID eventId,
             @Valid @ModelAttribute UpdateEventRequest request,
             @RequestParam(value = "banner", required = false) MultipartFile banner) {
 
         log.info("Request received to update event {} by user {}", eventId, userPrincipal.getId());
+        workspaceSecurityService.validateRoleToken(roleToken, userPrincipal.getId(), eventId, EventCuratorRole.ORGANIZER);
         EventDto updated = eventService.updateEvent(userPrincipal.getId(), eventId, request, banner);
         return ResponseEntity.ok(ApiResponse.success("Event updated successfully", updated));
     }
@@ -114,9 +120,11 @@ public class EventController {
     @DeleteMapping("/{eventId}")
     public ResponseEntity<ApiResponse<Void>> deleteEvent(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestHeader(value = WorkspaceSecurityService.ROLE_TOKEN_HEADER, required = false) String roleToken,
             @PathVariable("eventId") UUID eventId) {
 
         log.info("Request received to delete event {} by user {}", eventId, userPrincipal.getId());
+        workspaceSecurityService.validateRoleToken(roleToken, userPrincipal.getId(), eventId, EventCuratorRole.OWNER);
         eventService.deleteEvent(userPrincipal.getId(), eventId);
         return ResponseEntity.ok(ApiResponse.success("Event deleted successfully", null));
     }

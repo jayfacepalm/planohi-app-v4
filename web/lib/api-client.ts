@@ -18,6 +18,16 @@ interface BackendResponse<T> {
   result: T;
 }
 
+let activeRoleToken: string | null = null;
+
+export function setRoleToken(token: string | null) {
+  activeRoleToken = token;
+}
+
+export function getRoleToken(): string | null {
+  return activeRoleToken;
+}
+
 export async function fetchApi<T>(path: string, config: RequestConfig = {}): Promise<T> {
   const isServer = typeof window === 'undefined';
   
@@ -40,6 +50,12 @@ export async function fetchApi<T>(path: string, config: RequestConfig = {}): Pro
   const headers = new Headers(config.headers);
   if (!headers.has('Content-Type') && !(config.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json');
+  }
+
+  // Automatically inject X-Event-Role-Token for write/mutate requests
+  const method = config.method?.toUpperCase();
+  if (activeRoleToken && method && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+    headers.set('X-Event-Role-Token', activeRoleToken);
   }
 
   const res = await fetch(urlString, {

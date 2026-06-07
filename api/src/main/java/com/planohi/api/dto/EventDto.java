@@ -16,7 +16,7 @@ import java.util.UUID;
 public class EventDto {
     private UUID id;
     private UUID userId;
-    private EventCuratorRole userRole;
+    private String userRole;
     private String title;
     private String description;
     private Instant startDate;
