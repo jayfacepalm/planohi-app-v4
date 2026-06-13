@@ -13,6 +13,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.authentication.logout.LogoutFilter;
 
 @Configuration
 @EnableWebSecurity
@@ -20,6 +21,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final ApiKeyFilter apiKeyFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -31,6 +33,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**", "/api/public/**").permitAll()
                 .anyRequest().authenticated()
             )
+            .addFilterBefore(apiKeyFilter, LogoutFilter.class)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

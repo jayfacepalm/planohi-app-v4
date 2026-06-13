@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AddComponentModal } from "./AddComponentModal";
 import { Modal } from "../ui/Modal";
 import { LogSpendingModal } from "./LogSpendingModal";
@@ -58,6 +59,76 @@ export const EventBudgetCanvas: React.FC<EventBudgetCanvasProps> = ({
   const [totalCost, setTotalCost] = useState<number>(initialTotalCost);
   const [totalActualSpent, setTotalActualSpent] = useState<number>(initialTotalActualSpent);
   const [proposals, setProposals] = useState<any[]>(initialProposals);
+
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const initialViewMode = searchParams.get("view") === "all" ? "chronological" : "component";
+  const initialPage = searchParams.get("spendingPage") ? Number(searchParams.get("spendingPage")) : 0;
+
+  const [activeViewMode, setActiveViewMode] = useState<"component" | "chronological">(initialViewMode);
+  const [currentPage, setCurrentPage] = useState<number>(initialPage);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [chronologicalData, setChronologicalData] = useState<any>(null);
+  const [chronologicalLoading, setChronologicalLoading] = useState(false);
+
+  React.useEffect(() => {
+    const view = searchParams.get("view") === "all" ? "chronological" : "component";
+    const pg = searchParams.get("spendingPage") ? Number(searchParams.get("spendingPage")) : 0;
+    setActiveViewMode(view);
+    setCurrentPage(pg);
+  }, [searchParams]);
+
+  const updateUrlParams = (newView: "component" | "chronological", newPage: number) => {
+    const params = new URLSearchParams(window.location.search);
+    if (newView === "chronological") {
+      params.set("view", "all");
+      params.set("spendingPage", newPage.toString());
+    } else {
+      params.delete("view");
+      params.delete("spendingPage");
+    }
+    router.push(`?${params.toString()}`);
+  };
+
+  const fetchChronologicalSpendings = React.useCallback(async (page: number, search: string) => {
+    setChronologicalLoading(true);
+    try {
+      const data = await fetchApi<any>(`/events/${eventId}/spendings`, {
+        params: {
+          page: page.toString(),
+          size: "10",
+          search: search,
+        },
+      });
+      setChronologicalData(data);
+    } catch (err) {
+      console.error("Failed to fetch chronological spendings:", err);
+    } finally {
+      setChronologicalLoading(false);
+    }
+  }, [eventId]);
+
+  React.useEffect(() => {
+    if (activeViewMode !== "chronological") return;
+    const delayDebounceFn = setTimeout(() => {
+      fetchChronologicalSpendings(currentPage, searchQuery);
+    }, 300);
+    return () => clearTimeout(delayDebounceFn);
+  }, [activeViewMode, currentPage, searchQuery, fetchChronologicalSpendings]);
+
+  const handleViewModeChange = (mode: "component" | "chronological") => {
+    setActiveViewMode(mode);
+    setCurrentPage(0);
+    setSearchQuery("");
+    updateUrlParams(mode, 0);
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+    setCurrentPage(0);
+    updateUrlParams(activeViewMode, 0);
+  };
 
   React.useEffect(() => {
     if (userRole) {
@@ -195,6 +266,10 @@ export const EventBudgetCanvas: React.FC<EventBudgetCanvasProps> = ({
       setTotalCost(budgetRes.totalEstimatedCost || 0);
       setTotalActualSpent(budgetRes.totalActualSpent || 0);
       setProposals(proposalsRes || []);
+
+      if (activeViewMode === "chronological") {
+        fetchChronologicalSpendings(currentPage, searchQuery);
+      }
     } catch (err) {
       console.error("Failed to refresh components:", err);
     }
@@ -280,292 +355,495 @@ export const EventBudgetCanvas: React.FC<EventBudgetCanvasProps> = ({
 
   const targetComponent = components.find((c) => c.id === componentToDelete);
 
+  const renderBudgetList = () => {
+    if (activeViewMode === "chronological") {
+      if (chronologicalLoading && !chronologicalData) {
+        return (
+          <div className="text-center py-12 border border-dashed border-white/10 rounded-xl bg-[#121214]/20">
+            <span className="text-xs text-zinc-500 font-mono animate-pulse block">
+              Loading expenditure history...
+            </span>
+          </div>
+        );
+      }
+
+      if (!chronologicalData || chronologicalData.content.length === 0) {
+        return (
+          <div className="border border-dashed border-white/10 rounded-xl p-12 text-center bg-[#121214]/20">
+            <span className="text-xs text-zinc-550 italic block">
+              No actual spendings logged across this event workspace yet.
+            </span>
+          </div>
+        );
+      }
+
+      return (
+        <div className="space-y-4">
+          <div className="overflow-x-auto rounded-xl border border-white/5 bg-[#121214]/40 shadow-[0_4px_12px_rgba(0,0,0,0.15)]">
+            <table className="w-full text-left border-collapse text-xs font-sans">
+              <thead>
+                <tr className="border-b border-white/5 bg-white/2 text-[10px] font-heading text-zinc-400 uppercase tracking-wider">
+                  <th className="p-4 pl-5">Description</th>
+                  <th className="p-4">Category</th>
+                  <th className="p-4">Date Paid</th>
+                  <th className="p-4 text-right">Amount</th>
+                  {canEdit && <th className="p-4 pr-5 text-right">Actions</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {chronologicalData.content.map((item: any) => {
+                  const pendingUpdate = (proposals || []).find(
+                    (p) => p.targetType === PROPOSAL_TARGETS.SPENDING && p.actionType === PROPOSAL_ACTIONS.UPDATE && p.targetId === item.id && p.status === PROPOSAL_STATUSES.PENDING
+                  );
+                  const pendingDelete = (proposals || []).find(
+                    (p) => p.targetType === PROPOSAL_TARGETS.SPENDING && p.actionType === PROPOSAL_ACTIONS.DELETE && p.targetId === item.id && p.status === PROPOSAL_STATUSES.PENDING
+                  );
+                  const isLocked = !!pendingUpdate || !!pendingDelete;
+
+                  let rowClass = "hover:bg-white/1 text-zinc-300";
+                  if (pendingDelete) {
+                    rowClass = "bg-red-500/2 hover:bg-red-500/3 text-zinc-400 opacity-80 line-through decoration-red-500/30";
+                  } else if (pendingUpdate) {
+                    rowClass = "bg-yellow-500/2 hover:bg-yellow-500/3 text-zinc-300";
+                  }
+
+                  return (
+                    <tr key={item.id} className={`border-b border-white/5 transition-colors ${rowClass}`}>
+                      <td className="p-4 pl-5 font-medium">
+                        <div className="flex flex-col">
+                          <span>{item.description}</span>
+                          {pendingDelete && (
+                            <span className="text-[8px] font-bold text-red-400 uppercase tracking-widest mt-0.5">Pending Deletion</span>
+                          )}
+                          {pendingUpdate && (
+                            <span className="text-[8px] font-bold text-yellow-500 uppercase tracking-widest mt-0.5">
+                              Pending Update: "{pendingUpdate.proposedData?.description}" ({formatCurrency(pendingUpdate.proposedData?.amount)})
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <span className="text-[9px] font-heading font-extrabold uppercase tracking-wider text-neon-cyan bg-neon-cyan/10 border border-neon-cyan/20 px-2 py-0.5 rounded-full">
+                          {item.componentName}
+                        </span>
+                      </td>
+                      <td className="p-4 text-zinc-500 font-mono">
+                        <div className="flex items-center gap-1.5">
+                          <Calendar className="w-3.5 h-3.5 text-zinc-650" />
+                          {formatDate(item.spentAt)}
+                        </div>
+                      </td>
+                      <td className="p-4 text-right font-mono font-bold text-white">
+                        {formatCurrency(item.amount)}
+                      </td>
+                      {canEdit && (
+                        <td className="p-4 pr-5 text-right">
+                          {!isLocked ? (
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveSpendingComponentId(item.componentId);
+                                  setSpendingToEdit(item);
+                                  setIsEditSpendingOpen(true);
+                                }}
+                                className="text-zinc-500 hover:text-neon-cyan p-1.5 rounded hover:bg-white/5 transition-all cursor-pointer"
+                                aria-label="Edit transaction"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveSpendingComponentId(item.componentId);
+                                  setSpendingToDelete(item);
+                                  setDeleteSpendingConfirmOpen(true);
+                                }}
+                                className="text-zinc-500 hover:text-red-455 p-1.5 rounded hover:bg-white/5 transition-all cursor-pointer"
+                                aria-label="Delete transaction"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-[9px] font-bold text-zinc-500 uppercase italic">Locked</span>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Chronological Pagination */}
+          {chronologicalData && chronologicalData.totalPages > 1 && (
+            <div className="flex items-center justify-between pt-4 border-t border-white/5 font-mono text-[10px] text-zinc-500 uppercase">
+              <span>
+                Showing Page {chronologicalData.number + 1} of {chronologicalData.totalPages} ({chronologicalData.totalElements} spendings)
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  disabled={chronologicalData.first}
+                  onClick={() => {
+                    const nextPage = chronologicalData.number - 1;
+                    setCurrentPage(nextPage);
+                    updateUrlParams(activeViewMode, nextPage);
+                  }}
+                  className="px-2.5 py-1 text-[9px] tracking-wider uppercase h-auto"
+                >
+                  Prev
+                </Button>
+                <Button
+                  variant="secondary"
+                  disabled={chronologicalData.last}
+                  onClick={() => {
+                    const nextPage = chronologicalData.number + 1;
+                    setCurrentPage(nextPage);
+                    updateUrlParams(activeViewMode, nextPage);
+                  }}
+                  className="px-2.5 py-1 text-[9px] tracking-wider uppercase h-auto"
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Otherwise, components/categories view
+    if (allRenderComponents.length === 0) {
+      return (
+        <div className="border border-dashed border-white/10 rounded-xl p-12 text-center bg-[#121214]/20">
+          <span className="text-xs text-zinc-500 italic block">
+            No budgeting components defined for this workspace yet.
+          </span>
+          {canEdit && (
+            <Button
+              variant="ghost"
+              onClick={() => setIsAddOpen(true)}
+              className="mt-4 text-xs font-semibold text-neon-cyan hover:underline"
+            >
+              Define your first cost category
+            </Button>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        {allRenderComponents.map((item) => {
+          const isOverBudget = item.actualSpent > item.estimatedCost;
+          const usagePercent = item.estimatedCost > 0 
+            ? Math.min(100, (item.actualSpent / item.estimatedCost) * 100) 
+            : 0;
+          const isExpanded = !!expandedIds[item.id];
+
+          // Custom styles for pending states
+          let cardBorderClass = "border-white/5 hover:border-white/10";
+          let cardBgClass = "bg-[#121214]";
+          if (item.isPendingCreate) {
+            cardBorderClass = "border-yellow-500/30 border-dashed";
+            cardBgClass = "bg-yellow-500/3";
+          } else if (item.pendingDelete) {
+            cardBorderClass = "border-red-500/30 border-dashed bg-red-950/5";
+            cardBgClass = "bg-red-950/5";
+          } else if (item.pendingUpdate) {
+            cardBorderClass = "border-yellow-500/20";
+            cardBgClass = "bg-yellow-500/2";
+          } else if (isOverBudget) {
+            cardBorderClass = "border-red-500/30 bg-red-950/5";
+            cardBgClass = "bg-red-950/5";
+          }
+
+          return (
+            <div
+              key={item.id}
+              className={`flex flex-col border rounded-xl overflow-hidden transition-all shadow-[0_4px_12px_rgba(0,0,0,0.15)] ${cardBorderClass} ${cardBgClass}`}
+            >
+              {/* Category Header Row */}
+              <div className="flex items-center justify-between p-4 flex-wrap gap-4">
+                <div className="flex-1 min-w-[200px]">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="text-sm font-heading font-bold text-white tracking-wide">
+                      {item.name}
+                    </h4>
+                    {isOverBudget && (
+                      <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20">
+                        Over Budget
+                      </span>
+                    )}
+                    {item.isPendingCreate && (
+                      <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded border border-yellow-500/20 shadow-[0_0_5px_rgba(234,179,8,0.2)]">
+                        Pending Creation
+                      </span>
+                    )}
+                    {item.pendingDelete && (
+                      <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20 shadow-[0_0_5px_rgba(239,68,68,0.2)]">
+                        Pending Deletion
+                      </span>
+                    )}
+                    {item.pendingUpdate && (
+                      <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded border border-yellow-500/20 shadow-[0_0_5px_rgba(234,179,8,0.2)]">
+                        Pending Update
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 text-[10px] text-zinc-500 font-mono mt-1">
+                    <span>Est: <strong className="text-zinc-300">{formatCurrency(item.estimatedCost)}</strong></span>
+                    <span>•</span>
+                    <span>Spent: <strong className={isOverBudget ? "text-red-400" : "text-neon-cyan"}>{formatCurrency(item.actualSpent)}</strong></span>
+                  </div>
+
+                  {item.pendingUpdate && (
+                    <div className="text-[10px] text-yellow-500 font-sans mt-2 bg-yellow-500/5 border border-yellow-500/10 px-2 py-1 rounded w-fit">
+                      Proposed values: <span className="text-zinc-400">"{item.pendingUpdate.proposedData?.name}"</span> (Est: <strong className="text-white">{formatCurrency(item.pendingUpdate.proposedData?.estimatedCost)}</strong>)
+                    </div>
+                  )}
+                  
+                  {/* Estimate vs Actual Mini Progress Bar */}
+                  <div className="w-full max-w-md h-1.5 bg-zinc-850 rounded-full mt-3 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        isOverBudget ? "bg-red-500" : "bg-neon-cyan"
+                      }`}
+                      style={{ width: `${usagePercent}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {canEdit && (
+                    <>
+                      <Button
+                        variant="secondary"
+                        onClick={() => openLogSpending(item.id, item.name)}
+                        disabled={item.isPendingCreate || !!item.pendingDelete}
+                        className="px-3 py-1 text-[10px] uppercase font-heading tracking-wider flex items-center gap-1 h-auto disabled:opacity-50"
+                      >
+                        <Plus className="w-3 h-3" />
+                        Log Expense
+                      </Button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setComponentToEdit(item);
+                          setIsEditComponentOpen(true);
+                        }}
+                        disabled={item.isPendingCreate || !!item.pendingDelete || !!item.pendingUpdate}
+                        className="text-zinc-500 hover:text-neon-cyan p-1.5 rounded-lg border border-transparent hover:border-neon-cyan/20 hover:bg-neon-cyan/5 transition-all cursor-pointer disabled:opacity-30 disabled:hover:border-transparent disabled:hover:bg-transparent"
+                        aria-label="Edit component"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteClick(item.id)}
+                        disabled={deletingId === item.id || item.isPendingCreate || !!item.pendingDelete || !!item.pendingUpdate}
+                        className="text-zinc-500 hover:text-red-400 p-1.5 rounded-lg border border-transparent hover:border-red-500/20 hover:bg-red-500/5 transition-all cursor-pointer disabled:opacity-30 disabled:hover:border-transparent disabled:hover:bg-transparent"
+                        aria-label="Remove component"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => toggleExpand(item.id)}
+                    className="text-zinc-400 hover:text-white p-1.5 rounded-lg border border-white/5 bg-white/3 hover:bg-white/5 transition-all cursor-pointer"
+                    aria-label={isExpanded ? "Collapse spending log" : "Expand spending log"}
+                  >
+                    {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Expanded Transaction Log Section */}
+              {isExpanded && (
+                <div className="border-t border-white/5 bg-[#0b0b0c]/40 p-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono tracking-widest text-zinc-500 uppercase">
+                      Transaction Expenditures Log ({item.spendings?.length || 0})
+                    </span>
+                  </div>
+
+                  {!item.spendings || item.spendings.length === 0 ? (
+                    <div className="text-center py-4 border border-dashed border-white/5 rounded-lg">
+                      <span className="text-xs text-zinc-650 italic block">
+                        No expenses logged for this category yet.
+                      </span>
+                      {canEdit && !item.isPendingCreate && !item.pendingDelete && (
+                        <button
+                          type="button"
+                          onClick={() => openLogSpending(item.id, item.name)}
+                          className="mt-2 text-[10px] text-neon-cyan hover:underline font-mono font-medium"
+                        >
+                          + Record your first payment transaction
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto rounded-lg border border-white/5">
+                      <table className="w-full text-left border-collapse text-xs font-sans">
+                        <thead>
+                          <tr className="border-b border-white/5 bg-white/2 text-[10px] font-heading text-zinc-400 uppercase tracking-wider">
+                            <th className="p-3 pl-4">Description</th>
+                            <th className="p-3">Date Paid</th>
+                            <th className="p-3 text-right">Amount</th>
+                            {canEdit && <th className="p-3 pr-4 text-right">Actions</th>}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {item.spendings.map((logItem) => {
+                            let rowClass = "hover:bg-white/1 text-zinc-300";
+                            if (logItem.isPendingCreate) {
+                              rowClass = "bg-yellow-500/2 hover:bg-yellow-500/3 text-zinc-400 opacity-80 border-dashed border-yellow-500/10";
+                            } else if (logItem.pendingDelete) {
+                              rowClass = "bg-red-500/2 hover:bg-red-500/3 text-zinc-400 opacity-80 line-through decoration-red-500/30";
+                            } else if (logItem.pendingUpdate) {
+                              rowClass = "bg-yellow-500/2 hover:bg-yellow-500/3 text-zinc-300";
+                            }
+
+                            return (
+                              <tr key={logItem.id} className={`border-b border-white/5 ${rowClass}`}>
+                                <td className="p-3 pl-4 font-medium">
+                                  <div className="flex flex-col">
+                                    <span>{logItem.description}</span>
+                                    {logItem.isPendingCreate && (
+                                      <span className="text-[8px] font-bold text-yellow-500 uppercase tracking-widest mt-0.5">Pending Creation</span>
+                                    )}
+                                    {logItem.pendingDelete && (
+                                      <span className="text-[8px] font-bold text-red-400 uppercase tracking-widest mt-0.5">Pending Deletion</span>
+                                    )}
+                                    {logItem.pendingUpdate && (
+                                      <span className="text-[8px] font-bold text-yellow-500 uppercase tracking-widest mt-0.5">
+                                        Pending Update: "{logItem.pendingUpdate.proposedData?.description}" ({formatCurrency(logItem.pendingUpdate.proposedData?.amount)})
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="p-3 text-zinc-500 font-mono">
+                                  <div className="flex items-center gap-1.5">
+                                    <Calendar className="w-3.5 h-3.5 text-zinc-650" />
+                                    {formatDate(logItem.spentAt)}
+                                  </div>
+                                </td>
+                                <td className="p-3 text-right font-mono font-bold text-white">
+                                  {formatCurrency(logItem.amount)}
+                                </td>
+                                {canEdit && (
+                                  <td className="p-3 pr-4 text-right">
+                                    {!logItem.isPendingCreate && !logItem.pendingDelete && !logItem.pendingUpdate ? (
+                                      <div className="flex items-center justify-end gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setActiveSpendingComponentId(item.id);
+                                            setSpendingToEdit(logItem);
+                                            setIsEditSpendingOpen(true);
+                                          }}
+                                          className="text-zinc-500 hover:text-neon-cyan p-1 rounded hover:bg-white/5 transition-all cursor-pointer"
+                                          aria-label="Edit transaction"
+                                        >
+                                          <Edit className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleSpendingDeleteClick(item.id, logItem)}
+                                          className="text-zinc-500 hover:text-red-400 p-1 rounded hover:bg-white/5 transition-all cursor-pointer"
+                                          aria-label="Delete transaction"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <span className="text-[9px] font-bold text-zinc-500 uppercase italic">Locked</span>
+                                    )}
+                                  </td>
+                                )}
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 w-full max-w-7xl mx-auto">
       {/* Components List Section */}
       <div className="lg:col-span-2 space-y-6">
-        <div className="flex items-center justify-between border-b border-white/5 pb-4">
-          <div className="flex items-center gap-2">
-            <Briefcase className="w-5 h-5 text-neon-cyan" />
-            <h3 className="text-lg font-heading font-bold text-white tracking-wide">
-              Expense Categories Breakdown
-            </h3>
-          </div>
-          {canEdit && (
-            <Button
-              variant="gradient"
-              onClick={() => setIsAddOpen(true)}
-              className="px-4 py-1.5 font-heading text-xs tracking-wider uppercase flex items-center gap-1 h-auto"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Add Category
-            </Button>
-          )}
-        </div>
-
-        {allRenderComponents.length === 0 ? (
-          <div className="border border-dashed border-white/10 rounded-xl p-12 text-center bg-[#121214]/20">
-            <span className="text-xs text-zinc-500 italic block">
-              No budgeting components defined for this workspace yet.
-            </span>
-            {canEdit && (
-              <Button
-                variant="ghost"
-                onClick={() => setIsAddOpen(true)}
-                className="mt-4 text-xs font-semibold text-neon-cyan hover:underline"
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/5 pb-4 gap-4">
+          <div className="flex items-center gap-4">
+            <Briefcase className="w-5 h-5 text-neon-cyan shrink-0" />
+            <div className="flex bg-[#121214] border border-white/10 rounded-lg p-0.5">
+              <button
+                type="button"
+                onClick={() => handleViewModeChange("component")}
+                className={`px-3 py-1 text-xs font-heading font-bold tracking-wide rounded-md transition-all cursor-pointer ${
+                  activeViewMode === "component"
+                    ? "bg-neon-cyan/15 text-neon-cyan border border-neon-cyan/20"
+                    : "text-zinc-500 hover:text-zinc-300 border border-transparent"
+                }`}
               >
-                Define your first cost category
-              </Button>
+                Categories View
+              </button>
+              <button
+                type="button"
+                onClick={() => handleViewModeChange("chronological")}
+                className={`px-3 py-1 text-xs font-heading font-bold tracking-wide rounded-md transition-all cursor-pointer ${
+                  activeViewMode === "chronological"
+                    ? "bg-neon-cyan/15 text-neon-cyan border border-neon-cyan/20"
+                    : "text-zinc-500 hover:text-zinc-300 border border-transparent"
+                }`}
+              >
+                All Spendings
+              </button>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {activeViewMode === "component" ? (
+              canEdit && (
+                <Button
+                  variant="gradient"
+                  onClick={() => setIsAddOpen(true)}
+                  className="px-4 py-1.5 font-heading text-xs tracking-wider uppercase flex items-center gap-1 h-auto"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Add Category
+                </Button>
+              )
+            ) : (
+              <div className="relative w-full max-w-[200px]">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  placeholder="Search spendings..."
+                  className="w-full bg-[#121214] border border-white/10 hover:border-white/15 focus:border-neon-cyan rounded-lg pl-3 pr-8 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none transition-all"
+                />
+              </div>
             )}
           </div>
-        ) : (
-          <div className="space-y-4">
-            {allRenderComponents.map((item) => {
-              const isOverBudget = item.actualSpent > item.estimatedCost;
-              const usagePercent = item.estimatedCost > 0 
-                ? Math.min(100, (item.actualSpent / item.estimatedCost) * 100) 
-                : 0;
-              const isExpanded = !!expandedIds[item.id];
+        </div>
 
-              // Custom styles for pending states
-              let cardBorderClass = "border-white/5 hover:border-white/10";
-              let cardBgClass = "bg-[#121214]";
-              if (item.isPendingCreate) {
-                cardBorderClass = "border-yellow-500/30 border-dashed";
-                cardBgClass = "bg-yellow-500/3";
-              } else if (item.pendingDelete) {
-                cardBorderClass = "border-red-500/30 border-dashed bg-red-950/5";
-                cardBgClass = "bg-red-950/5";
-              } else if (item.pendingUpdate) {
-                cardBorderClass = "border-yellow-500/20";
-                cardBgClass = "bg-yellow-500/2";
-              } else if (isOverBudget) {
-                cardBorderClass = "border-red-500/30 bg-red-950/5";
-                cardBgClass = "bg-red-950/5";
-              }
-
-              return (
-                <div
-                  key={item.id}
-                  className={`flex flex-col border rounded-xl overflow-hidden transition-all shadow-[0_4px_12px_rgba(0,0,0,0.15)] ${cardBorderClass} ${cardBgClass}`}
-                >
-                  {/* Category Header Row */}
-                  <div className="flex items-center justify-between p-4 flex-wrap gap-4">
-                    <div className="flex-1 min-w-[200px]">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="text-sm font-heading font-bold text-white tracking-wide">
-                          {item.name}
-                        </h4>
-                        {isOverBudget && (
-                          <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20">
-                            Over Budget
-                          </span>
-                        )}
-                        {item.isPendingCreate && (
-                          <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded border border-yellow-500/20 shadow-[0_0_5px_rgba(234,179,8,0.2)]">
-                            Pending Creation
-                          </span>
-                        )}
-                        {item.pendingDelete && (
-                          <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20 shadow-[0_0_5px_rgba(239,68,68,0.2)]">
-                            Pending Deletion
-                          </span>
-                        )}
-                        {item.pendingUpdate && (
-                          <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded border border-yellow-500/20 shadow-[0_0_5px_rgba(234,179,8,0.2)]">
-                            Pending Update
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-3 text-[10px] text-zinc-500 font-mono mt-1">
-                        <span>Est: <strong className="text-zinc-300">{formatCurrency(item.estimatedCost)}</strong></span>
-                        <span>•</span>
-                        <span>Spent: <strong className={isOverBudget ? "text-red-400" : "text-neon-cyan"}>{formatCurrency(item.actualSpent)}</strong></span>
-                      </div>
-
-                      {item.pendingUpdate && (
-                        <div className="text-[10px] text-yellow-500 font-sans mt-2 bg-yellow-500/5 border border-yellow-500/10 px-2 py-1 rounded w-fit">
-                          Proposed values: <span className="text-zinc-400">"{item.pendingUpdate.proposedData?.name}"</span> (Est: <strong className="text-white">{formatCurrency(item.pendingUpdate.proposedData?.estimatedCost)}</strong>)
-                        </div>
-                      )}
-                      
-                      {/* Estimate vs Actual Mini Progress Bar */}
-                      <div className="w-full max-w-md h-1.5 bg-zinc-850 rounded-full mt-3 overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all duration-500 ${
-                            isOverBudget ? "bg-red-500" : "bg-neon-cyan"
-                          }`}
-                          style={{ width: `${usagePercent}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      {canEdit && (
-                        <>
-                          <Button
-                            variant="secondary"
-                            onClick={() => openLogSpending(item.id, item.name)}
-                            disabled={item.isPendingCreate || !!item.pendingDelete}
-                            className="px-3 py-1 text-[10px] uppercase font-heading tracking-wider flex items-center gap-1 h-auto disabled:opacity-50"
-                          >
-                            <Plus className="w-3 h-3" />
-                            Log Expense
-                          </Button>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setComponentToEdit(item);
-                              setIsEditComponentOpen(true);
-                            }}
-                            disabled={item.isPendingCreate || !!item.pendingDelete || !!item.pendingUpdate}
-                            className="text-zinc-500 hover:text-neon-cyan p-1.5 rounded-lg border border-transparent hover:border-neon-cyan/20 hover:bg-neon-cyan/5 transition-all cursor-pointer disabled:opacity-30 disabled:hover:border-transparent disabled:hover:bg-transparent"
-                            aria-label="Edit component"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteClick(item.id)}
-                            disabled={deletingId === item.id || item.isPendingCreate || !!item.pendingDelete || !!item.pendingUpdate}
-                            className="text-zinc-500 hover:text-red-400 p-1.5 rounded-lg border border-transparent hover:border-red-500/20 hover:bg-red-500/5 transition-all cursor-pointer disabled:opacity-30 disabled:hover:border-transparent disabled:hover:bg-transparent"
-                            aria-label="Remove component"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={() => toggleExpand(item.id)}
-                        className="text-zinc-400 hover:text-white p-1.5 rounded-lg border border-white/5 bg-white/3 hover:bg-white/5 transition-all cursor-pointer"
-                        aria-label={isExpanded ? "Collapse spending log" : "Expand spending log"}
-                      >
-                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Expanded Transaction Log Section */}
-                  {isExpanded && (
-                    <div className="border-t border-white/5 bg-[#0b0b0c]/40 p-4 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-mono tracking-widest text-zinc-500 uppercase">
-                          Transaction Expenditures Log ({item.spendings?.length || 0})
-                        </span>
-                      </div>
-
-                      {!item.spendings || item.spendings.length === 0 ? (
-                        <div className="text-center py-4 border border-dashed border-white/5 rounded-lg">
-                          <span className="text-xs text-zinc-650 italic block">
-                            No expenses logged for this category yet.
-                          </span>
-                          {canEdit && !item.isPendingCreate && !item.pendingDelete && (
-                            <button
-                              type="button"
-                              onClick={() => openLogSpending(item.id, item.name)}
-                              className="mt-2 text-[10px] text-neon-cyan hover:underline font-mono font-medium"
-                            >
-                              + Record your first payment transaction
-                            </button>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="overflow-x-auto rounded-lg border border-white/5">
-                          <table className="w-full text-left border-collapse text-xs font-sans">
-                            <thead>
-                              <tr className="border-b border-white/5 bg-white/2 text-[10px] font-heading text-zinc-400 uppercase tracking-wider">
-                                <th className="p-3 pl-4">Description</th>
-                                <th className="p-3">Date Paid</th>
-                                <th className="p-3 text-right">Amount</th>
-                                {canEdit && <th className="p-3 pr-4 text-right">Actions</th>}
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {item.spendings.map((logItem) => {
-                                let rowClass = "hover:bg-white/1 text-zinc-300";
-                                if (logItem.isPendingCreate) {
-                                  rowClass = "bg-yellow-500/2 hover:bg-yellow-500/3 text-zinc-400 opacity-80 border-dashed border-yellow-500/10";
-                                } else if (logItem.pendingDelete) {
-                                  rowClass = "bg-red-500/2 hover:bg-red-500/3 text-zinc-400 opacity-80 line-through decoration-red-500/30";
-                                } else if (logItem.pendingUpdate) {
-                                  rowClass = "bg-yellow-500/2 hover:bg-yellow-500/3 text-zinc-300";
-                                }
-
-                                return (
-                                  <tr key={logItem.id} className={`border-b border-white/5 ${rowClass}`}>
-                                    <td className="p-3 pl-4 font-medium">
-                                      <div className="flex flex-col">
-                                        <span>{logItem.description}</span>
-                                        {logItem.isPendingCreate && (
-                                          <span className="text-[8px] font-bold text-yellow-500 uppercase tracking-widest mt-0.5">Pending Creation</span>
-                                        )}
-                                        {logItem.pendingDelete && (
-                                          <span className="text-[8px] font-bold text-red-400 uppercase tracking-widest mt-0.5">Pending Deletion</span>
-                                        )}
-                                        {logItem.pendingUpdate && (
-                                          <span className="text-[8px] font-bold text-yellow-500 uppercase tracking-widest mt-0.5">
-                                            Pending Update: "{logItem.pendingUpdate.proposedData?.description}" ({formatCurrency(logItem.pendingUpdate.proposedData?.amount)})
-                                          </span>
-                                        )}
-                                      </div>
-                                    </td>
-                                    <td className="p-3 text-zinc-500 font-mono">
-                                      <div className="flex items-center gap-1.5">
-                                        <Calendar className="w-3.5 h-3.5 text-zinc-650" />
-                                        {formatDate(logItem.spentAt)}
-                                      </div>
-                                    </td>
-                                    <td className="p-3 text-right font-mono font-bold text-white">
-                                      {formatCurrency(logItem.amount)}
-                                    </td>
-                                    {canEdit && (
-                                      <td className="p-3 pr-4 text-right">
-                                        {!logItem.isPendingCreate && !logItem.pendingDelete && !logItem.pendingUpdate ? (
-                                          <div className="flex items-center justify-end gap-2">
-                                            <button
-                                              type="button"
-                                              onClick={() => {
-                                                setActiveSpendingComponentId(item.id);
-                                                setSpendingToEdit(logItem);
-                                                setIsEditSpendingOpen(true);
-                                              }}
-                                              className="text-zinc-500 hover:text-neon-cyan p-1 rounded hover:bg-white/5 transition-all cursor-pointer"
-                                              aria-label="Edit transaction"
-                                            >
-                                              <Edit className="w-3.5 h-3.5" />
-                                            </button>
-                                            <button
-                                              type="button"
-                                              onClick={() => handleSpendingDeleteClick(item.id, logItem)}
-                                              className="text-zinc-500 hover:text-red-400 p-1 rounded hover:bg-white/5 transition-all cursor-pointer"
-                                              aria-label="Delete transaction"
-                                            >
-                                              <Trash2 className="w-3.5 h-3.5" />
-                                            </button>
-                                          </div>
-                                        ) : (
-                                          <span className="text-[9px] font-bold text-zinc-500 uppercase italic">Locked</span>
-                                        )}
-                                      </td>
-                                    )}
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
+        {renderBudgetList()}
       </div>
 
       {/* Summary Card Section */}

@@ -6,10 +6,13 @@ import com.planohi.api.dto.CreateInviteeRequest;
 import com.planohi.api.dto.UpdateInviteeRequest;
 import com.planohi.api.dto.InviteeDto;
 import com.planohi.api.dto.InviteeMetricsDto;
+import com.planohi.api.dto.SendBulkInvitesRequest;
+import com.planohi.api.dto.BulkInvitesScheduleResponse;
 import com.planohi.api.service.InviteeService;
 import com.planohi.api.service.WorkspaceSecurityService;
 import com.planohi.api.enums.EventCuratorRole;
 import jakarta.validation.Valid;
+import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -121,5 +124,51 @@ public class InviteeController {
         workspaceSecurityService.validateRoleToken(roleToken, userPrincipal.getId(), eventId, EventCuratorRole.ORGANIZER);
         inviteeCachedService.sendRsvpInvite(userPrincipal.getId(), eventId, inviteeId);
         return ResponseEntity.ok(ApiResponse.success("Invitation sent successfully", null));
+    }
+
+    @PostMapping("/{eventId}/invitees/send-all")
+    public ResponseEntity<ApiResponse<Void>> sendBulkInvites(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestHeader(value = WorkspaceSecurityService.ROLE_TOKEN_HEADER, required = false) String roleToken,
+            @PathVariable UUID eventId,
+            @RequestBody @Valid SendBulkInvitesRequest request
+    ) {
+        log.info("REST request to send/schedule bulk invites for event {}, scheduledTime={}", eventId, request.getScheduledTime());
+        workspaceSecurityService.validateRoleToken(roleToken, userPrincipal.getId(), eventId, EventCuratorRole.ORGANIZER);
+        if (request.getScheduledTime() != null && request.getScheduledTime().isBefore(Instant.now())) {
+            throw new IllegalArgumentException("Schedule time must be in the future");
+        }
+        inviteeCachedService.sendBulkInvites(userPrincipal.getId(), eventId, request.getScheduledTime());
+        return ResponseEntity.ok(ApiResponse.success(
+                request.getScheduledTime() == null ? "Bulk invitations sent successfully" : "Bulk invitations scheduled successfully", 
+                null
+        ));
+    }
+
+    @DeleteMapping("/{eventId}/invitees/send-all/schedule")
+    public ResponseEntity<ApiResponse<Void>> cancelScheduledInvites(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestHeader(value = WorkspaceSecurityService.ROLE_TOKEN_HEADER, required = false) String roleToken,
+            @PathVariable UUID eventId
+    ) {
+        log.info("REST request to cancel scheduled bulk invites for event {}", eventId);
+        workspaceSecurityService.validateRoleToken(roleToken, userPrincipal.getId(), eventId, EventCuratorRole.ORGANIZER);
+        inviteeCachedService.cancelScheduledInvites(userPrincipal.getId(), eventId);
+        return ResponseEntity.ok(ApiResponse.success("Scheduled bulk invitations cancelled successfully", null));
+    }
+
+    @GetMapping("/{eventId}/invitees/send-all/schedule")
+    public ResponseEntity<ApiResponse<BulkInvitesScheduleResponse>> getScheduledInvitesTime(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestHeader(value = WorkspaceSecurityService.ROLE_TOKEN_HEADER, required = false) String roleToken,
+            @PathVariable UUID eventId
+    ) {
+        log.info("REST request to get scheduled bulk invites time for event {}", eventId);
+        workspaceSecurityService.validateRoleToken(roleToken, userPrincipal.getId(), eventId, EventCuratorRole.ORGANIZER);
+        Instant scheduledTime = inviteeCachedService.getScheduledInvitesTime(userPrincipal.getId(), eventId);
+        return ResponseEntity.ok(ApiResponse.success(
+                "Scheduled bulk invites time fetched successfully",
+                BulkInvitesScheduleResponse.builder().scheduledTime(scheduledTime).build()
+        ));
     }
 }

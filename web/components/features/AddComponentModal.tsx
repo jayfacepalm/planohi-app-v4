@@ -67,6 +67,7 @@ export const AddComponentModal: React.FC<AddComponentModalProps> = ({
       reset();
       if (response && response.targetType) {
         setSuccessMessage("Change proposal submitted: Category creation queued for Organizer review.");
+        onSuccess();
       } else {
         onSuccess();
         onClose();

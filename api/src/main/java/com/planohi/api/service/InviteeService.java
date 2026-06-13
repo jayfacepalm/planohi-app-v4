@@ -20,4 +20,8 @@ public interface InviteeService {
     InviteeDto updateInvitee(UUID userId, UUID eventId, UUID inviteeId, UpdateInviteeRequest request);
     InviteeDto deleteInvitee(UUID userId, UUID eventId, UUID inviteeId);
     void sendRsvpInvite(UUID userId, UUID eventId, UUID inviteeId);
+    void sendBulkInvites(UUID userId, UUID eventId, java.time.Instant scheduledTime);
+    void executeBulkSend(UUID userId, UUID eventId);
+    void cancelScheduledInvites(UUID userId, UUID eventId);
+    java.time.Instant getScheduledInvitesTime(UUID userId, UUID eventId);
 }

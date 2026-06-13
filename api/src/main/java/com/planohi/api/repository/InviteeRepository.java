@@ -17,6 +17,7 @@ public interface InviteeRepository extends JpaRepository<Invitee, UUID> {
     boolean existsByToken(String token);
     Page<Invitee> findByEventId(UUID eventId, Pageable pageable);
     Page<Invitee> findByEventIdAndNameContainingIgnoreCase(UUID eventId, String name, Pageable pageable);
+    java.util.List<Invitee> findByEventIdAndStatus(UUID eventId, String status);
 
     @Query("SELECT new com.planohi.api.dto.InviteeMetricsDto(" +
            "COUNT(i.id), " +

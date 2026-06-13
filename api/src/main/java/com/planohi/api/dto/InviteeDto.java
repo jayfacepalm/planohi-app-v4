@@ -21,4 +21,5 @@ public class InviteeDto {
     private String status;
     private String email;
     private Instant respondedAt;
+    private Instant lastSentAt;
 }

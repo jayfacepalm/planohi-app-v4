@@ -282,7 +282,7 @@ public class ChangeProposalServiceImpl implements ChangeProposalService {
 
     private void evictAllCaches() {
         String[] caches = { "event_components", "events_detail", "event_budget_summary", "event_timeline",
-                "events_list", "event_proposals" };
+                "events_list", "event_proposals", "event_chronological_spendings" };
         for (String cacheName : caches) {
             Cache cache = cacheManager.getCache(cacheName);
             if (cache != null) {

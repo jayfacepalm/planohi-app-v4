@@ -23,6 +23,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import java.math.BigDecimal;
 import java.util.UUID;
 
@@ -57,9 +59,7 @@ public class EventSpendingServiceImpl implements EventSpendingService {
             throw new FieldValidationException("amount", "Spending amount must be a positive number greater than 0");
         }
 
-        if (request.getSpentAt().isBefore(event.getStartDate()) || request.getSpentAt().isAfter(event.getEndDate())) {
-            throw new FieldValidationException("spentAt", "Spending date must be within the event's start and end date boundaries: " + event.getStartDate() + " to " + event.getEndDate());
-        }
+
 
         if (role == EventCuratorRole.COLLABORATOR) {
             // Include componentId inside proposedData since createSpending body doesn't contain it directly
@@ -120,9 +120,7 @@ public class EventSpendingServiceImpl implements EventSpendingService {
             throw new FieldValidationException("amount", "Spending amount must be a positive number greater than 0");
         }
 
-        if (request.getSpentAt().isBefore(event.getStartDate()) || request.getSpentAt().isAfter(event.getEndDate())) {
-            throw new FieldValidationException("spentAt", "Spending date must be within the event's start and end date boundaries: " + event.getStartDate() + " to " + event.getEndDate());
-        }
+
 
         if (role == EventCuratorRole.COLLABORATOR) {
             java.util.Map<String, Object> data = new java.util.HashMap<>();
@@ -192,6 +190,29 @@ public class EventSpendingServiceImpl implements EventSpendingService {
         log.info("Spending deleted successfully with ID: {}", spendingId);
 
         return dto;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<EventSpendingDto> getChronologicalSpendings(UUID userId, UUID eventId, String search, Pageable pageable) {
+        log.info("Fetching chronological spendings for event {} by user {}", eventId, userId);
+
+        eventRepository.findById(eventId)
+                .orElseThrow(() -> new EntityNotFoundException("Event not found"));
+
+        workspaceSecurityService.checkReadAccess(userId, eventId);
+
+        java.util.List<EventComponent> components = eventComponentRepository.findByEventId(eventId);
+        java.util.Map<UUID, String> componentMap = components.stream()
+                .collect(java.util.stream.Collectors.toMap(EventComponent::getId, EventComponent::getName));
+
+        Page<EventSpending> spendingsPage = eventSpendingRepository.findByEventIdAndSearch(eventId, search, pageable);
+
+        return spendingsPage.map(spending -> {
+            EventSpendingDto dto = mapToDto(spending, eventId);
+            dto.setComponentName(componentMap.getOrDefault(spending.getComponentId(), "Unknown Component"));
+            return dto;
+        });
     }
 
     private EventSpendingDto mapToDto(EventSpending spending, UUID eventId) {

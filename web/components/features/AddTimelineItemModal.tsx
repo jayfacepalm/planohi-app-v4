@@ -77,6 +77,7 @@ export const AddTimelineItemModal: React.FC<AddTimelineItemModalProps> = ({
       });
       if (response && response.targetType) {
         setSuccessMessage("Change proposal submitted: Milestone creation queued for Organizer review.");
+        onSuccess();
       } else {
         onSuccess();
         onClose();

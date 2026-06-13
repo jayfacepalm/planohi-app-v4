@@ -91,6 +91,7 @@ export const EditSpendingModal: React.FC<EditSpendingModalProps> = ({
       });
       if (response && response.targetType) {
         setSuccessMessage("Change proposal submitted: Spending update queued for Organizer review.");
+        onSuccess();
       } else {
         onSuccess();
         onClose();

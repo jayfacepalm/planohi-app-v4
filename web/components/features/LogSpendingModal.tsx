@@ -74,6 +74,7 @@ export const LogSpendingModal: React.FC<LogSpendingModalProps> = ({
       reset();
       if (response && response.targetType) {
         setSuccessMessage("Change proposal submitted: Spending log queued for Organizer review.");
+        onSuccess();
       } else {
         onSuccess();
         onClose();

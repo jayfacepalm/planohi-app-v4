@@ -62,6 +62,7 @@ services:
       SECURITY_JWT_SECRET_KEY: ${SECURITY_JWT_SECRET_KEY}
       SECURITY_JWT_EXPIRATION_TIME: ${SECURITY_JWT_EXPIRATION_TIME}
       SECURITY_JWT_ROLE_SECRET_KEY: ${SECURITY_JWT_ROLE_SECRET_KEY}
+      SECURITY_API_KEY: ${SECURITY_API_KEY}
     depends_on:
       db:
         condition: service_healthy
@@ -102,6 +103,7 @@ services:
       NEXT_PUBLIC_API_URL: /api/proxy
       CSP_ALLOWED_IMAGE_SOURCES: "${CSP_ALLOWED_IMAGE_SOURCES:-'self' data: blob: http://localhost:4566 http://127.0.0.1:4566}"
       CSP_ALLOWED_CONNECT_SOURCES: "${CSP_ALLOWED_CONNECT_SOURCES:-'self' ws: http://localhost:8080 http://localhost:3000}"
+      SECURITY_API_KEY: ${SECURITY_API_KEY}
     depends_on:
       - api
     networks:

@@ -84,6 +84,7 @@ export const EditComponentModal: React.FC<EditComponentModalProps> = ({
       });
       if (response && response.targetType) {
         setSuccessMessage("Change proposal submitted: Category update queued for Organizer review.");
+        onSuccess();
       } else {
         onSuccess();
         onClose();

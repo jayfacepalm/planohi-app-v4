@@ -18,6 +18,10 @@ export async function handleProxy(req: NextRequest) {
     headers.set('Cookie', `AUTH_TOKEN=${token}`);
   }
 
+  // Inject API Key for authenticity check
+  const apiKey = process.env.SECURITY_API_KEY || 'default-local-api-key';
+  headers.set('X-API-Key', apiKey);
+
   // Next.js fetch cache disable
   headers.set('Cache-Control', 'no-store');
 

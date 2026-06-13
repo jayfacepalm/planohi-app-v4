@@ -31,12 +31,23 @@ spring:
     baseline-on-migrate: true
     placeholder-replacement: false
 
+  # Quartz Configuration
+  quartz:
+    job-store-type: jdbc
+    jdbc:
+      initialize-schema: never
+    properties:
+      org.quartz.jobStore.driverDelegateClass: org.quartz.impl.jdbcjobstore.PostgreSQLDelegate
+      org.quartz.jobStore.isClustered: true
+      org.quartz.jobStore.clusterCheckinInterval: 20000
+
 app:
   security:
     cookie-secure: true
   frontend-url: ${APP_FRONTEND_URL:http://localhost:3000}
 
 security:
+  api-key: ${SECURITY_API_KEY}
   jwt:
     secret-key: ${SECURITY_JWT_SECRET_KEY}
     expiration-time: ${SECURITY_JWT_EXPIRATION_TIME}

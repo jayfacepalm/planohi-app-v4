@@ -20,4 +20,5 @@ public class EventSpendingDto {
     private BigDecimal amount;
     private Instant spentAt;
     private Instant createdAt;
+    private String componentName;
 }

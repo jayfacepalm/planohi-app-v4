@@ -58,6 +58,12 @@ export async function fetchApi<T>(path: string, config: RequestConfig = {}): Pro
     headers.set('X-Event-Role-Token', activeRoleToken);
   }
 
+  // Inject API Key for authenticity check if called from server-side (SSR / API endpoints)
+  if (isServer) {
+    const apiKey = process.env.SECURITY_API_KEY || 'default-local-api-key';
+    headers.set('X-API-Key', apiKey);
+  }
+
   const res = await fetch(urlString, {
     ...config,
     headers,

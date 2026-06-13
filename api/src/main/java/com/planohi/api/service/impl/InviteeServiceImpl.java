@@ -18,6 +18,14 @@ import com.planohi.api.service.S3StorageService;
 import com.planohi.api.service.WorkspaceSecurityService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.quartz.JobBuilder;
+import org.quartz.JobDetail;
+import org.quartz.JobKey;
+import org.quartz.Scheduler;
+import org.quartz.Trigger;
+import org.quartz.TriggerBuilder;
+import org.quartz.TriggerKey;
+import com.planohi.api.scheduler.SendAllInvitesJob;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -41,6 +49,7 @@ public class InviteeServiceImpl implements InviteeService {
     private final S3StorageService s3StorageService;
     private final WorkspaceSecurityService workspaceSecurityService;
     private final EmailPublisher emailPublisher;
+    private final Scheduler scheduler;
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
@@ -193,6 +202,7 @@ public class InviteeServiceImpl implements InviteeService {
                 .status(invitee.getStatus())
                 .email(invitee.getEmail())
                 .respondedAt(invitee.getRespondedAt())
+                .lastSentAt(invitee.getLastSentAt())
                 .build();
     }
 
@@ -250,7 +260,7 @@ public class InviteeServiceImpl implements InviteeService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public void sendRsvpInvite(UUID userId, UUID eventId, UUID inviteeId) {
         log.info("Sending RSVP invite for invitee {} in event {} by user {}", inviteeId, eventId, userId);
 
@@ -270,6 +280,9 @@ public class InviteeServiceImpl implements InviteeService {
             throw new IllegalArgumentException("Invitee email is not configured");
         }
 
+        invitee.setLastSentAt(Instant.now());
+        inviteeRepository.saveAndFlush(invitee);
+
         String rsvpLink = String.format("%s/rsvp/%s", frontendUrl, invitee.getToken());
 
         Map<String, Object> metadata = Map.of(
@@ -287,5 +300,140 @@ public class InviteeServiceImpl implements InviteeService {
                 .build();
 
         emailPublisher.publishEmail(emailMessage);
+    }
+
+    @Override
+    @Transactional
+    public void sendBulkInvites(UUID userId, UUID eventId, Instant scheduledTime) {
+        log.info("Request to send bulk invites for event {} by user {}, scheduledTime={}", eventId, userId, scheduledTime);
+        
+        eventRepository.findById(eventId)
+                .orElseThrow(() -> new EntityNotFoundException("Event not found"));
+
+        workspaceSecurityService.checkWriteAccess(userId, eventId);
+
+        try {
+            JobKey jobKey = JobKey.jobKey(eventId.toString(), "invite-jobs");
+            TriggerKey triggerKey = TriggerKey.triggerKey(eventId.toString(), "invite-triggers");
+
+            // Cancel/delete any existing job to guarantee idempotency and reschedule clean
+            if (scheduler.checkExists(jobKey)) {
+                scheduler.deleteJob(jobKey);
+            }
+
+            if (scheduledTime == null || !scheduledTime.isAfter(Instant.now())) {
+                log.info("Triggering bulk invitations immediately for event {}", eventId);
+                executeBulkSend(userId, eventId);
+            } else {
+                log.info("Scheduling bulk invitations for event {} at {}", eventId, scheduledTime);
+                JobDetail jobDetail = JobBuilder.newJob(SendAllInvitesJob.class)
+                        .withIdentity(jobKey)
+                        .usingJobData("eventId", eventId.toString())
+                        .usingJobData("userId", userId.toString())
+                        .storeDurably()
+                        .build();
+
+                Trigger trigger = TriggerBuilder.newTrigger()
+                        .withIdentity(triggerKey)
+                        .startAt(java.util.Date.from(scheduledTime))
+                        .build();
+
+                scheduler.scheduleJob(jobDetail, trigger);
+            }
+        } catch (Exception e) {
+            log.error("Failed to process bulk invitation scheduling", e);
+            throw new RuntimeException("Failed to process bulk invitation scheduling: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void executeBulkSend(UUID userId, UUID eventId) {
+        log.info("Executing bulk invitations dispatch for event {} by user {}", eventId, userId);
+
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new EntityNotFoundException("Event not found"));
+
+        workspaceSecurityService.checkWriteAccess(userId, eventId);
+
+        List<Invitee> pendingInvitees = inviteeRepository.findByEventIdAndStatus(eventId, "PENDING");
+        log.info("Found {} pending invitees to dispatch for event {}", pendingInvitees.size(), eventId);
+
+        Instant now = Instant.now();
+        List<Invitee> updatedInvitees = new ArrayList<>();
+
+        for (Invitee invitee : pendingInvitees) {
+            if (invitee.getEmail() == null || invitee.getEmail().trim().isEmpty()) {
+                log.warn("Skipping invitee {} - email address not configured", invitee.getName());
+                continue;
+            }
+
+            invitee.setLastSentAt(now);
+            updatedInvitees.add(invitee);
+
+            String rsvpLink = String.format("%s/rsvp/%s", frontendUrl, invitee.getToken());
+            Map<String, Object> metadata = Map.of(
+                    "inviteeName", invitee.getName(),
+                    "eventName", event.getTitle(),
+                    "allowedGuests", invitee.getAllowedGuests(),
+                    "rsvpLink", rsvpLink
+            );
+
+            EmailMessageDto emailMessage = EmailMessageDto.builder()
+                    .templateId("GUEST_INVITATION")
+                    .recipientTos(List.of(invitee.getEmail()))
+                    .metadata(metadata)
+                    .userId(userId.toString())
+                    .build();
+
+            emailPublisher.publishEmail(emailMessage);
+        }
+
+        if (!updatedInvitees.isEmpty()) {
+            inviteeRepository.saveAllAndFlush(updatedInvitees);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void cancelScheduledInvites(UUID userId, UUID eventId) {
+        log.info("Cancelling bulk invitation schedule for event {} by user {}", eventId, userId);
+
+        workspaceSecurityService.checkWriteAccess(userId, eventId);
+
+        try {
+            JobKey jobKey = JobKey.jobKey(eventId.toString(), "invite-jobs");
+            if (scheduler.checkExists(jobKey)) {
+                scheduler.deleteJob(jobKey);
+                log.info("Unscheduled and deleted job for event {}", eventId);
+            }
+        } catch (Exception e) {
+            log.error("Failed to cancel scheduled invitations", e);
+            throw new RuntimeException("Failed to cancel scheduled invitations: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Instant getScheduledInvitesTime(UUID userId, UUID eventId) {
+        // Read access check
+        workspaceSecurityService.getCuratorRole(userId, eventId);
+
+        try {
+            JobKey jobKey = JobKey.jobKey(eventId.toString(), "invite-jobs");
+            if (scheduler.checkExists(jobKey)) {
+                List<? extends Trigger> triggers = scheduler.getTriggersOfJob(jobKey);
+                if (triggers != null && !triggers.isEmpty()) {
+                    java.util.Date nextFireTime = triggers.get(0).getNextFireTime();
+                    if (nextFireTime != null) {
+                        return nextFireTime.toInstant();
+                    }
+                }
+            }
+            return null;
+        } catch (Exception e) {
+            log.error("Failed to retrieve scheduled invitation time", e);
+            return null;
+        }
     }
 }

@@ -52,4 +52,7 @@ public class Invitee extends BaseAuditEntity {
 
     @Column(name = "responded_at")
     private Instant respondedAt;
+
+    @Column(name = "last_sent_at")
+    private Instant lastSentAt;
 }

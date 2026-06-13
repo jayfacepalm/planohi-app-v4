@@ -81,7 +81,30 @@ public class InviteeCachedService implements InviteeService {
     }
 
     @Override
+    @CacheEvict(value = "event_invitees", allEntries = true)
     public void sendRsvpInvite(UUID userId, UUID eventId, UUID inviteeId) {
         inviteeService.sendRsvpInvite(userId, eventId, inviteeId);
+    }
+
+    @Override
+    @CacheEvict(value = "event_invitees", allEntries = true)
+    public void sendBulkInvites(UUID userId, UUID eventId, java.time.Instant scheduledTime) {
+        inviteeService.sendBulkInvites(userId, eventId, scheduledTime);
+    }
+
+    @Override
+    @CacheEvict(value = "event_invitees", allEntries = true)
+    public void executeBulkSend(UUID userId, UUID eventId) {
+        inviteeService.executeBulkSend(userId, eventId);
+    }
+
+    @Override
+    public void cancelScheduledInvites(UUID userId, UUID eventId) {
+        inviteeService.cancelScheduledInvites(userId, eventId);
+    }
+
+    @Override
+    public java.time.Instant getScheduledInvitesTime(UUID userId, UUID eventId) {
+        return inviteeService.getScheduledInvitesTime(userId, eventId);
     }
 }

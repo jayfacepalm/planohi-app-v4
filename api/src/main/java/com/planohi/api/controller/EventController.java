@@ -32,6 +32,8 @@ import org.springframework.web.multipart.MultipartFile;
 import com.planohi.api.service.WorkspaceSecurityService;
 import com.planohi.api.enums.EventCuratorRole;
 import org.springframework.web.bind.annotation.RequestHeader;
+import com.planohi.api.service.cached.EventSpendingCachedService;
+import com.planohi.api.dto.EventSpendingDto;
 import java.util.UUID;
 
 @Slf4j
@@ -42,6 +44,7 @@ public class EventController {
 
     private final EventCachedService eventService;
     private final EventComponentCachedService eventComponentService;
+    private final EventSpendingCachedService eventSpendingCachedService;
     private final WorkspaceSecurityService workspaceSecurityService;
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -127,5 +130,25 @@ public class EventController {
         workspaceSecurityService.validateRoleToken(roleToken, userPrincipal.getId(), eventId, EventCuratorRole.OWNER);
         eventService.deleteEvent(userPrincipal.getId(), eventId);
         return ResponseEntity.ok(ApiResponse.success("Event deleted successfully", null));
+    }
+
+    @GetMapping("/{eventId}/spendings")
+    public ResponseEntity<ApiResponse<Page<EventSpendingDto>>> getChronologicalSpendings(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PathVariable("eventId") UUID eventId,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        log.info("REST request to list chronological spendings for event {}, search='{}', page={}, size={}", eventId, search, page, size);
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "spentAt")
+                .and(Sort.by(Sort.Direction.DESC, "createdAt")));
+        Page<EventSpendingDto> spendings = eventSpendingCachedService.getChronologicalSpendings(
+                userPrincipal.getId(),
+                eventId,
+                search,
+                pageable
+        );
+        return ResponseEntity.ok(ApiResponse.success("Chronological spendings retrieved successfully", spendings));
     }
 }

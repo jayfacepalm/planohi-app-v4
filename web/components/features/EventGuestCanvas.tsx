@@ -7,8 +7,9 @@ import { GlowCard } from "../ui/GlowCard";
 import { Badge } from "../ui/Badge";
 import { AddInviteeModal } from "./AddInviteeModal";
 import { EditInviteeModal } from "./EditInviteeModal";
+import { SendAllInvitesModal } from "./SendAllInvitesModal";
 import { Modal } from "../ui/Modal";
-import { Search, UserPlus, Link2, Check, AlertTriangle, Users, CheckSquare, XOctagon, HelpCircle, Edit, Trash2, Send } from "lucide-react";
+import { Search, UserPlus, Link2, Check, AlertTriangle, Users, CheckSquare, XOctagon, HelpCircle, Edit, Trash2, Send, Clock } from "lucide-react";
 import { fetchApi, setRoleToken } from "../../lib/api-client";
 import { UserRole, USER_ROLES } from "../../lib/constants";
 import { decodeRoleToken } from "../../lib/security";
@@ -23,6 +24,7 @@ interface InviteeDto {
   status: string;
   email?: string | null;
   respondedAt: string | null;
+  lastSentAt?: string | null;
 }
 
 interface InviteeMetricsDto {
@@ -43,6 +45,12 @@ interface EventGuestCanvasProps {
   currentSearch?: string;
   userRole?: string;
 }
+
+const getBadgeVariant = (status: string): "cyan" | "red" | "amber" => {
+  if (status === "ACCEPTED") return "cyan";
+  if (status === "DECLINED") return "red";
+  return "amber";
+};
 
 export const EventGuestCanvas: React.FC<EventGuestCanvasProps> = ({
   eventId,
@@ -86,9 +94,51 @@ export const EventGuestCanvas: React.FC<EventGuestCanvasProps> = ({
   const [successMessage, setSuccessMessage] = useState("");
   const [sendLoading, setSendLoading] = useState<string | null>(null);
 
+  // Send All Invites / Scheduling States
+  const [isSendAllOpen, setIsSendAllOpen] = useState(false);
+  const [scheduledTime, setScheduledTime] = useState<string | null>(null);
+  const [cancelLoading, setCancelLoading] = useState(false);
+
+  const fetchSchedule = async () => {
+    if (!canEdit) return;
+    try {
+      const res = await fetchApi<{ scheduledTime: string | null }>(
+        `/events/${eventId}/invitees/send-all/schedule`,
+        {
+          headers: userRole ? { "X-Event-Role-Token": userRole } : undefined,
+        }
+      );
+      if (res) {
+        setScheduledTime(res.scheduledTime);
+      } else {
+        setScheduledTime(null);
+      }
+    } catch (err) {
+      console.error("Failed to fetch schedule time:", err);
+    }
+  };
+
   useEffect(() => {
     setMounted(true);
-  }, []);
+    fetchSchedule();
+  }, [eventId, canEdit]);
+
+  const handleCancelSchedule = async () => {
+    setCancelLoading(true);
+    try {
+      await fetchApi(`/events/${eventId}/invitees/send-all/schedule`, {
+        method: "DELETE",
+      });
+      setScheduledTime(null);
+      setSuccessMessage("Scheduled bulk invitation delivery has been successfully cancelled.");
+      setSuccessModalOpen(true);
+    } catch (err: any) {
+      setErrorMessage(err.message || "Failed to cancel scheduled invitations");
+      setErrorModalOpen(true);
+    } finally {
+      setCancelLoading(false);
+    }
+  };
 
   const confirmDelete = async () => {
     if (!inviteeToDelete) return;
@@ -262,6 +312,32 @@ export const EventGuestCanvas: React.FC<EventGuestCanvasProps> = ({
         </div>
       </div>
 
+      {/* Scheduled Alert Banner */}
+      {canEdit && scheduledTime && (
+        <div className="bg-neon-purple/10 border border-neon-purple/30 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2 duration-150 shadow-[0_0_15px_rgba(168,85,247,0.1)]">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-neon-purple/10 border border-neon-purple/20 flex items-center justify-center text-neon-purple shrink-0">
+              <Clock className="w-4 h-4 animate-pulse" />
+            </div>
+            <div>
+              <span className="text-xs font-bold text-white block">Bulk Invitations Scheduled</span>
+              <span className="text-[11px] text-zinc-450 font-sans">
+                Invitations are queued for delivery on <span className="text-neon-purple font-semibold font-mono">{formatDate(scheduledTime)}</span>.
+              </span>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="danger"
+            onClick={handleCancelSchedule}
+            disabled={cancelLoading}
+            className="text-[10px] py-1.5 px-3 h-auto uppercase tracking-wider font-heading shrink-0 border border-red-500/20 bg-red-500/10 hover:bg-red-500 hover:text-white cursor-pointer"
+          >
+            {cancelLoading ? "Cancelling..." : "Cancel Schedule"}
+          </Button>
+        </div>
+      )}
+
       {/* Main Content Area */}
       <div className="bg-[#121214] border border-white/5 rounded-xl p-6 space-y-6 shadow-[0_4px_20px_rgba(0,0,0,0.2)]">
         
@@ -281,14 +357,24 @@ export const EventGuestCanvas: React.FC<EventGuestCanvasProps> = ({
 
           {/* Action Trigger button */}
           {canEdit && (
-            <Button
-              variant="gradient"
-              onClick={() => setIsAddOpen(true)}
-              className="w-full sm:w-auto px-4 py-2 font-heading text-xs tracking-wider uppercase flex items-center justify-center gap-1.5 h-auto"
-            >
-              <UserPlus className="w-4 h-4" />
-              Add Guest Invitation
-            </Button>
+            <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full sm:w-auto">
+              <Button
+                variant="secondary"
+                onClick={() => setIsSendAllOpen(true)}
+                className="w-full sm:w-auto px-4 py-2 font-heading text-xs tracking-wider uppercase flex items-center justify-center gap-1.5 h-auto border border-white/10 hover:border-neon-cyan/40 hover:text-white"
+              >
+                <Send className="w-4 h-4 text-neon-cyan" />
+                Send All Invites
+              </Button>
+              <Button
+                variant="gradient"
+                onClick={() => setIsAddOpen(true)}
+                className="w-full sm:w-auto px-4 py-2 font-heading text-xs tracking-wider uppercase flex items-center justify-center gap-1.5 h-auto"
+              >
+                <UserPlus className="w-4 h-4" />
+                Add Guest Invitation
+              </Button>
+            </div>
           )}
         </div>
 
@@ -330,6 +416,7 @@ export const EventGuestCanvas: React.FC<EventGuestCanvasProps> = ({
                     <th className="p-4 text-center">Allowed limit</th>
                     <th className="p-4 text-center">attending</th>
                     <th className="p-4">Responded at</th>
+                    <th className="p-4">Invite Email Sent</th>
                     <th className="p-4 pr-6 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -339,18 +426,23 @@ export const EventGuestCanvas: React.FC<EventGuestCanvasProps> = ({
                       <td className="p-4 pl-6 font-medium text-white">{guest.name}</td>
                       <td className="p-4 font-mono text-[11px] text-zinc-450">{guest.email || "--"}</td>
                       <td className="p-4">
-                        <Badge
-                          variant={
-                            guest.status === "ACCEPTED"
-                              ? "cyan"
-                              : guest.status === "DECLINED"
-                              ? "red"
-                              : "amber"
-                          }
-                          className="py-0.5 px-2 text-[9px]"
-                        >
-                          {guest.status}
-                        </Badge>
+                        <div className="flex items-center gap-1.5">
+                          <Badge
+                            variant={getBadgeVariant(guest.status)}
+                            className="py-0.5 px-2 text-[9px]"
+                          >
+                            {guest.status}
+                          </Badge>
+                          {guest.status === "PENDING" && guest.email && scheduledTime && (
+                            <span 
+                              className="inline-flex items-center gap-1 text-[9px] font-mono text-neon-purple bg-neon-purple/5 border border-neon-purple/20 px-1.5 py-0.5 rounded animate-pulse"
+                              title={`Scheduled to send on ${formatDate(scheduledTime)}`}
+                            >
+                              <Clock className="w-2.5 h-2.5 text-neon-purple" />
+                              Scheduled
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="p-4 text-center font-mono font-bold">{guest.allowedGuests}</td>
                       <td className="p-4 text-center font-mono text-zinc-400">
@@ -362,6 +454,9 @@ export const EventGuestCanvas: React.FC<EventGuestCanvasProps> = ({
                       </td>
                       <td className="p-4 text-zinc-500 font-mono">
                         {guest.respondedAt ? formatDate(guest.respondedAt) : "--"}
+                      </td>
+                      <td className="p-4 text-zinc-500 font-mono">
+                        {guest.lastSentAt ? formatDate(guest.lastSentAt) : "--"}
                       </td>
                       <td className="p-4 pr-6 text-right">
                         <div className="flex justify-end items-center gap-2">
@@ -549,6 +644,18 @@ export const EventGuestCanvas: React.FC<EventGuestCanvasProps> = ({
           {successMessage}
         </p>
       </Modal>
+
+      {/* Send All Invites Modal */}
+      <SendAllInvitesModal
+        isOpen={isSendAllOpen}
+        onClose={() => setIsSendAllOpen(false)}
+        eventId={eventId}
+        onSuccess={() => {
+          fetchSchedule();
+          handleSuccess();
+        }}
+        pendingCount={initialMetrics.pendingCount}
+      />
     </div>
   );
 };
