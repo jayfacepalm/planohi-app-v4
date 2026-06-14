@@ -1,7 +1,9 @@
 import React from "react";
+import { Loader2 } from "lucide-react";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "primary" | "secondary" | "ghost" | "danger" | "gradient";
+  isLoading?: boolean;
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -9,9 +11,10 @@ export const Button: React.FC<ButtonProps> = ({
   variant = "primary",
   className = "",
   disabled,
+  isLoading = false,
   ...props
 }) => {
-  const baseStyles = "px-5 py-2.5 rounded-lg font-heading font-medium text-sm transition-all duration-200 active:scale-95 cursor-pointer disabled:cursor-not-allowed disabled:active:scale-100 disabled:opacity-50";
+  const baseStyles = "inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-heading font-medium text-sm transition-all duration-200 active:scale-95 cursor-pointer disabled:cursor-not-allowed disabled:active:scale-100 disabled:opacity-50";
   
   const variantStyles = {
     primary: "bg-neon-purple text-white hover:bg-neon-purple/90 shadow-[0_0_15px_rgba(168,85,247,0.35)] hover:shadow-[0_0_22px_rgba(168,85,247,0.65)] disabled:bg-zinc-800 disabled:text-zinc-500 disabled:shadow-none",
@@ -24,10 +27,12 @@ export const Button: React.FC<ButtonProps> = ({
   return (
     <button
       className={`${baseStyles} ${variantStyles[variant]} ${className}`}
-      disabled={disabled}
+      disabled={disabled || isLoading}
       {...props}
     >
+      {isLoading && <Loader2 className="h-4 w-4 animate-spin text-current" />}
       {children}
     </button>
   );
 };
+

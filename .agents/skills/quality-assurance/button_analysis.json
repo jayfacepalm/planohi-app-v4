@@ -1,0 +1,676 @@
+[
+  {
+    "file": "web\\app\\(auth)\\login\\error.tsx",
+    "mappedSprint": 3,
+    "buttonsCount": 1,
+    "buttonsDetail": [
+      {
+        "tagContent": "onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      }
+    ]
+  },
+  {
+    "file": "web\\app\\(auth)\\register\\error.tsx",
+    "mappedSprint": 3,
+    "buttonsCount": 1,
+    "buttonsDetail": [
+      {
+        "tagContent": "onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      }
+    ]
+  },
+  {
+    "file": "web\\app\\page.tsx",
+    "mappedSprint": 2,
+    "buttonsCount": 4,
+    "buttonsDetail": [
+      {
+        "tagContent": "variant=\"ghost\" className=\"px-4 py-1.5 text-xs h-auto cursor-pointer\"",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"gradient\" className=\"px-4 py-1.5 text-xs h-auto cursor-pointer\"",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"gradient\" className=\"px-8 py-3 text-sm font-semibold tracking-wider uppercase h-auto flex items-center gap-2 group cursor-pointer\"",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"ghost\" className=\"px-8 py-3 text-sm font-semibold tracking-wider uppercase h-auto border border-white/10 hover:border-white/20 cursor-pointer\"",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      }
+    ]
+  },
+  {
+    "file": "web\\app\\rsvp\\[token]\\RsvpClient.tsx",
+    "mappedSprint": 5,
+    "buttonsCount": 3,
+    "buttonsDetail": [
+      {
+        "tagContent": "type=\"button\"\n                      variant=\"ghost\"\n                      onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "type=\"submit\"\n                    variant=\"gradient\"\n                    disabled={isSubmitting}\n                    className={`flex-1 py-3 flex items-center justify-center gap-1.5`}",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      },
+      {
+        "tagContent": "onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      }
+    ]
+  },
+  {
+    "file": "web\\components\\features\\AddComponentModal.tsx",
+    "mappedSprint": 3,
+    "buttonsCount": 3,
+    "buttonsDetail": [
+      {
+        "tagContent": "variant=\"primary\" onClick={handleClose}",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"ghost\" onClick={handleClose} disabled={loading}",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      },
+      {
+        "tagContent": "variant=\"gradient\"\n              onClick={handleSubmit(onSubmit)}\n              disabled={loading}\n              className=\"flex items-center gap-1.5\"",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      }
+    ]
+  },
+  {
+    "file": "web\\components\\features\\AddInviteeModal.tsx",
+    "mappedSprint": 4,
+    "buttonsCount": 2,
+    "buttonsDetail": [
+      {
+        "tagContent": "variant=\"ghost\" onClick={handleClose} disabled={loading}",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      },
+      {
+        "tagContent": "variant=\"gradient\"\n            onClick={handleSubmit(onSubmit)}\n            disabled={loading}\n            className=\"flex items-center gap-1.5\"",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      }
+    ]
+  },
+  {
+    "file": "web\\components\\features\\AddTimelineItemModal.tsx",
+    "mappedSprint": 5,
+    "buttonsCount": 3,
+    "buttonsDetail": [
+      {
+        "tagContent": "variant=\"primary\" onClick={handleClose}",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"ghost\" onClick={handleClose} disabled={loading}",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      },
+      {
+        "tagContent": "variant=\"gradient\"\n              onClick={handleSubmit(onSubmit)}\n              disabled={loading}\n              className=\"flex items-center gap-1.5\"",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      }
+    ]
+  },
+  {
+    "file": "web\\components\\features\\CreateEventModal.tsx",
+    "mappedSprint": 2,
+    "buttonsCount": 2,
+    "buttonsDetail": [
+      {
+        "tagContent": "variant=\"ghost\" onClick={handleClose} disabled={loading}",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      },
+      {
+        "tagContent": "variant=\"gradient\"\n            onClick={handleSubmit(onSubmit)}\n            disabled={loading}\n            className=\"flex items-center gap-1.5\"",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      }
+    ]
+  },
+  {
+    "file": "web\\components\\features\\DashboardPagination.tsx",
+    "mappedSprint": 1,
+    "buttonsCount": 2,
+    "buttonsDetail": [
+      {
+        "tagContent": "type=\"button\"\n          onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "type=\"button\"\n          onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      }
+    ]
+  },
+  {
+    "file": "web\\components\\features\\EditComponentModal.tsx",
+    "mappedSprint": 5,
+    "buttonsCount": 3,
+    "buttonsDetail": [
+      {
+        "tagContent": "variant=\"primary\" onClick={handleClose}",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"ghost\" onClick={handleClose} disabled={loading}",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      },
+      {
+        "tagContent": "variant=\"gradient\"\n              onClick={handleSubmit(onSubmit)}\n              disabled={loading}\n              className=\"flex items-center gap-1.5\"",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      }
+    ]
+  },
+  {
+    "file": "web\\components\\features\\EditEventModal.tsx",
+    "mappedSprint": 5,
+    "buttonsCount": 2,
+    "buttonsDetail": [
+      {
+        "tagContent": "variant=\"ghost\" onClick={handleClose} disabled={loading}",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      },
+      {
+        "tagContent": "variant=\"gradient\"\n            onClick={handleSubmit(onSubmit)}\n            disabled={loading}",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      }
+    ]
+  },
+  {
+    "file": "web\\components\\features\\EditInviteeModal.tsx",
+    "mappedSprint": 5,
+    "buttonsCount": 2,
+    "buttonsDetail": [
+      {
+        "tagContent": "variant=\"ghost\" onClick={handleClose} disabled={loading}",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      },
+      {
+        "tagContent": "variant=\"gradient\"\n            onClick={handleSubmit(onSubmit)}\n            disabled={loading}\n            className=\"flex items-center gap-1.5\"",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      }
+    ]
+  },
+  {
+    "file": "web\\components\\features\\EditSpendingModal.tsx",
+    "mappedSprint": 5,
+    "buttonsCount": 3,
+    "buttonsDetail": [
+      {
+        "tagContent": "variant=\"primary\" onClick={handleClose}",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"ghost\" onClick={handleClose} disabled={loading}",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      },
+      {
+        "tagContent": "variant=\"gradient\"\n              onClick={handleSubmit(onSubmit)}\n              disabled={loading}\n              className=\"flex items-center gap-1.5\"",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      }
+    ]
+  },
+  {
+    "file": "web\\components\\features\\EventApprovalsCanvas.tsx",
+    "mappedSprint": 1,
+    "buttonsCount": 2,
+    "buttonsDetail": [
+      {
+        "tagContent": "variant=\"ghost\"\n                  disabled={actionLoading[proposal.id]}\n                  onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      },
+      {
+        "tagContent": "variant=\"gradient\"\n                  disabled={actionLoading[proposal.id]}\n                  onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      }
+    ]
+  },
+  {
+    "file": "web\\components\\features\\EventBudgetCanvas.tsx",
+    "mappedSprint": 8,
+    "buttonsCount": 11,
+    "buttonsDetail": [
+      {
+        "tagContent": "variant=\"secondary\"\n                  disabled={chronologicalData.first}\n                  onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      },
+      {
+        "tagContent": "variant=\"secondary\"\n                  disabled={chronologicalData.last}\n                  onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      },
+      {
+        "tagContent": "variant=\"ghost\"\n              onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"secondary\"\n                        onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"gradient\"\n                  onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"ghost\" onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"danger\" onClick={confirmSpendingDelete} disabled={spendingDeleteLoading}",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      },
+      {
+        "tagContent": "variant=\"ghost\" onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"danger\" onClick={confirmDelete}",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"primary\" onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"primary\" onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      }
+    ]
+  },
+  {
+    "file": "web\\components\\features\\EventCuratorsCanvas.tsx",
+    "mappedSprint": 8,
+    "buttonsCount": 5,
+    "buttonsDetail": [
+      {
+        "tagContent": "type=\"submit\"\n                variant=\"gradient\"\n                disabled={inviteLoading}\n                className=\"w-full md:w-auto h-11 px-6 font-bold text-xs uppercase tracking-wider shrink-0 shadow-[0_0_15px_rgba(168,85,247,0.2)]\"",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      },
+      {
+        "tagContent": "variant=\"ghost\"\n                            onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"ghost\" onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"danger\"\n              onClick={handleRevokeConfirm}\n              disabled={deleteLoading}",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      },
+      {
+        "tagContent": "variant=\"primary\" onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      }
+    ]
+  },
+  {
+    "file": "web\\components\\features\\EventGuestCanvas.tsx",
+    "mappedSprint": 8,
+    "buttonsCount": 10,
+    "buttonsDetail": [
+      {
+        "tagContent": "type=\"button\"\n            variant=\"danger\"\n            onClick={handleCancelSchedule}\n            disabled={cancelLoading}\n            className=\"text-[10px] py-1.5 px-3 h-auto uppercase tracking-wider font-heading shrink-0 border border-red-500/20 bg-red-500/10 hover:bg-red-500 hover:text-white cursor-pointer\"",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      },
+      {
+        "tagContent": "variant=\"secondary\"\n                onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"gradient\"\n                onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"secondary\"\n                onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "type=\"button\"\n                    onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "type=\"button\"\n                    onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"ghost\" onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"danger\" onClick={confirmDelete} disabled={deleteLoading}",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      },
+      {
+        "tagContent": "variant=\"primary\" onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"primary\" onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      }
+    ]
+  },
+  {
+    "file": "web\\components\\features\\EventsDashboardClient.tsx",
+    "mappedSprint": 2,
+    "buttonsCount": 2,
+    "buttonsDetail": [
+      {
+        "tagContent": "variant=\"gradient\"\n          onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"gradient\"\n            onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      }
+    ]
+  },
+  {
+    "file": "web\\components\\features\\EventTimelineCanvas.tsx",
+    "mappedSprint": 8,
+    "buttonsCount": 4,
+    "buttonsDetail": [
+      {
+        "tagContent": "variant=\"gradient\"\n              onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"ghost\"\n                onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"primary\" onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"primary\" onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      }
+    ]
+  },
+  {
+    "file": "web\\components\\features\\EventWorkspaceHeaderActions.tsx",
+    "mappedSprint": 8,
+    "buttonsCount": 4,
+    "buttonsDetail": [
+      {
+        "tagContent": "variant=\"ghost\"\n              onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"ghost\"\n              onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"ghost\" onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"danger\"\n              onClick={handleDelete}\n              disabled={deleteLoading}",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      }
+    ]
+  },
+  {
+    "file": "web\\components\\features\\InvitationsBanner.tsx",
+    "mappedSprint": 4,
+    "buttonsCount": 3,
+    "buttonsDetail": [
+      {
+        "tagContent": "variant=\"ghost\"\n              onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"gradient\"\n              onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"primary\" onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      }
+    ]
+  },
+  {
+    "file": "web\\components\\features\\LoginForm.tsx",
+    "mappedSprint": 1,
+    "buttonsCount": 1,
+    "buttonsDetail": [
+      {
+        "tagContent": "type=\"submit\"\n            variant=\"gradient\"\n            className=\"w-full py-2.5 font-sans font-semibold tracking-wide\"\n            disabled={loading}",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      }
+    ]
+  },
+  {
+    "file": "web\\components\\features\\LogoutButton.tsx",
+    "mappedSprint": 1,
+    "buttonsCount": 1,
+    "buttonsDetail": [
+      {
+        "tagContent": "onClick={handleLogout}\n      disabled={loading}\n      variant=\"secondary\"\n      className=\"px-6 py-2 text-xs font-semibold uppercase tracking-wider bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 shadow-none hover:shadow-[0_0_15px_rgba(239,68,68,0.15)] transition-all duration-300\"",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      }
+    ]
+  },
+  {
+    "file": "web\\components\\features\\LogSpendingModal.tsx",
+    "mappedSprint": 5,
+    "buttonsCount": 3,
+    "buttonsDetail": [
+      {
+        "tagContent": "variant=\"primary\" onClick={handleClose}",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"ghost\" onClick={handleClose} disabled={loading}",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      },
+      {
+        "tagContent": "variant=\"gradient\"\n              onClick={handleSubmit(onSubmit)}\n              disabled={loading}\n              className=\"flex items-center gap-1.5\"",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      }
+    ]
+  },
+  {
+    "file": "web\\components\\features\\RegisterForm.tsx",
+    "mappedSprint": 1,
+    "buttonsCount": 2,
+    "buttonsDetail": [
+      {
+        "tagContent": "type=\"submit\"\n              variant=\"gradient\"\n              className=\"w-full py-2.5 font-sans font-semibold tracking-wide\"\n              disabled={loading}",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      },
+      {
+        "tagContent": "type=\"submit\"\n              variant=\"gradient\"\n              className=\"w-full py-2.5 font-sans font-semibold tracking-wide\"\n              disabled={loading || otp.length !== 6}",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      }
+    ]
+  },
+  {
+    "file": "web\\components\\features\\SendAllInvitesModal.tsx",
+    "mappedSprint": 4,
+    "buttonsCount": 2,
+    "buttonsDetail": [
+      {
+        "tagContent": "variant=\"ghost\" onClick={handleClose} disabled={loading}",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      },
+      {
+        "tagContent": "variant=\"gradient\"\n            onClick={handleSubmit}\n            disabled={loading || pendingCount === 0}\n            className=\"flex items-center gap-1.5 font-semibold\"",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      }
+    ]
+  },
+  {
+    "file": "web\\components\\ui\\Button.tsx",
+    "mappedSprint": 9,
+    "buttonsCount": 0,
+    "buttonsDetail": []
+  },
+  {
+    "file": "web\\components\\ui\\Modal.tsx",
+    "mappedSprint": 5,
+    "buttonsCount": 2,
+    "buttonsDetail": [
+      {
+        "tagContent": "variant=\"ghost\" onClick={onClose}",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "onClick={onClose}",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      }
+    ]
+  },
+  {
+    "file": "web\\components\\ui\\Navbar.tsx",
+    "mappedSprint": 7,
+    "buttonsCount": 2,
+    "buttonsDetail": [
+      {
+        "tagContent": "variant=\"secondary\" className=\"px-4 py-1.5 text-xs h-auto\"",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"primary\" className=\"px-4 py-1.5 text-xs h-auto\"",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      }
+    ]
+  },
+  {
+    "file": "web\\components\\ui-showcase.tsx",
+    "mappedSprint": 1,
+    "buttonsCount": 8,
+    "buttonsDetail": [
+      {
+        "tagContent": "variant=\"ghost\"",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"secondary\"",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"primary\"",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"secondary\"",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"danger\"",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"gradient\"",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      },
+      {
+        "tagContent": "variant=\"primary\" disabled",
+        "hasIsLoading": false,
+        "hasDisabled": true
+      },
+      {
+        "tagContent": "variant=\"gradient\"\n                  onClick={() =",
+        "hasIsLoading": false,
+        "hasDisabled": false
+      }
+    ]
+  }
+]

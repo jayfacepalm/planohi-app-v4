@@ -111,6 +111,12 @@ export default function UiShowcase() {
                   <Button variant="primary" disabled>
                     Disabled Button
                   </Button>
+                  <Button variant="primary" isLoading={true}>
+                    Loading Button
+                  </Button>
+                  <Button variant="gradient" isLoading={true}>
+                    Gradient Loading
+                  </Button>
                 </div>
               </div>
 
