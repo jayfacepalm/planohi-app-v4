@@ -10,11 +10,13 @@ import com.planohi.api.exception.EntityNotFoundException;
 import com.planohi.api.exception.UserAlreadyExistsException;
 import com.planohi.api.repository.UserAccountRepository;
 import com.planohi.api.service.AuthService;
+import com.planohi.api.service.ActivityLogPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -24,6 +26,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserAccountRepository userAccountRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final ActivityLogPublisher activityLogPublisher;
 
     @Override
     @Transactional(readOnly = true)
@@ -51,11 +54,15 @@ public class AuthServiceImpl implements AuthService {
         UserAccount saved = userAccountRepository.save(userAccount);
         log.info("Successfully registered user: {} with ID: {}", saved.getEmail(), saved.getId());
 
-        return UserDto.builder()
+        UserDto userDto = UserDto.builder()
                 .id(saved.getId())
                 .email(saved.getEmail())
                 .alias(saved.getAlias())
                 .build();
+
+        activityLogPublisher.publish(userDto.getId(), userDto.getAlias(), "USER_REGISTER", "USER", userDto.getId(), null, "SUCCESS", Map.of("email", userDto.getEmail()));
+
+        return userDto;
     }
 
     @Override
@@ -70,11 +77,15 @@ public class AuthServiceImpl implements AuthService {
         }
 
         log.info("User logged in successfully: {}", account.getEmail());
-        return UserDto.builder()
+        UserDto userDto = UserDto.builder()
                 .id(account.getId())
                 .email(account.getEmail())
                 .alias(account.getAlias())
                 .build();
+
+        activityLogPublisher.publish(userDto.getId(), userDto.getAlias(), "USER_LOGIN", "USER", userDto.getId(), null, "SUCCESS", Map.of("email", userDto.getEmail()));
+
+        return userDto;
     }
 
     @Override

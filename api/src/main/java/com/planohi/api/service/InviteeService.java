@@ -16,7 +16,7 @@ public interface InviteeService {
     Page<InviteeDto> getInvitees(UUID userId, UUID eventId, String search, Pageable pageable);
     InviteeMetricsDto getMetrics(UUID userId, UUID eventId);
     PublicRsvpDetailsDto getPublicRsvpDetails(String token);
-    UUID submitRsvpResponse(String token, SubmitRsvpRequest request);
+    InviteeDto submitRsvpResponse(String token, SubmitRsvpRequest request);
     InviteeDto updateInvitee(UUID userId, UUID eventId, UUID inviteeId, UpdateInviteeRequest request);
     InviteeDto deleteInvitee(UUID userId, UUID eventId, UUID inviteeId);
     void sendRsvpInvite(UUID userId, UUID eventId, UUID inviteeId);

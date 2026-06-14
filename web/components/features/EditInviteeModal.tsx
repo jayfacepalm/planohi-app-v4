@@ -76,13 +76,17 @@ export const EditInviteeModal: React.FC<EditInviteeModalProps> = ({
     setLoading(true);
     setError(null);
     try {
+      const payload: any = {
+        name: data.name,
+        allowedGuests: Number(data.allowedGuests),
+      };
+      if (data.email !== (invitee.email || "")) {
+        payload.email = data.email || "";
+      }
+
       await fetchApi<any>(`/events/${eventId}/invitees/${invitee.id}`, {
         method: "PUT",
-        body: JSON.stringify({
-          name: data.name,
-          allowedGuests: Number(data.allowedGuests),
-          email: data.email || null,
-        }),
+        body: JSON.stringify(payload),
         headers: {
           "Content-Type": "application/json",
         },

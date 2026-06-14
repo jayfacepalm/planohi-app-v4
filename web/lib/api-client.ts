@@ -62,6 +62,19 @@ export async function fetchApi<T>(path: string, config: RequestConfig = {}): Pro
   if (isServer) {
     const apiKey = process.env.SECURITY_API_KEY || 'default-local-api-key';
     headers.set('X-API-Key', apiKey);
+
+    let correlationId = '';
+    try {
+      const { headers: getHeaders } = require('next/headers');
+      correlationId = getHeaders().get('X-Correlation-Id') || '';
+    } catch (e) {
+      // Ignore if called outside request context (e.g., build time)
+    }
+
+    if (!correlationId) {
+      correlationId = generateCorrelationId();
+    }
+    headers.set('X-Correlation-Id', correlationId);
   }
 
   const res = await fetch(urlString, {
@@ -92,3 +105,22 @@ export async function fetchApi<T>(path: string, config: RequestConfig = {}): Pro
 
   return envelope.result;
 }
+
+export function generateCorrelationId(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const array = new Uint8Array(16);
+  if (typeof window !== 'undefined' && window.crypto) {
+    window.crypto.getRandomValues(array);
+  } else {
+    try {
+      const crypto = require('crypto');
+      crypto.randomFillSync(array);
+    } catch (e) {
+      for (let i = 0; i < 16; i++) {
+        array[i] = Math.floor(Math.random() * 256);
+      }
+    }
+  }
+  return Array.from(array, byte => chars[byte % chars.length]).join('');
+}
+

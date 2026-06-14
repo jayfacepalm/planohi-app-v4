@@ -42,6 +42,9 @@ public class SendAllInvitesSchedulingTest {
     @Mock
     private Scheduler scheduler;
 
+    @Mock
+    private ActivityLogPublisher activityLogPublisher;
+
     @InjectMocks
     private InviteeServiceImpl inviteeService;
 

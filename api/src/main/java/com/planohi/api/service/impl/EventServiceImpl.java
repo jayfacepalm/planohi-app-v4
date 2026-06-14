@@ -19,6 +19,7 @@ import com.planohi.api.service.EventService;
 import com.planohi.api.service.S3StorageService;
 import com.planohi.api.service.WorkspaceSecurityService;
 import com.planohi.api.config.JwtService;
+import com.planohi.api.service.ActivityLogPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -51,6 +52,7 @@ public class EventServiceImpl implements EventService {
     private final S3StorageService s3StorageService;
     private final WorkspaceSecurityService workspaceSecurityService;
     private final JwtService jwtService;
+    private final ActivityLogPublisher activityLogPublisher;
 
     @Override
     @Transactional
@@ -88,6 +90,8 @@ public class EventServiceImpl implements EventService {
 
         Event saved = eventRepository.save(event);
         log.info("Event successfully created in DB: {} with ID: {}", saved.getTitle(), saved.getId());
+
+        activityLogPublisher.publish(userId, null, "EVENT_CREATE", "EVENT", saved.getId(), saved.getId(), "SUCCESS", java.util.Map.of("title", saved.getTitle()));
 
         return mapToDto(saved, userId);
     }
@@ -244,6 +248,8 @@ public class EventServiceImpl implements EventService {
         Event saved = eventRepository.save(event);
         log.info("Event successfully updated in DB: {}", saved.getId());
 
+        activityLogPublisher.publish(userId, null, "EVENT_UPDATE", "EVENT", saved.getId(), saved.getId(), "SUCCESS", java.util.Map.of("title", saved.getTitle()));
+
         List<Object[]> rows = eventRepository.findByIdWithBudget(eventId);
         if (!rows.isEmpty()) {
             Object[] row = rows.get(0);
@@ -274,6 +280,8 @@ public class EventServiceImpl implements EventService {
         // Delete the event record from database (triggers cascading deletes in DB schema)
         eventRepository.delete(event);
         log.info("Event successfully deleted from DB: {}", eventId);
+
+        activityLogPublisher.publish(userId, null, "EVENT_DELETE", "EVENT", eventId, eventId, "SUCCESS", java.util.Map.of("title", event.getTitle()));
 
         // Delete banner file robustly (GAP 13)
         if (bannerUrl != null) {

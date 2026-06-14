@@ -21,6 +21,7 @@ import com.planohi.api.repository.EventSpendingRepository;
 import com.planohi.api.service.ChangeProposalService;
 import com.planohi.api.service.EventComponentService;
 import com.planohi.api.service.WorkspaceSecurityService;
+import com.planohi.api.service.ActivityLogPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -42,6 +43,7 @@ public class EventComponentServiceImpl implements EventComponentService {
     private final EventSpendingRepository eventSpendingRepository;
     private final WorkspaceSecurityService workspaceSecurityService;
     private final ChangeProposalService changeProposalService;
+    private final ActivityLogPublisher activityLogPublisher;
 
     @Override
     @Transactional
@@ -76,6 +78,7 @@ public class EventComponentServiceImpl implements EventComponentService {
 
         EventComponent saved = eventComponentRepository.save(component);
         log.info("Component successfully saved with ID {}", saved.getId());
+        activityLogPublisher.publish(userId, null, "COMPONENT_CREATE", "COMPONENT", saved.getId(), eventId, "SUCCESS", java.util.Map.of("name", saved.getName(), "estimatedCost", saved.getEstimatedCost()));
         return mapToDto(saved);
     }
 
@@ -116,6 +119,7 @@ public class EventComponentServiceImpl implements EventComponentService {
 
         EventComponent saved = eventComponentRepository.save(component);
         log.info("Component successfully updated with ID {}", saved.getId());
+        activityLogPublisher.publish(userId, null, "COMPONENT_UPDATE", "COMPONENT", saved.getId(), eventId, "SUCCESS", java.util.Map.of("name", saved.getName(), "estimatedCost", saved.getEstimatedCost()));
         return mapToDto(saved);
     }
 
@@ -179,6 +183,7 @@ public class EventComponentServiceImpl implements EventComponentService {
 
         eventComponentRepository.delete(component);
         log.info("Component successfully deleted");
+        activityLogPublisher.publish(userId, null, "COMPONENT_DELETE", "COMPONENT", componentId, eventId, "SUCCESS", java.util.Map.of("name", component.getName()));
     }
 
     private EventComponentDto mapToDto(EventComponent component) {

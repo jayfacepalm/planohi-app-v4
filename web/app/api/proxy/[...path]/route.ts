@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { generateCorrelationId } from '../../../../lib/api-client';
 
 const BACKEND_URL = process.env.BACKEND_API_URL || 'http://localhost:8080';
 
@@ -17,6 +18,13 @@ export async function handleProxy(req: NextRequest) {
   if (token) {
     headers.set('Cookie', `AUTH_TOKEN=${token}`);
   }
+
+  // Handle Correlation ID propagation
+  let correlationId = req.headers.get('X-Correlation-Id');
+  if (!correlationId) {
+    correlationId = generateCorrelationId();
+  }
+  headers.set('X-Correlation-Id', correlationId);
 
   // Inject API Key for authenticity check
   const apiKey = process.env.SECURITY_API_KEY || 'default-local-api-key';
@@ -40,7 +48,8 @@ export async function handleProxy(req: NextRequest) {
       // Forward the cookie setting headers back to the browser
       responseHeaders.append(key, val);
     });
-
+    // Ensure X-Correlation-Id is returned to the client
+    responseHeaders.set('X-Correlation-Id', correlationId);
     return new NextResponse(data, {
       status: res.status,
       headers: responseHeaders,

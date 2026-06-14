@@ -17,6 +17,7 @@ import com.planohi.api.repository.TimelineItemRepository;
 import com.planohi.api.service.ChangeProposalService;
 import com.planohi.api.service.TimelineService;
 import com.planohi.api.service.WorkspaceSecurityService;
+import com.planohi.api.service.ActivityLogPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -36,6 +37,7 @@ public class TimelineServiceImpl implements TimelineService {
     private final TimelineItemRepository timelineItemRepository;
     private final WorkspaceSecurityService workspaceSecurityService;
     private final ChangeProposalService changeProposalService;
+    private final ActivityLogPublisher activityLogPublisher;
 
     @Override
     @Transactional
@@ -79,6 +81,8 @@ public class TimelineServiceImpl implements TimelineService {
 
         TimelineItem saved = timelineItemRepository.save(item);
         log.info("Timeline item created successfully with ID: {}", saved.getId());
+
+        activityLogPublisher.publish(userId, null, "TIMELINE_ITEM_CREATE", "TIMELINE_ITEM", saved.getId(), eventId, "SUCCESS", java.util.Map.of("title", saved.getTitle(), "dueAt", saved.getDueAt().toString()));
 
         return mapToDto(saved);
     }
@@ -141,6 +145,8 @@ public class TimelineServiceImpl implements TimelineService {
         item.setDone(isDone);
         TimelineItem saved = timelineItemRepository.saveAndFlush(item);
         log.info("Timeline item {} status updated successfully to {}", itemId, isDone);
+
+        activityLogPublisher.publish(userId, null, "TIMELINE_ITEM_TOGGLE", "TIMELINE_ITEM", saved.getId(), event.getId(), "SUCCESS", java.util.Map.of("title", saved.getTitle(), "isDone", isDone));
 
         return mapToDto(saved);
     }

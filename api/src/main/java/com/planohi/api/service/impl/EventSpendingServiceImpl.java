@@ -19,6 +19,7 @@ import com.planohi.api.repository.EventSpendingRepository;
 import com.planohi.api.service.ChangeProposalService;
 import com.planohi.api.service.EventSpendingService;
 import com.planohi.api.service.WorkspaceSecurityService;
+import com.planohi.api.service.ActivityLogPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -38,6 +39,7 @@ public class EventSpendingServiceImpl implements EventSpendingService {
     private final EventSpendingRepository eventSpendingRepository;
     private final WorkspaceSecurityService workspaceSecurityService;
     private final ChangeProposalService changeProposalService;
+    private final ActivityLogPublisher activityLogPublisher;
 
     @Override
     @Transactional
@@ -89,6 +91,8 @@ public class EventSpendingServiceImpl implements EventSpendingService {
 
         EventSpending saved = eventSpendingRepository.save(spending);
         log.info("Spending recorded successfully with ID: {}", saved.getId());
+
+        activityLogPublisher.publish(userId, null, "SPENDING_CREATE", "SPENDING", saved.getId(), event.getId(), "SUCCESS", java.util.Map.of("description", saved.getDescription(), "amount", saved.getAmount(), "componentId", componentId));
 
         return mapToDto(saved, event.getId());
     }
@@ -147,6 +151,8 @@ public class EventSpendingServiceImpl implements EventSpendingService {
         EventSpending saved = eventSpendingRepository.save(spending);
         log.info("Spending updated successfully with ID: {}", saved.getId());
 
+        activityLogPublisher.publish(userId, null, "SPENDING_UPDATE", "SPENDING", saved.getId(), event.getId(), "SUCCESS", java.util.Map.of("description", saved.getDescription(), "amount", saved.getAmount(), "componentId", componentId));
+
         return mapToDto(saved, event.getId());
     }
 
@@ -188,6 +194,8 @@ public class EventSpendingServiceImpl implements EventSpendingService {
         EventSpendingDto dto = mapToDto(spending, event.getId());
         eventSpendingRepository.delete(spending);
         log.info("Spending deleted successfully with ID: {}", spendingId);
+
+        activityLogPublisher.publish(userId, null, "SPENDING_DELETE", "SPENDING", spendingId, event.getId(), "SUCCESS", java.util.Map.of("description", spending.getDescription(), "amount", spending.getAmount()));
 
         return dto;
     }

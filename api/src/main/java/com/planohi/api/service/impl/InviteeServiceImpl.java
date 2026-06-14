@@ -33,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.planohi.api.dto.EmailMessageDto;
 import com.planohi.api.service.EmailPublisher;
 import org.springframework.beans.factory.annotation.Value;
+import com.planohi.api.service.ActivityLogPublisher;
 import java.util.Map;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -50,6 +51,7 @@ public class InviteeServiceImpl implements InviteeService {
     private final WorkspaceSecurityService workspaceSecurityService;
     private final EmailPublisher emailPublisher;
     private final Scheduler scheduler;
+    private final ActivityLogPublisher activityLogPublisher;
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
@@ -77,7 +79,10 @@ public class InviteeServiceImpl implements InviteeService {
                     .build());
         }
 
-        inviteeRepository.saveAll(invitees);
+        List<Invitee> savedInvitees = inviteeRepository.saveAll(invitees);
+        for (Invitee invitee : savedInvitees) {
+            activityLogPublisher.publish(userId, null, "INVITEE_CREATE", "INVITEE", invitee.getId(), eventId, "SUCCESS", java.util.Map.of("name", invitee.getName(), "email", invitee.getEmail() != null ? invitee.getEmail() : ""));
+        }
     }
 
     @Override
@@ -154,7 +159,7 @@ public class InviteeServiceImpl implements InviteeService {
 
     @Override
     @Transactional
-    public UUID submitRsvpResponse(String token, SubmitRsvpRequest request) {
+    public InviteeDto submitRsvpResponse(String token, SubmitRsvpRequest request) {
         log.info("Submitting RSVP response for token: {}, status={}, attendingGuests={}", 
                 token, request.getStatus(), request.getAttendingGuests());
 
@@ -186,9 +191,9 @@ public class InviteeServiceImpl implements InviteeService {
 
         invitee.setStatus(status);
         invitee.setRespondedAt(Instant.now());
-        inviteeRepository.saveAndFlush(invitee);
+        Invitee saved = inviteeRepository.saveAndFlush(invitee);
 
-        return event.getId();
+        return mapToDto(saved);
     }
 
     private InviteeDto mapToDto(Invitee invitee) {
@@ -230,8 +235,13 @@ public class InviteeServiceImpl implements InviteeService {
 
         invitee.setName(request.getName());
         invitee.setAllowedGuests(request.getAllowedGuests());
-        invitee.setEmail(request.getEmail());
+        if (request.getEmail() != null) {
+            String trimmed = request.getEmail().trim();
+            invitee.setEmail(trimmed.isEmpty() ? null : trimmed);
+        }
         inviteeRepository.saveAndFlush(invitee);
+
+        activityLogPublisher.publish(userId, null, "INVITEE_UPDATE", "INVITEE", invitee.getId(), eventId, "SUCCESS", java.util.Map.of("name", invitee.getName(), "email", invitee.getEmail() != null ? invitee.getEmail() : ""));
  
         return mapToDto(invitee);
     }
@@ -255,6 +265,8 @@ public class InviteeServiceImpl implements InviteeService {
 
         inviteeRepository.delete(invitee);
         inviteeRepository.flush();
+
+        activityLogPublisher.publish(userId, null, "INVITEE_DELETE", "INVITEE", inviteeId, eventId, "SUCCESS", java.util.Map.of("name", invitee.getName()));
 
         return mapToDto(invitee);
     }
@@ -300,6 +312,8 @@ public class InviteeServiceImpl implements InviteeService {
                 .build();
 
         emailPublisher.publishEmail(emailMessage);
+
+        activityLogPublisher.publish(userId, null, "EMAIL_DISPATCH_TRIGGER", "INVITEE", inviteeId, eventId, "SUCCESS", java.util.Map.of("recipient", invitee.getEmail()));
     }
 
     @Override
@@ -339,6 +353,8 @@ public class InviteeServiceImpl implements InviteeService {
                         .build();
 
                 scheduler.scheduleJob(jobDetail, trigger);
+
+                activityLogPublisher.publish(userId, null, "EMAIL_DISPATCH_SCHEDULE", "EVENT", eventId, eventId, "SUCCESS", java.util.Map.of("scheduledTime", scheduledTime.toString()));
             }
         } catch (Exception e) {
             log.error("Failed to process bulk invitation scheduling", e);
@@ -391,6 +407,7 @@ public class InviteeServiceImpl implements InviteeService {
 
         if (!updatedInvitees.isEmpty()) {
             inviteeRepository.saveAllAndFlush(updatedInvitees);
+            activityLogPublisher.publish(userId, null, "EMAIL_DISPATCH_TRIGGER", "EVENT", eventId, eventId, "SUCCESS", java.util.Map.of("inviteesCount", updatedInvitees.size()));
         }
     }
 
@@ -406,6 +423,7 @@ public class InviteeServiceImpl implements InviteeService {
             if (scheduler.checkExists(jobKey)) {
                 scheduler.deleteJob(jobKey);
                 log.info("Unscheduled and deleted job for event {}", eventId);
+                activityLogPublisher.publish(userId, null, "EMAIL_DISPATCH_CANCEL", "EVENT", eventId, eventId, "SUCCESS", java.util.Map.of());
             }
         } catch (Exception e) {
             log.error("Failed to cancel scheduled invitations", e);

@@ -54,9 +54,9 @@ public class InviteeCachedService implements InviteeService {
     @Caching(evict = {
         @CacheEvict(value = "public_rsvp", key = "#token"),
         @CacheEvict(value = "event_invitees", allEntries = true),
-        @CacheEvict(value = "event_metrics", key = "#result")
+        @CacheEvict(value = "event_metrics", key = "#result.eventId")
     })
-    public UUID submitRsvpResponse(String token, SubmitRsvpRequest request) {
+    public InviteeDto submitRsvpResponse(String token, SubmitRsvpRequest request) {
         return inviteeService.submitRsvpResponse(token, request);
     }
 

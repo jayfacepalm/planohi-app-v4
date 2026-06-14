@@ -1,5 +1,7 @@
 package com.planohi.api.dto;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.planohi.api.util.MaskedEmailSerializer;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -12,6 +14,9 @@ import java.util.UUID;
 @AllArgsConstructor
 public class UserDto {
     private UUID id;
+
+    @JsonSerialize(using = MaskedEmailSerializer.class)
     private String email;
+
     private String alias;
 }

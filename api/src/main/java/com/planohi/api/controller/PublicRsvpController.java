@@ -5,9 +5,12 @@ import com.planohi.api.dto.PublicRsvpDetailsDto;
 import com.planohi.api.dto.SubmitRsvpRequest;
 import com.planohi.api.service.EventService;
 import com.planohi.api.service.InviteeService;
+import com.planohi.api.service.ActivityLogPublisher;
+import com.planohi.api.dto.InviteeDto;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import java.util.Map;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -27,6 +30,7 @@ public class PublicRsvpController {
 
     private final InviteeService inviteeCachedService;
     private final EventService eventService;
+    private final ActivityLogPublisher activityLogPublisher;
 
     @GetMapping("/{token}")
     public ResponseEntity<ApiResponse<PublicRsvpDetailsDto>> getPublicRsvpDetails(@PathVariable String token) {
@@ -42,7 +46,19 @@ public class PublicRsvpController {
     ) {
         log.info("Public guest RSVP submission requested for token: {}, status={}, attendingGuests={}", 
                 token, request.getStatus(), request.getAttendingGuests());
-        inviteeCachedService.submitRsvpResponse(token, request);
+        InviteeDto invitee = inviteeCachedService.submitRsvpResponse(token, request);
+        
+        activityLogPublisher.publish(
+                null,
+                "Guest: " + invitee.getName(),
+                "INVITEE_RSVP_SUBMIT",
+                "INVITEE",
+                invitee.getId(),
+                invitee.getEventId(),
+                "SUCCESS",
+                Map.of("status", invitee.getStatus(), "attendingGuests", invitee.getAttendingGuests())
+        );
+        
         return ResponseEntity.ok(ApiResponse.success("RSVP submitted successfully", null));
     }
 

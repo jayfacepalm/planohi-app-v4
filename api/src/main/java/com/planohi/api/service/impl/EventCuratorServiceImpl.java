@@ -13,6 +13,7 @@ import com.planohi.api.repository.EventCuratorRepository;
 import com.planohi.api.repository.UserAccountRepository;
 import com.planohi.api.service.EventCuratorService;
 import com.planohi.api.service.WorkspaceSecurityService;
+import com.planohi.api.service.ActivityLogPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -33,6 +34,7 @@ public class EventCuratorServiceImpl implements EventCuratorService {
     private final EventCuratorRepository eventCuratorRepository;
     private final UserAccountRepository userAccountRepository;
     private final WorkspaceSecurityService workspaceSecurityService;
+    private final ActivityLogPublisher activityLogPublisher;
 
     @Override
     @Transactional
@@ -84,6 +86,8 @@ public class EventCuratorServiceImpl implements EventCuratorService {
 
         EventCurator saved = eventCuratorRepository.save(curator);
         log.info("Successfully created curator invitation: {}", saved.getId());
+
+        activityLogPublisher.publish(requesterId, null, "CURATOR_INVITE", "CURATOR", saved.getId(), eventId, "SUCCESS", java.util.Map.of("email", invitee.getEmail(), "role", saved.getRole().toString()));
 
         return EventCuratorResponseDto.builder()
                 .id(saved.getId())
@@ -184,6 +188,8 @@ public class EventCuratorServiceImpl implements EventCuratorService {
         UserAccount invitee = userAccountRepository.findById(curator.getUserId())
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
 
+        activityLogPublisher.publish(requesterId, null, "CURATOR_ROLE_UPDATE", "CURATOR", saved.getId(), eventId, "SUCCESS", java.util.Map.of("email", invitee.getEmail(), "role", saved.getRole().toString()));
+
         return EventCuratorResponseDto.builder()
                 .id(saved.getId())
                 .eventId(saved.getEventId())
@@ -226,6 +232,7 @@ public class EventCuratorServiceImpl implements EventCuratorService {
 
         eventCuratorRepository.delete(curator);
         log.info("Successfully revoked curator: {}", curatorId);
+        activityLogPublisher.publish(requesterId, null, "CURATOR_REMOVE", "CURATOR", curatorId, eventId, "SUCCESS", java.util.Map.of("userId", curator.getUserId().toString()));
     }
 
     @Override

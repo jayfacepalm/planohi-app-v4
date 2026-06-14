@@ -45,6 +45,9 @@ public class EventSpendingServiceTest {
     @Mock
     private WorkspaceSecurityService workspaceSecurityService;
 
+    @Mock
+    private ActivityLogPublisher activityLogPublisher;
+
     @InjectMocks
     private EventSpendingServiceImpl eventSpendingService;
 

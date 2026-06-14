@@ -159,6 +159,25 @@ services:
     networks:
       - app-network
 
+  activitylogs:
+    build:
+      context: ./activityLogs
+      dockerfile: Dockerfile
+    container_name: planohi-activitylogs
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-planohidb}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-planohiuser}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-planohipassword}
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - app-network
+
 volumes:
   pgdata:
   redisdata:

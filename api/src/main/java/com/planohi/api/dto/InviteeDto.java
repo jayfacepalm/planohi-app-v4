@@ -1,5 +1,7 @@
 package com.planohi.api.dto;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.planohi.api.util.MaskedEmailSerializer;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -19,7 +21,10 @@ public class InviteeDto {
     private int allowedGuests;
     private int attendingGuests;
     private String status;
+
+    @JsonSerialize(using = MaskedEmailSerializer.class)
     private String email;
+
     private Instant respondedAt;
     private Instant lastSentAt;
 }
