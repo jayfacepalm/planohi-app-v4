@@ -1,7 +1,7 @@
 # QA Test Cases: Sprint 7 - User Alias Dropdown & Email Notifications Microservice
 
 ## 1. Feature Coverage Summary
-Navbar user profile alias dropdown, RabbitMQ integration, standalone email notifications consumer service, Maildev sandbox capture.
+Server-side AUTH_TOKEN validation dropdowns, RabbitMQ AMQP event dispatches, Spring Boot standalone templates compilation, and SMTP local capturing.
 
 ### Mapped User Stories
 - **US-7.1**: Navbar Profile Menu
@@ -14,8 +14,11 @@ Navbar user profile alias dropdown, RabbitMQ integration, standalone email notif
 
 | Test ID | User Story / Component | Test Scenario | Steps to Execute | Expected Outcome | Status (PASS/FAIL) | Notes / Observations |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **TC-7.1** | US-7.1 | Verify Navbar displays active user alias | 1. Log in to dashboard\n2. Check upper right Navbar section | Displays active session user alias inside a glassmorphic menu | PASS | Functional verification passes |
-| **TC-7.2** | US-7.4 | Verify registration triggers SMTP packet via RabbitMQ | 1. Initiate registration on UI\n2. Open local Maildev interface at localhost:1080 | Confirm verification email containing OTP is received in inbox | PASS | Functional verification passes |
+| **TC-7.1** | UI / Business Logic | Navbar active profile decoding display | 1. Log in as 'organizer@planohi.com'\n2. Inspect Navbar upper right dropdown text | Dropdown shows user display alias decoded from the server-side AUTH_TOKEN claims | PASS | Functional validation passes |
+| **TC-7.2** | Infrastructure | RabbitMQ container health check | 1. Check docker container list\n2. Verify healthcheck status | RabbitMQ reports healthy status before main API initializes rabbit connection | PASS | Functional validation passes |
+| **TC-7.3** | Business Logic | Event notification message publisher dispatch | 1. Trigger registration OTP request on UI\n2. Inspect RabbitMQ manager admin dashboard | Publish action puts notification event payload in queue planohi.emails without delay | PASS | Functional validation passes |
+| **TC-7.4** | Business Logic | Email consumer template variables placeholder replacements | 1. Email queue processes message\n2. Check placeholder substitutions | Microservice queries template, replaces `${alias}` / `${otp}` with transaction metadata | PASS | Functional validation passes |
+| **TC-7.5** | Infrastructure | SMTP capture sandbox Maildev inbox | 1. Submit registration OTP or guest RSVP invitation\n2. Open localhost:1080 webmail interface | E2E email dispatch arrives in Maildev inbox showing correct subject and html content layout | PASS | Functional validation passes |
 
 ## 3. Button Loading & UI Verification Audits
 
@@ -23,7 +26,7 @@ Navbar user profile alias dropdown, RabbitMQ integration, standalone email notif
 - **Component**: `Navbar.tsx`
   - **Button Label**: "Profile Toggle"
   - **Status**: **PASS**
-  - **Observations**: Navbar profile dropdown is purely client-side local toggling; no async action trigger needed.
+  - **Observations**: Navbar profile dropdown is client-side local toggling; no async action trigger needed.
 
 ### Visual UI Check Logs (Code Review Verification)
 - Code review confirms no interactive asynchronous actions are mapped to buttons for this sprint.

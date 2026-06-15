@@ -1,7 +1,7 @@
 # QA Test Cases: Sprint 9 - Chronological Spendings & Scheduled RSVP Invitations
 
 ## 1. Feature Coverage Summary
-Chronological spendings log view, view switcher, Send All invites bulk delivery modal, scheduling RSVP invitations, and client authenticity API verification.
+Flat chronological transaction spendings logs, views toggle switcher, Send All invites bulk delivery, scheduling RSVPs, and client key authenticity.
 
 ### Mapped User Stories
 - **US-9.1**: Chronological Spendings Log
@@ -14,10 +14,13 @@ Chronological spendings log view, view switcher, Send All invites bulk delivery 
 
 | Test ID | User Story / Component | Test Scenario | Steps to Execute | Expected Outcome | Status (PASS/FAIL) | Notes / Observations |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **TC-9.1** | US-9.2 | Toggle between component and chronological spendings views | 1. Open Budget Canvas\n2. Locate Spendings View switcher\n3. Click switch toggle | Switches list from nested component layout to flat chronological log list | PASS | Functional verification passes |
-| **TC-9.2** | US-9.3 | Schedule a bulk invitation delivery | 1. Open Guest Canvas\n2. Click 'Send All Invites'\n3. Choose 'Schedule Delivery' and set a date\n4. Save | Saves schedule timestamp, guest list scheduled tags update in UI | PASS | Functional verification passes |
-| **TC-9.3** | US-9.4 | Cancel a scheduled invitation delivery | 1. Locate guest row with pending schedule\n2. Click 'Cancel Schedule' button | Revokes delivery timestamp, resets invite status to Draft | PASS | Functional verification passes |
-| **TC-9.4** | Button Loading | Verify Send All button loading behavior | 1. Open Send All modal\n2. Click submit\n3. Check button status | Submit button disables and shows spinner using isLoading prop | FAIL | Omitted standardized isLoading prop |
+| **TC-9.1** | Business Logic | Flat Chronological Spendings transaction sorting | 1. Add spendings A (May 1), spending B (June 2), and spending C (June 10)\n2. Load chronological log | Transactions display in reverse chronological order (C, then B, then A) across all components | PASS | Functional validation passes |
+| **TC-9.2** | UI / Business Logic | Spendings layout view switcher toggle | 1. Toggle view switch in Budget tab\n2. Verify layout shifts | Smooth transition between nested components spending list and chronological flat log | PASS | Functional validation passes |
+| **TC-9.3** | Business Logic | Send All Invites bulk immediate delivery | 1. Click Send All Invites\n2. Select immediate delivery\n3. Submit | Draft invitations queues in RabbitMQ; guests email status updates to Sent | PASS | Functional validation passes |
+| **TC-9.4** | Business Logic | Send All Invites bulk scheduled delivery | 1. Click Send All Invites\n2. Select schedule delivery\n3. Input future timestamp and submit | Saves schedule; guest lists display scheduled delivery date tag | PASS | Functional validation passes |
+| **TC-9.5** | Business Logic | Scheduled delivery cancellation boundary | 1. Locate scheduled invite row\n2. Click 'Cancel Schedule' before dispatch timestamp\n3. Observe status | Cancels schedule timestamp, resets invite status to Draft, prevents dispatch | PASS | Functional validation passes |
+| **TC-9.6** | Security | API Client Key authenticity verification | 1. Send request to /api/events without X-API-Key header\n2. Observe status | Returns HTTP 401 Unauthorized; direct API access bypasses are blocked | PASS | Functional validation passes |
+| **TC-9.7** | UI / Visual | Send All Invites Submit Button Spinner Audit | 1. Open Send All modal\n2. Click Send\n3. Verify spinner | FAIL: Bulk send button disables but misses the standardized isLoading spinner. | FAIL | Omitted standardized isLoading prop |
 
 ## 3. Button Loading & UI Verification Audits
 

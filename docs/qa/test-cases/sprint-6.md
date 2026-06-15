@@ -1,7 +1,7 @@
 # QA Test Cases: Sprint 6 - AWS S3 Cloud Storage & Multiple Event Curator Roles
 
 ## 1. Feature Coverage Summary
-Curator roles configuration, Collaborator/Viewer permissions, approval pipelines, and invitation acceptance flow.
+Multiple curator permissions (Collaborator/Viewer), direct mutations restrictions, change proposals logic, organizer approvals queue, and invitation banners.
 
 ### Mapped User Stories
 - **US-6.1**: Multiple Event Curator Roles
@@ -14,10 +14,13 @@ Curator roles configuration, Collaborator/Viewer permissions, approval pipelines
 
 | Test ID | User Story / Component | Test Scenario | Steps to Execute | Expected Outcome | Status (PASS/FAIL) | Notes / Observations |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **TC-6.1** | US-6.2 | Verify Viewer role permissions restrictions | 1. Log in as Viewer\n2. Open budget panel\n3. Verify Add/Edit actions are hidden | All mutating buttons are hidden/disabled, read-only view enforced | PASS | Functional verification passes |
-| **TC-6.2** | US-6.3 | Verify Collaborator edit submits change proposals | 1. Log in as Collaborator\n2. Edit budget component\n3. Submit changes | Does not modify records directly; creates a pending proposal request | PASS | Functional verification passes |
-| **TC-6.3** | US-6.4 | Verify Organizer can approve change proposals | 1. Log in as Organizer\n2. Open Approvals tab\n3. Click Approve | Proposal status is committed, budget updates immediately | PASS | Functional verification passes |
-| **TC-6.4** | Button Loading | Verify curator invite button loading behavior | 1. Enter invite details\n2. Click Invite Curator\n3. Check button | Button disables and shows spinner using isLoading prop during network call | FAIL | Omitted standardized isLoading prop |
+| **TC-6.1** | Security / Roles | Viewer restricted access verification | 1. Log in as Viewer\n2. Navigate to budget or guest list workspaces | All mutating buttons are hidden/disabled; reads canvas details as read-only | PASS | Functional validation passes |
+| **TC-6.2** | Security / Roles | Collaborator mutation request validation | 1. Log in as Collaborator\n2. Edit component budget or guest limit\n3. Click save | Database records remain unmodified; changes are submitted as a pending proposal record | PASS | Functional validation passes |
+| **TC-6.3** | Business Logic | Approvals queue change proposal commits | 1. Log in as Owner\n2. Navigate to approvals tab\n3. Click Approve on collaborator proposal | Commits change to live event; component details update immediately | PASS | Functional validation passes |
+| **TC-6.4** | Business Logic | Approvals queue change proposal rejection | 1. Log in as Owner\n2. Open approvals\n3. Click Reject on collaborator proposal | Discards proposal; no records are modified on the event database workspace | PASS | Functional validation passes |
+| **TC-6.5** | UI / Business Logic | Workspace invitation display banner | 1. Invite new user to event\n2. New user logs in\n3. Observe home dashboard | Banner displays invitation notification with Accept and Decline buttons | PASS | Functional validation passes |
+| **TC-6.6** | Business Logic | Accept event invitation flows | 1. Click Accept on invitation banner\n2. Open events list | Grant curator rights; event is added to user's dashboard view list | PASS | Functional validation passes |
+| **TC-6.7** | UI / Visual | Curator Invite button loading spinner audit | 1. Open Curators tab\n2. Input invite details, click Invite Curator\n3. Check spinner | FAIL: Invite button disables but lacks the standardized isLoading prop spinner. | FAIL | Omitted standardized isLoading prop |
 
 ## 3. Button Loading & UI Verification Audits
 

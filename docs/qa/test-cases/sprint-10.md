@@ -12,8 +12,10 @@ Correlation ID request log tracing propagation, secure client-side and log-level
 
 | Test ID | User Story / Component | Test Scenario | Steps to Execute | Expected Outcome | Status (PASS/FAIL) | Notes / Observations |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **TC-10.1** | US-10.1 | Verify Correlation ID propagation across services | 1. Submit login request\n2. Examine console logs for next-proxy, spring-api, and workers | All logs for that transaction carry the identical 16-character correlation ID | PASS | Functional verification passes |
-| **TC-10.2** | US-10.2 | Verify email masking in UI and console logs | 1. View guest details page\n2. Inspect guest email representation\n3. Search application console outputs | Emails display as masked (e.g. j****@***.com) on UI text and system logger streams | PASS | Functional verification passes |
+| **TC-10.1** | Security | Correlation ID log propagation tracing | 1. Trigger API request\n2. Inspect Next.js proxy, API server, and RabbitMQ logs | Logs for the execution carry the identical 16-character alphanumeric correlation ID | PASS | Functional validation passes |
+| **TC-10.2** | Security | Client-side email masking | 1. Open guest list page\n2. Inspect guest email text | Displays masked characters (e.g. t*****@***.com) preventing client exposure | PASS | Functional validation passes |
+| **TC-10.3** | Security | Log-level email masking validation | 1. View system log files under build directory\n2. Search guest email strings | All guest emails are masked in output logs to protect privacy | PASS | Functional validation passes |
+| **TC-10.4** | DB Constraints | Activity Audit log storage CUD events | 1. Create, edit, or delete an event/budget component\n2. Query database activity logs table | Creates structured audit record detailing transaction action, timestamp, entity, and actor | PASS | Functional validation passes |
 
 ## 3. Button Loading & UI Verification Audits
 

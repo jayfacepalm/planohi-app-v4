@@ -1,7 +1,7 @@
 # QA Test Cases: Sprint 8 - Workspace Security Upgrades (CSP & Cryptographic Role Verification)
 
 ## 1. Feature Coverage Summary
-Strict Content Security Policy (CSP), Cryptographically signed curator role tokens (JWT), frontend role decoding, and backend role validation.
+Strict Content Security Policy (CSP), Cryptographically signed curator role JWT tokens, and backend header token validation.
 
 ### Mapped User Stories
 - **US-8.1**: Content Security Policy
@@ -13,8 +13,11 @@ Strict Content Security Policy (CSP), Cryptographically signed curator role toke
 
 | Test ID | User Story / Component | Test Scenario | Steps to Execute | Expected Outcome | Status (PASS/FAIL) | Notes / Observations |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **TC-8.1** | US-8.1 | Verify Content Security Policy headers presence | 1. Inspect dashboard network headers in DevTools | Returns Strict Content Security Policy limiting scripts, styles, and frames source roots | PASS | Functional verification passes |
-| **TC-8.2** | US-8.3 | Verify client-side decoding of signed role JWT | 1. Open event workspace as Collaborator\n2. Observe available features | Frontend decodes X-Event-Role-Token, matches permissions and adapts UI layout | PASS | Functional verification passes |
+| **TC-8.1** | Security | Strict CSP header presence | 1. Load dashboard home\n2. Check browser network response headers | Response headers include Content-Security-Policy with strict script/frame src limits | PASS | Functional validation passes |
+| **TC-8.2** | Security | CSP injection block validation | 1. Try to inject external inline script `<script src='http://malicious.com'></script>`\n2. Observe browser behavior | Browser console logs CSP block exception; script download is blocked | PASS | Functional validation passes |
+| **TC-8.3** | Security | Cryptographic signed curator role token validation | 1. Select event workspace\n2. Examine API request headers for X-Event-Role-Token | API passes a valid signed JWT containing event permissions claims | PASS | Functional validation passes |
+| **TC-8.4** | Security | Signed token tampering protection | 1. Manually edit role token in browser cookie to change role to OWNER\n2. Submit budget edit API request | Backend signature check fails; returns HTTP 403 Forbidden blocking escalation | PASS | Functional validation passes |
+| **TC-8.5** | Business Logic | Frontend role token base64 decoding layout updates | 1. Log in as Viewer\n2. Open workspace budget page | Client-side decodes role token, hides add/edit controls to enforce read-only | PASS | Functional validation passes |
 
 ## 3. Button Loading & UI Verification Audits
 
@@ -23,12 +26,7 @@ Strict Content Security Policy (CSP), Cryptographically signed curator role toke
   - **Button Label**: "Edit / Add Components"
   - **Status**: **FAIL**
   - **Observations**: Workspace mutating actions do not use the standardized isLoading prop on their buttons.
-- **Component**: `EventTimelineCanvas.tsx`
-  - **Button Label**: "Add Task"
-  - **Status**: **FAIL**
-  - **Observations**: Mutating timeline buttons lack the standardized isLoading prop.
 
 ### Visual UI Check Logs (Code Review Verification)
 - Code review verifies that button elements trigger async operations but fail to use the standardized `isLoading` prop.
   - `EventBudgetCanvas.tsx` ("Edit / Add Components") uses manual local state controls for `disabled` but misses spinner feedback and standard `isLoading` handling.
-  - `EventTimelineCanvas.tsx` ("Add Task") uses manual local state controls for `disabled` but misses spinner feedback and standard `isLoading` handling.

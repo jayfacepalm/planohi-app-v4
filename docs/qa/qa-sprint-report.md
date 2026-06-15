@@ -4,7 +4,7 @@ This document compiles the verification results of button loading states and tes
 
 ## Overall Summary
 
-- **Total Test Cases**: 36
+- **Total Test Cases**: 68
 - **Passed Sprints**: Sprint 7, Sprint 8, Sprint 10
 - **Failed Sprints (UI issues)**: Sprint 1, Sprint 2, Sprint 3, Sprint 4, Sprint 5, Sprint 6, Sprint 9
 - **Scope**: Button loading state checks (`isLoading` prop compliance on all async trigger buttons).
@@ -15,16 +15,16 @@ This document compiles the verification results of button loading states and tes
 
 | Sprint | Title | Total Test Cases | Passed | Failed | Omitted Button Loading Found |
 | :--- | :--- | :---: | :---: | :---: | :--- |
-| **Sprint 1** | Security & Authentication Canvas | 5 | 4 | 1 | `LoginForm.tsx` ("Sign In"), `RegisterForm.tsx` ("Proceed", "Submit"), `LogoutButton.tsx` ("Log Out") |
-| **Sprint 2** | Event Profiles & Budgeting Canvas | 4 | 3 | 1 | `CreateEventModal.tsx` ("Create") |
-| **Sprint 3** | Component Tracking & Timeline Canvas | 4 | 3 | 1 | `AddComponentModal.tsx` ("Add Component") |
-| **Sprint 4** | RSVP Management & Guest Canvas | 4 | 3 | 1 | `AddInviteeModal.tsx` ("Add"), `InvitationsBanner.tsx` ("Accept"/"Decline"), `RsvpClient.tsx` ("Submit RSVP") |
-| **Sprint 5** | Event Lifecycle Operations & Time-Sensitive Date Configs | 3 | 2 | 1 | `EditEventModal.tsx` ("Save"), `EditComponentModal.tsx` ("Save"), `EditInviteeModal.tsx` ("Save"), `EventWorkspaceHeaderActions.tsx` ("Delete Event") |
-| **Sprint 6** | AWS S3 Cloud Storage & Multiple Event Curator Roles | 4 | 3 | 1 | `EventCuratorsCanvas.tsx` ("Invite", "Revoke"), `EventApprovalsCanvas.tsx` ("Approve", "Reject") |
-| **Sprint 7** | User Alias Dropdown & Email Notifications Microservice | 2 | 2 | 0 | None (Dropdown and profile toggling are synchronous) |
-| **Sprint 8** | Workspace Security Upgrades (CSP & Cryptographic Role Verification) | 2 | 2 | 0 | None (Purely infrastructure/security verification) |
-| **Sprint 9** | Chronological Spendings & Scheduled RSVP Invitations | 4 | 3 | 1 | `LogSpendingModal.tsx` ("Log Spending"), `EditSpendingModal.tsx` ("Save"), `SendAllInvitesModal.tsx` ("Send All"), `EventGuestCanvas.tsx` ("Cancel Schedule") |
-| **Sprint 10** | Log Tracing, Email Masking & Activity Logs Audit | 2 | 2 | 0 | None (Audits and masking, no async buttons in scope) |
+| **Sprint 1** | Security & Authentication Canvas | 9 | 8 | 1 | `LoginForm.tsx` ("Sign In"), `RegisterForm.tsx` ("Proceed", "Submit"), `LogoutButton.tsx` ("Log Out") |
+| **Sprint 2** | Event Profiles & Budgeting Canvas | 9 | 8 | 1 | `CreateEventModal.tsx` ("Create") |
+| **Sprint 3** | Component Tracking & Timeline Canvas | 7 | 6 | 1 | `AddComponentModal.tsx` ("Add Component") |
+| **Sprint 4** | RSVP Management & Guest Canvas | 8 | 7 | 1 | `AddInviteeModal.tsx` ("Add"), `InvitationsBanner.tsx` ("Accept"/"Decline"), `RsvpClient.tsx` ("Submit RSVP") |
+| **Sprint 5** | Event Lifecycle Operations & Time-Sensitive Date Configs | 7 | 5 | 2 | `EditEventModal.tsx` ("Save"), `EditComponentModal.tsx` ("Save"), `EditInviteeModal.tsx` ("Save"), `EventWorkspaceHeaderActions.tsx` ("Delete Event") |
+| **Sprint 6** | AWS S3 Cloud Storage & Multiple Event Curator Roles | 7 | 6 | 1 | `EventCuratorsCanvas.tsx` ("Invite", "Revoke"), `EventApprovalsCanvas.tsx` ("Approve", "Reject") |
+| **Sprint 7** | User Alias Dropdown & Email Notifications Microservice | 5 | 5 | 0 | None (Dropdown and profile toggling are synchronous) |
+| **Sprint 8** | Workspace Security Upgrades (CSP & Cryptographic Role Verification) | 5 | 5 | 0 | None (Purely infrastructure/security verification) |
+| **Sprint 9** | Chronological Spendings & Scheduled RSVP Invitations | 7 | 6 | 1 | `LogSpendingModal.tsx` ("Log Spending"), `EditSpendingModal.tsx` ("Save"), `SendAllInvitesModal.tsx` ("Send All"), `EventGuestCanvas.tsx` ("Cancel Schedule") |
+| **Sprint 10** | Log Tracing, Email Masking & Activity Logs Audit | 4 | 4 | 0 | None (Audits and masking, no async buttons in scope) |
 
 ---
 
