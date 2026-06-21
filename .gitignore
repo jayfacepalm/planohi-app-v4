@@ -2,3 +2,5 @@
 .env.example
 api/test_build.log
 .vscode/settings.json
+
+regression-testing
