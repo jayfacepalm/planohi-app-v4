@@ -1347,3 +1347,40 @@ To check, update, or destroy **production only**:
    ```bash
    terraform apply -var-file="prod.tfvars"
    ```
+
+---
+
+### C. Safe Wrapper Scripts (Enforce Confirmation)
+
+To prevent accidental destruction due to typing errors, we have provided two environment manager wrapper scripts under `infra/terraform/` that automate the switching of backends and prompt for safety confirmations before executing any `destroy` commands.
+
+#### 1. PowerShell (Windows) - `tf-env.ps1`
+Use this wrapper to manage plans, deployments, and destroys:
+* **To run a plan**:
+  ```powershell
+  ./tf-env.ps1 -EnvName staging -Action plan
+  ```
+* **To apply changes**:
+  ```powershell
+  ./tf-env.ps1 -EnvName staging -Action apply
+  ```
+* **To destroy an environment (forces confirmation)**:
+  ```powershell
+  ./tf-env.ps1 -EnvName staging -Action destroy
+  ```
+  *Prompt:* `WARNING: You are about to DESTROY the 'staging' environment! To confirm, please type the environment name:` (you must type `staging` to proceed).
+
+#### 2. Bash (Git Bash/Linux/macOS) - `tf-env.sh`
+* **To run a plan**:
+  ```bash
+  ./tf-env.sh staging plan
+  ```
+* **To apply changes**:
+  ```bash
+  ./tf-env.sh staging apply
+  ```
+* **To destroy an environment (forces confirmation)**:
+  ```bash
+  ./tf-env.sh staging destroy
+  ```
+
