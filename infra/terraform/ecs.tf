@@ -5,32 +5,32 @@ resource "aws_ecs_cluster" "main" {
 
 # ECS Cluster Service Connect Namespace (allows containers to find each other by name)
 resource "aws_service_discovery_private_dns_namespace" "internal" {
-  name        = "planohi.local"
+  name        = "planohi.local-${var.environment}"
   vpc         = aws_vpc.main.id
   description = "Internal service discovery namespace"
 }
 
 # Create ECR Repositories for Docker Images
 resource "aws_ecr_repository" "web" {
-  name                 = "planohi-web"
+  name                 = "planohi-web-${var.environment}"
   image_tag_mutability = "MUTABLE"
   force_delete         = true
 }
 
 resource "aws_ecr_repository" "api" {
-  name                 = "planohi-api"
+  name                 = "planohi-api-${var.environment}"
   image_tag_mutability = "MUTABLE"
   force_delete         = true
 }
 
 resource "aws_ecr_repository" "email" {
-  name                 = "planohi-email"
+  name                 = "planohi-email-${var.environment}"
   image_tag_mutability = "MUTABLE"
   force_delete         = true
 }
 
 resource "aws_ecr_repository" "activitylogs" {
-  name                 = "planohi-activitylogs"
+  name                 = "planohi-activitylogs-${var.environment}"
   image_tag_mutability = "MUTABLE"
   force_delete         = true
 }
@@ -141,11 +141,12 @@ resource "aws_ecs_task_definition" "api" {
     image     = "${aws_ecr_repository.api.repository_url}:latest"
     essential = true
     portMappings = [{
+      name          = "api-port"
       containerPort = 8080
       hostPort      = 8080
     }]
     environment = [
-      { name = "SPRING_PROFILES_ACTIVE", value = "prod" },
+      { name = "SPRING_PROFILES_ACTIVE", value = "${var.environment}" },
       { name = "SPRING_DATASOURCE_URL", value = "jdbc:postgresql://${aws_db_instance.postgres.endpoint}/${var.db_name}" },
       { name = "SPRING_DATASOURCE_USERNAME", value = var.db_username },
       { name = "SPRING_DATA_REDIS_HOST", value = aws_elasticache_serverless_cache.redis.endpoint[0].address },
@@ -155,7 +156,7 @@ resource "aws_ecs_task_definition" "api" {
       { name = "SPRING_RABBITMQ_USERNAME", value = var.rabbitmq_username },
       { name = "AWS_S3_BUCKET_NAME", value = aws_s3_bucket.banners.id },
       { name = "AWS_REGION", value = var.aws_region },
-      { name = "APP_FRONTEND_URL", value = "http://web.planohi.local:3000" }
+      { name = "APP_FRONTEND_URL", value = "http://web.planohi.local-${var.environment}:3000" }
     ]
     secrets = [
       {
@@ -231,6 +232,7 @@ resource "aws_ecs_task_definition" "web" {
     image     = "${aws_ecr_repository.web.repository_url}:latest"
     essential = true
     portMappings = [{
+      name          = "web-port"
       containerPort = 3000
       hostPort      = 3000
     }]

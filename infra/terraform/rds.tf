@@ -14,7 +14,7 @@ resource "aws_db_instance" "postgres" {
   allocated_storage      = 20
   max_allocated_storage  = 100
   engine                 = "postgres"
-  engine_version         = "16.1"
+  engine_version         = "16"
   instance_class         = "db.t4g.micro" # Entry tier instance, cost-efficient for testing
   db_name                = var.db_name
   username               = var.db_username
@@ -23,5 +23,6 @@ resource "aws_db_instance" "postgres" {
   vpc_security_group_ids = [aws_security_group.db.id]
   backup_retention_period = var.db_backup_retention_period
   storage_encrypted      = true
-  skip_final_snapshot    = true # Skip backup during terraform destroy to prevent errors
+  skip_final_snapshot    = var.environment == "prod" ? false : true
+  deletion_protection    = var.environment == "prod" ? true : false
 }

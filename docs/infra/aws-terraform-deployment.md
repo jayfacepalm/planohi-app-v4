@@ -106,6 +106,7 @@ planohi-app-v4/
 └── infra/
     └── terraform/
         ├── providers.tf         # Configures AWS provider & backend state
+        ├── backend.tfvars       # Parameterized S3 backend configuration values
         ├── variables.tf         # Input parameters (database names, ports, domain)
         ├── vpc.tf               # Virtual network, subnets, route tables, NAT Gateway
         ├── security_groups.tf   # Firewall rules defining who can talk to whom
@@ -138,14 +139,8 @@ terraform {
     }
   }
   
-  # Note: For production, configure an S3 bucket to store terraform.tfstate remotely.
-  # For absolute beginners, leaving this block empty keeps state files locally on your PC.
-  # backend "s3" {
-  #   bucket         = "your-company-terraform-state-bucket"
-  #   key            = "planohi/state.tfstate"
-  #   region         = "ap-northeast-1"
-  #   dynamodb_table = "terraform-lock"
-  # }
+  # Empty backend block to allow parameterization via a backend.tfvars file
+  backend "s3" {}
 }
 
 provider "aws" {
@@ -547,7 +542,7 @@ resource "aws_db_instance" "postgres" {
   allocated_storage      = 20
   max_allocated_storage  = 100
   engine                 = "postgres"
-  engine_version         = "16.1"
+  engine_version         = "16"
   instance_class         = "db.t4g.micro" # Entry tier instance, cost-efficient for testing
   db_name                = var.db_name
   username               = var.db_username
@@ -597,7 +592,8 @@ resource "aws_mq_broker" "rabbitmq" {
   broker_name = "planohi-rabbitmq-${var.environment}"
   engine_type = "RabbitMQ"
   engine_version = "3.13"
-  host_instance_type = "mq.t3.micro" # Entry tier broker instance
+  auto_minor_version_upgrade = true
+  host_instance_type = "mq.m7g.medium" # Entry tier broker instance (Graviton3-based)
   
   security_groups    = [aws_security_group.rabbitmq.id]
   subnet_ids         = [aws_subnet.private[0].id] # Single AZ configuration for dev/staging costs
@@ -715,25 +711,25 @@ resource "aws_service_discovery_private_dns_namespace" "internal" {
 
 # Create ECR Repositories for Docker Images
 resource "aws_ecr_repository" "web" {
-  name                 = "planohi-web"
+  name                 = "planohi-web-${var.environment}"
   image_tag_mutability = "MUTABLE"
   force_delete         = true
 }
 
 resource "aws_ecr_repository" "api" {
-  name                 = "planohi-api"
+  name                 = "planohi-api-${var.environment}"
   image_tag_mutability = "MUTABLE"
   force_delete         = true
 }
 
 resource "aws_ecr_repository" "email" {
-  name                 = "planohi-email"
+  name                 = "planohi-email-${var.environment}"
   image_tag_mutability = "MUTABLE"
   force_delete         = true
 }
 
 resource "aws_ecr_repository" "activitylogs" {
-  name                 = "planohi-activitylogs"
+  name                 = "planohi-activitylogs-${var.environment}"
   image_tag_mutability = "MUTABLE"
   force_delete         = true
 }
@@ -838,11 +834,12 @@ resource "aws_ecs_task_definition" "api" {
     image     = "${aws_ecr_repository.api.repository_url}:latest"
     essential = true
     portMappings = [{
+      name          = "api-port"
       containerPort = 8080
       hostPort      = 8080
     }]
     environment = [
-      { name = "SPRING_PROFILES_ACTIVE", value = "prod" },
+      { name = "SPRING_PROFILES_ACTIVE", value = "${var.environment}" },
       { name = "SPRING_DATASOURCE_URL", value = "jdbc:postgresql://${aws_db_instance.postgres.endpoint}/${var.db_name}" },
       { name = "SPRING_DATASOURCE_USERNAME", value = var.db_username },
       { name = "SPRING_DATA_REDIS_HOST", value = aws_elasticache_serverless_cache.redis.endpoint[0].address },
@@ -852,7 +849,7 @@ resource "aws_ecs_task_definition" "api" {
       { name = "SPRING_RABBITMQ_USERNAME", value = var.rabbitmq_username },
       { name = "AWS_S3_BUCKET_NAME", value = aws_s3_bucket.banners.id },
       { name = "AWS_REGION", value = var.aws_region },
-      { name = "APP_FRONTEND_URL", value = "http://web.planohi.local:3000" }
+      { name = "APP_FRONTEND_URL", value = "http://web.planohi.local-${var.environment}:3000" }
     ]
     secrets = [
       {
@@ -928,6 +925,7 @@ resource "aws_ecs_task_definition" "web" {
     image     = "${aws_ecr_repository.web.repository_url}:latest"
     essential = true
     portMappings = [{
+      name          = "web-port"
       containerPort = 3000
       hostPort      = 3000
     }]
@@ -1151,11 +1149,11 @@ Now that the Terraform files are ready, follow these steps to build, push, and d
 Before deploying ECS services, we need ECR repositories so we can push Docker images to them. If the images are missing, Fargate will crash on startup because it cannot find the target image.
 
 To bootstrap this cleanly:
-1. Run the initial Terraform deploy focusing **only** on the registry repositories:
+1. Run the initial Terraform deploy focusing **only** on the registry repositories for your environment (e.g. `staging`):
    ```bash
    cd infra/terraform
-   terraform init
-   terraform apply -target="aws_ecr_repository.web" -target="aws_ecr_repository.api" -target="aws_ecr_repository.email" -target="aws_ecr_repository.activitylogs"
+   terraform init -backend-config=backend-staging.tfvars
+   terraform apply -target="aws_ecr_repository.web" -target="aws_ecr_repository.api" -target="aws_ecr_repository.email" -target="aws_ecr_repository.activitylogs" -var-file="staging.tfvars"
    ```
 2. Note the repository URLs displayed in your terminal (or fetch them using `aws ecr describe-repositories`).
 
@@ -1170,17 +1168,17 @@ Instead of building, tagging, and pushing Docker images manually from your compu
    * Add a secret named `AWS_SECRET_ACCESS_KEY` and paste your AWS secret access key.
 
 2. **Commit and Push to GitHub**:
-   Commit and push your monorepo code (including the `.github/workflows/deploy.yml` and `infra/terraform` configurations) to your GitHub `main` branch:
+   Commit and push your monorepo code (including the `.github/workflows/deploy.yml` and `infra/terraform` configurations) to your GitHub environment branch (e.g., `staging` or `prod`):
    ```bash
    git add .
    git commit -m "Configure AWS Terraform and GitHub Actions pipeline"
-   git push origin main
+   git push origin staging
    ```
 
 3. **Verify Build Status**:
    * Navigate to the **Actions** tab on your GitHub repository page.
    * You will see the **Build and Deploy to AWS ECS** workflow running.
-   * The pipeline will automatically detect which folders (`web`, `api`, `email`, `activityLogs`) have code changes, compile them inside the GitHub runner, and push the images directly to ECR.
+   * The pipeline will automatically detect which folders (`web`, `api`, `email`, `activityLogs`) have code changes, compile them inside the GitHub runner, and push the images directly to the corresponding ECR registry (e.g. `planohi-web-staging`).
    * *Note: The final deployment step inside the workflow (`aws ecs update-service`) will fail on this first bootstrap run because the ECS Fargate services themselves haven't been created yet in AWS. This is expected. Proceed to Phase 4 to deploy them.*
 
 ### Phase 4: Deploy All Infrastructure
@@ -1190,25 +1188,36 @@ Now that the images are in the cloud, run the full deployment.
    ```bash
    cd infra/terraform
    ```
-2. Create a file named `terraform.tfvars` containing your sensitive variables:
-   ```hcl
-   db_password       = "YourStrongDbPass123!"
-   rabbitmq_password = "YourStrongMqPass123!"
-   jwt_secret_key    = "LongSuperSecretRandomJwtKey_32bytes"
-   jwt_role_secret_key = "AnotherLongSuperSecretRoleKey"
-   security_api_key  = "SecureInternalCommunicationKey"
-   ```
-3. Review your planned resources:
+2. Create your environment variable files containing your sensitive variables:
+   * **`staging.tfvars`** (Staging configurations):
+     ```hcl
+     environment       = "staging"
+     db_password       = "YourStrongStagingDbPass123!"
+     rabbitmq_password = "YourStrongStagingMqPass123!"
+     jwt_secret_key    = "LongSuperSecretRandomJwtKey_32bytes"
+     jwt_role_secret_key = "AnotherLongSuperSecretRoleKey"
+     security_api_key  = "SecureInternalCommunicationKey"
+     ```
+   * **`prod.tfvars`** (Production configurations):
+     ```hcl
+     environment       = "prod"
+     db_password       = "YourStrongProdDbPass123!"
+     rabbitmq_password = "YourStrongProdMqPass123!"
+     jwt_secret_key    = "LongSuperSecretRandomJwtKeyProd_32bytes"
+     jwt_role_secret_key = "AnotherLongSuperSecretRoleKeyProd"
+     security_api_key  = "SecureInternalCommunicationKeyProd"
+     ```
+3. Review your planned resources for the targeted environment (e.g., staging):
    ```bash
-   terraform plan
+   terraform plan -var-file="staging.tfvars"
    ```
 4. Deploy the infrastructure:
    ```bash
-   terraform apply
+   terraform apply -var-file="staging.tfvars"
    ```
    *Type `yes` when prompted.*
 
-Once complete, Terraform will print outputs, including the **`alb_dns_name`** (e.g. `planohi-alb-123456789.ap-northeast-1.elb.amazonaws.com`).
+Once complete, Terraform will print outputs, including the **`alb_dns_name`** (e.g. `planohi-alb-123456789.us-east-1.elb.amazonaws.com`).
 
 ---
 
@@ -1221,7 +1230,7 @@ When the ECS `api` service launches:
 2. It runs all pending database migrations located in the codebase.
 3. If seeding rules are set to check for seed profiles or environment settings, it will populate initial data parameters securely if configured.
 
-If you ever need to manually inspect the database logs, navigate to the CloudWatch Console and check the `/ecs/planohi-staging` log group.
+If you ever need to manually inspect the database logs, navigate to the CloudWatch Console and check the `/ecs/planohi-staging` (or `/ecs/planohi-prod`) log group.
 
 ---
 
@@ -1231,17 +1240,17 @@ AWS charges for running resources (like NAT Gateways, RDS databases, and ElastiC
 
 ```bash
 cd infra/terraform
-terraform destroy
+terraform destroy -var-file="staging.tfvars"
 ```
-*Type `yes` when prompted.* This will cleanly tear down the databases, load balancer, subnet routing, and virtual networks.
+*Type `yes` when prompted.* This will cleanly tear down the staging databases, load balancer, subnet routing, and virtual networks without affecting production.
 
 ---
 
 ## 9. Troubleshooting & FAQ
 
 ### Q1: The ECS Tasks keep failing/restarting (CrashLoop)
-- **Check the logs**: Go to **CloudWatch Logs** -> **Log Groups** -> `/ecs/planohi-staging` and inspect standard error stack traces.
-- **Missing Secrets**: Ensure you supplied valid JWT secrets and database passwords in `terraform.tfvars`.
+- **Check the logs**: Go to **CloudWatch Logs** -> **Log Groups** -> `/ecs/planohi-<env>` and inspect standard error stack traces.
+- **Missing Secrets**: Ensure you supplied valid JWT secrets and database passwords in `<env>.tfvars`.
 - **Image URL is incorrect**: Make sure you pushed the latest images to ECR and named them precisely matching your task definition.
 
 ### Q2: I get a timeout error when trying to connect to RDS
@@ -1249,7 +1258,7 @@ terraform destroy
 - **Subnets**: Ensure the DB Subnet Group uses private subnets that are routed correctly within the VPC.
 
 ### Q3: Next.js cannot talk to the API
-- **ECS Service Connect**: Make sure both the `api` and `web` services are running under the same ECS Cluster and have their Service Connect configuration matching the namespace `planohi.local`.
+- **ECS Service Connect**: Make sure both the `api` and `web` services are running under the same ECS Cluster and have their Service Connect configuration matching the namespace `planohi.local-<env>`.
 - Check that `BACKEND_API_URL` environment variable inside your `web` task definition points exactly to `http://api:8080`.
 
 ---
@@ -1261,7 +1270,7 @@ Rather than building and pushing Docker images manually from your computer (Phas
 ### Monorepo Path-Filter Optimization
 This repository is structured as a monorepo containing multiple independent sub-applications (`web`, `api`, `email`, and `activityLogs`). Building all 4 images on every commit is slow and wastes GitHub Actions runner minutes.
 
-We configure a path filter to listen for commits on the `main` branch. Only the specific container that has modifications in its folder will be compiled, pushed to ECR, and redeployed on Fargate.
+We configure a path filter to listen for commits on the `staging` and `prod` branches. Only the specific container that has modifications in its folder will be compiled, pushed to ECR, and redeployed on Fargate.
 
 ### How it Works
 The workflow is saved in [.github/workflows/deploy.yml](file:///c:/Users/jayma/Documents/GitRepo-1/planohi-app-v4/.github/workflows/deploy.yml) in the project root:
@@ -1270,4 +1279,71 @@ The workflow is saved in [.github/workflows/deploy.yml](file:///c:/Users/jayma/D
    * Add `AWS_ACCESS_KEY_ID` (your AWS access key).
    * Add `AWS_SECRET_ACCESS_KEY` (your AWS secret key).
 2. **Build and Tag**: The pipeline logs into Amazon ECR, compiles the Dockerfile for the modified folder, and tags it as `latest`.
-3. **Trigger ECS Update**: It runs the AWS CLI command `aws ecs update-service --cluster planohi-cluster-staging --service <service_name> --force-new-deployment`. Fargate automatically downloads the new image from ECR and performs a zero-downtime rolling update.
+3. **Trigger ECS Update**: It runs the AWS CLI command `aws ecs update-service --cluster planohi-cluster-${{ env.ENV_NAME }} --service <service_name> --force-new-deployment`. Fargate automatically downloads the new image from ECR and performs a zero-downtime rolling update.
+
+---
+
+## 11. Multi-Environment Management (Staging vs. Production)
+
+To maintain absolute separation between `staging` and `prod` and ensure operations on one do not impact the other, we parameterize the remote Terraform state bucket key and the application environment variable.
+
+### Structure of Environment-Specific Configs
+
+Each environment uses its own Backend Configuration (`.tfvars`) and Variable Definition (`.tfvars`):
+
+#### 1. Backend S3 State Paths (Tells Terraform where to write the `.tfstate` file)
+* **Staging** (`backend-staging.tfvars`):
+  ```hcl
+  bucket  = "app-s3-terraform-states"
+  key     = "planohi-app/staging/terraform.tfstate"
+  region  = "us-east-1"
+  encrypt = true
+  ```
+* **Production** (`backend-prod.tfvars`):
+  ```hcl
+  bucket  = "app-s3-terraform-states"
+  key     = "planohi-app/prod/terraform.tfstate"
+  region  = "us-east-1"
+  encrypt = true
+  ```
+
+#### 2. Variables Configs (Tells Terraform how to configure the resource names/sizes)
+* **Staging** (`staging.tfvars`):
+  ```hcl
+  environment = "staging"
+  # Other staging-specific passwords, sizes...
+  ```
+* **Production** (`prod.tfvars`):
+  ```hcl
+  environment = "prod"
+  # Other production-specific passwords, sizes...
+  ```
+
+---
+
+### Step-by-Step Environment Switching & Safe Resource Destroy
+
+To run commands on a specific environment, you must tell Terraform to reconfigure its state file reference to point to that environment's S3 state key.
+
+#### A. Working with Staging
+To check, update, or destroy **staging only**:
+1. **Target the staging state file**:
+   ```bash
+   terraform init -backend-config=backend-staging.tfvars -reconfigure
+   ```
+2. **Destroy staging resources**:
+   ```bash
+   terraform destroy -var-file="staging.tfvars"
+   ```
+   *(This will safely target only the resources recorded in `planohi-app/staging/terraform.tfstate` and ignore your production environment).*
+
+#### B. Working with Production
+To check, update, or destroy **production only**:
+1. **Target the production state file**:
+   ```bash
+   terraform init -backend-config=backend-prod.tfvars -reconfigure
+   ```
+2. **Apply updates to production**:
+   ```bash
+   terraform apply -var-file="prod.tfvars"
+   ```

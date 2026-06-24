@@ -6,7 +6,7 @@ resource "random_id" "bucket_suffix" {
 # S3 Bucket for Banners
 resource "aws_s3_bucket" "banners" {
   bucket        = "planohi-banners-${var.environment}-${random_id.bucket_suffix.hex}"
-  force_destroy = true
+  force_destroy = var.environment == "prod" ? false : true
 }
 
 # Disable public block rules so public reads are possible if using public assets
