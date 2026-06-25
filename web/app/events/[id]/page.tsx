@@ -41,8 +41,18 @@ export default async function EventDetailPage({ params, searchParams }: PageProp
   const cookieStore = await cookies();
   const token = cookieStore.get("AUTH_TOKEN")?.value;
   const headers: Record<string, string> = {};
+  let accountRole: string | undefined = undefined;
+
   if (token) {
     headers["Cookie"] = `AUTH_TOKEN=${token}`;
+    try {
+      const payloadBase64 = token.split(".")[1];
+      const payloadJson = Buffer.from(payloadBase64, "base64").toString("utf-8");
+      const claims = JSON.parse(payloadJson);
+      accountRole = claims.role;
+    } catch (e) {
+      console.error("Failed to decode user role from token", e);
+    }
   }
 
   let event: any = null;
@@ -277,6 +287,7 @@ export default async function EventDetailPage({ params, searchParams }: PageProp
           currentPage={currentPage}
           currentSearch={currentSearch}
           userRole={event.userRole}
+          accountRole={accountRole}
         />
       ) : activeTab === "curators" ? (
         <EventCuratorsCanvas

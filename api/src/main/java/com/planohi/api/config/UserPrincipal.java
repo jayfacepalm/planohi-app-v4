@@ -16,10 +16,14 @@ public class UserPrincipal implements UserDetails {
     private final UUID id;
     private final String email;
     private final String alias;
+    private final com.planohi.api.enums.UserRole role;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return Collections.emptyList();
+        if (role == null) {
+            return Collections.emptyList();
+        }
+        return Collections.singletonList(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_" + role.name()));
     }
 
     @Override
@@ -32,3 +36,4 @@ public class UserPrincipal implements UserDetails {
         return email;
     }
 }
+
