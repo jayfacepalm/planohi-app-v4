@@ -1207,15 +1207,14 @@ Now that the images are in the cloud, run the full deployment.
      jwt_role_secret_key = "AnotherLongSuperSecretRoleKeyProd"
      security_api_key  = "SecureInternalCommunicationKeyProd"
      ```
-3. Review your planned resources for the targeted environment (e.g., staging):
+3. Review and save your planned resources for the targeted environment (e.g., staging):
    ```bash
-   terraform plan -var-file="staging.tfvars"
+   terraform plan -var-file="staging.tfvars" -out="staging.tfplan"
    ```
-4. Deploy the infrastructure:
+4. Deploy the infrastructure using the saved plan file:
    ```bash
-   terraform apply -var-file="staging.tfvars"
+   terraform apply "staging.tfplan"
    ```
-   *Type `yes` when prompted.*
 
 Once complete, Terraform will print outputs, including the **`alb_dns_name`** (e.g. `planohi-alb-123456789.us-east-1.elb.amazonaws.com`).
 
@@ -1345,42 +1344,45 @@ To check, update, or destroy **production only**:
    ```
 2. **Apply updates to production**:
    ```bash
-   terraform apply -var-file="prod.tfvars"
+   terraform plan -var-file="prod.tfvars" -out="prod.tfplan"
+   terraform apply "prod.tfplan"
    ```
 
 ---
 
 ### C. Safe Wrapper Scripts (Enforce Confirmation)
 
-To prevent accidental destruction due to typing errors, we have provided two environment manager wrapper scripts under `infra/terraform/` that automate the switching of backends and prompt for safety confirmations before executing any `destroy` commands.
+To prevent accidental destruction due to typing errors, we have provided two environment manager wrapper scripts under `infra/` that automate the switching of backends and prompt for safety confirmations before executing any `destroy` commands.
+
+You can run them from the project root directory:
 
 #### 1. PowerShell (Windows) - `tf-env.ps1`
 Use this wrapper to manage plans, deployments, and destroys:
 * **To run a plan**:
   ```powershell
-  ./tf-env.ps1 -EnvName staging -Action plan
+  ./infra/tf-env.ps1 -EnvName staging -Action plan
   ```
 * **To apply changes**:
   ```powershell
-  ./tf-env.ps1 -EnvName staging -Action apply
+  ./infra/tf-env.ps1 -EnvName staging -Action apply
   ```
 * **To destroy an environment (forces confirmation)**:
   ```powershell
-  ./tf-env.ps1 -EnvName staging -Action destroy
+  ./infra/tf-env.ps1 -EnvName staging -Action destroy
   ```
   *Prompt:* `WARNING: You are about to DESTROY the 'staging' environment! To confirm, please type the environment name:` (you must type `staging` to proceed).
 
 #### 2. Bash (Git Bash/Linux/macOS) - `tf-env.sh`
 * **To run a plan**:
   ```bash
-  ./tf-env.sh staging plan
+  ./infra/tf-env.sh staging plan
   ```
 * **To apply changes**:
   ```bash
-  ./tf-env.sh staging apply
+  ./infra/tf-env.sh staging apply
   ```
 * **To destroy an environment (forces confirmation)**:
   ```bash
-  ./tf-env.sh staging destroy
+  ./infra/tf-env.sh staging destroy
   ```
 
