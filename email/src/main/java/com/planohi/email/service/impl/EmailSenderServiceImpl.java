@@ -9,6 +9,7 @@ import com.planohi.email.service.EmailSenderService;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -22,6 +23,9 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class EmailSenderServiceImpl implements EmailSenderService {
+
+    @Value("${app.mail.from-address:no-reply@planohi.com}")
+    private String fromAddress;
 
     private final EmailTemplateRepository emailTemplateRepository;
     private final SentEmailsRepository sentEmailsRepository;
@@ -56,7 +60,7 @@ public class EmailSenderServiceImpl implements EmailSenderService {
             MimeMessage mimeMessage = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
 
-            helper.setFrom("no-reply@planohi.com");
+            helper.setFrom(fromAddress);
             helper.setTo(message.getRecipientTos().toArray(new String[0]));
             
             if (message.getRecipientCcs() != null && !message.getRecipientCcs().isEmpty()) {

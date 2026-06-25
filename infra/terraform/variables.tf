@@ -83,3 +83,9 @@ variable "mail_password" {
   description = "SMTP password for sending emails"
   default     = ""
 }
+
+variable "mail_from_address" {
+  type        = string
+  description = "The email address to send emails from (must be verified in SES)"
+  sensitive   = true
+}
