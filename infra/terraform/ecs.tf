@@ -123,7 +123,7 @@ resource "aws_cloudwatch_log_group" "ecs_logs" {
 # Local helper variables to clean up AWS RabbitMQ MQ Hostname parsing
 locals {
   mq_endpoint_part = element(split(":", aws_mq_broker.rabbitmq.instances[0].endpoints[0]), 1)
-  mq_hostname      = replace(local.mq_endpoint_part, "//", "")
+  mq_hostname      = trimprefix(local.mq_endpoint_part, "//")
 }
 
 # ----------------- 1. Spring Boot API Service -----------------

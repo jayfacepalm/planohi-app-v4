@@ -31,29 +31,43 @@ public class AwsS3Config {
 
     @Bean
     public S3Client s3Client() {
-        return S3Client.builder()
-                .endpointOverride(URI.create(endpoint))
-                .credentialsProvider(StaticCredentialsProvider.create(
-                        AwsBasicCredentials.create(accessKey, secretKey)
-                ))
+        var builder = S3Client.builder()
                 .region(Region.of(region))
                 .serviceConfiguration(S3Configuration.builder()
                         .pathStyleAccessEnabled(true)
-                        .build())
-                .build();
+                        .build());
+
+        if (endpoint != null && !endpoint.trim().isEmpty()) {
+            builder.endpointOverride(URI.create(endpoint));
+        }
+
+        if (accessKey != null && !accessKey.trim().isEmpty() && secretKey != null && !secretKey.trim().isEmpty()) {
+            builder.credentialsProvider(StaticCredentialsProvider.create(
+                    AwsBasicCredentials.create(accessKey, secretKey)
+            ));
+        }
+
+        return builder.build();
     }
 
     @Bean
     public S3Presigner s3Presigner() {
-        return S3Presigner.builder()
-                .endpointOverride(URI.create(presignerEndpoint))
-                .credentialsProvider(StaticCredentialsProvider.create(
-                        AwsBasicCredentials.create(accessKey, secretKey)
-                ))
+        var builder = S3Presigner.builder()
                 .region(Region.of(region))
                 .serviceConfiguration(S3Configuration.builder()
                         .pathStyleAccessEnabled(true)
-                        .build())
-                .build();
+                        .build());
+
+        if (presignerEndpoint != null && !presignerEndpoint.trim().isEmpty()) {
+            builder.endpointOverride(URI.create(presignerEndpoint));
+        }
+
+        if (accessKey != null && !accessKey.trim().isEmpty() && secretKey != null && !secretKey.trim().isEmpty()) {
+            builder.credentialsProvider(StaticCredentialsProvider.create(
+                    AwsBasicCredentials.create(accessKey, secretKey)
+            ));
+        }
+
+        return builder.build();
     }
 }
