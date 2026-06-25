@@ -16,13 +16,15 @@ interface NavbarProps {
   navItems?: NavItem[];
   actions?: React.ReactNode;
   userAlias?: string;
+  userRole?: string;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   title = "PLANO.HI",
   navItems = [],
   actions,
-  userAlias
+  userAlias,
+  userRole
 }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
@@ -110,10 +112,34 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="px-4 py-2 border-b border-white/5 mb-2">
             <p className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold">Active Profile</p>
             <p className="text-sm font-semibold text-white truncate mt-0.5">{userAlias}</p>
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-medium bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/20 mt-1.5 uppercase tracking-wide">
-              Curator
-            </span>
+            <div className="flex gap-1.5 mt-2 flex-wrap">
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-semibold bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/25 uppercase tracking-wide">
+                Curator
+              </span>
+              {userRole && (
+                <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-semibold uppercase tracking-wide border ${userRole === 'ADMIN'
+                    ? 'bg-neon-purple/10 text-neon-purple border-neon-purple/25'
+                    : userRole === 'PREMIUM'
+                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25'
+                      : 'bg-zinc-500/10 text-zinc-400 border-zinc-500/25'
+                  }`}>
+                  {userRole}
+                </span>
+              )}
+            </div>
           </div>
+
+          {userRole === "NORMAL" && (
+            <Link
+              href="/activate-voucher"
+              className="w-full text-left px-4 py-2 text-xs font-semibold uppercase tracking-wider text-neon-cyan hover:text-[#22d3ee] hover:bg-neon-cyan/10 flex items-center gap-2 transition-all duration-200 cursor-pointer border-b border-white/5 pb-2 mb-2"
+            >
+              <svg className="w-4 h-4 text-neon-cyan" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+              Activate Voucher
+            </Link>
+          )}
 
           <button
             onClick={handleLogout}
@@ -135,9 +161,19 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <div className="flex items-center gap-8">
           <Link href="/">
-            <span className="text-xl font-heading font-bold bg-gradient-to-r from-neon-purple to-neon-cyan bg-clip-text text-transparent tracking-wider cursor-pointer">
-              {title}
-            </span>
+            <div className="flex items-center gap-2 cursor-pointer">
+              <span className="text-xl font-heading font-bold bg-gradient-to-r from-neon-purple to-neon-cyan bg-clip-text text-transparent tracking-wider">
+                {title}
+              </span>
+              {userRole && userRole !== 'NORMAL' && (
+                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider border ${userRole === 'ADMIN'
+                    ? 'bg-neon-purple/10 text-neon-purple border-neon-purple/20 shadow-[0_0_10px_rgba(168,85,247,0.2)]'
+                    : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                  }`}>
+                  {userRole}
+                </span>
+              )}
+            </div>
           </Link>
           {navItems && navItems.length > 0 && (
             <div className="hidden md:flex items-center gap-6 text-sm font-medium text-zinc-400">
@@ -168,8 +204,19 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
         </div>
         <div className="flex items-center gap-4">
+          {userAlias && userRole === 'ADMIN' && (
+            <Link href="/admin/vouchers">
+              <Button
+                variant="gradient"
+                className="px-4 py-1.5 text-xs h-auto border-neon-purple/50 text-[#d8b4fe] hover:bg-neon-purple/10 hover:shadow-[0_0_15px_rgba(168,85,247,0.3)] transition-all duration-300 mr-1"
+              >
+                Go to Admin
+              </Button>
+            </Link>
+          )}
           {userAlias ? profileDropdown : (actions !== undefined ? actions : defaultActions)}
         </div>
+
       </div>
     </nav>
   );

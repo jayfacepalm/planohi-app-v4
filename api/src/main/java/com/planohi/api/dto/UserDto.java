@@ -19,4 +19,7 @@ public class UserDto {
     private String email;
 
     private String alias;
+
+    private com.planohi.api.enums.UserRole role;
 }
+

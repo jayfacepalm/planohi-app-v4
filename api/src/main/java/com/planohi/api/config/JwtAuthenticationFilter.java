@@ -52,12 +52,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 if (jwtService.validateToken(token, email)) {
                     UUID id = jwtService.extractUserId(token);
                     String alias = jwtService.extractAlias(token);
+                    com.planohi.api.enums.UserRole role = jwtService.extractRole(token);
 
                     UserPrincipal userPrincipal = UserPrincipal.builder()
                             .id(id)
                             .email(email)
                             .alias(alias)
+                            .role(role)
                             .build();
+
 
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                             userPrincipal,

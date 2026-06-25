@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { EventCard } from "./EventCard";
 import { SearchInput } from "./SearchInput";
 import { DashboardPagination } from "./DashboardPagination";
@@ -40,6 +41,7 @@ interface EventsDashboardClientProps {
   hasPrevious: boolean;
   search: string;
   errorMsg: string | null;
+  userRole?: string;
 }
 
 export const EventsDashboardClient: React.FC<EventsDashboardClientProps> = ({
@@ -52,6 +54,7 @@ export const EventsDashboardClient: React.FC<EventsDashboardClientProps> = ({
   hasPrevious,
   search,
   errorMsg,
+  userRole,
 }) => {
   const router = useRouter();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -127,15 +130,49 @@ export const EventsDashboardClient: React.FC<EventsDashboardClientProps> = ({
 
         <div className="flex items-center gap-4">
           <SearchInput />
-          <Button
-            variant="gradient"
-            onClick={() => setIsCreateOpen(true)}
-            className="px-5 py-2 font-semibold text-xs tracking-wide uppercase h-auto"
-          >
-            Create Event
-          </Button>
+          {userRole === "NORMAL" && totalElements >= 3 ? (
+            <Link href="/activate-voucher">
+              <Button
+                variant="secondary"
+                className="px-5 py-2 font-semibold text-xs tracking-wide uppercase h-auto border-neon-purple/50 text-[#d8b4fe] hover:bg-neon-purple/10 hover:shadow-[0_0_15px_rgba(168,85,247,0.3)] transition-all duration-300"
+              >
+                Upgrade to Premium
+              </Button>
+            </Link>
+          ) : (
+            <Button
+              variant="gradient"
+              onClick={() => setIsCreateOpen(true)}
+              className="px-5 py-2 font-semibold text-xs tracking-wide uppercase h-auto"
+            >
+              Create Event
+            </Button>
+          )}
         </div>
       </div>
+
+      {userRole === "NORMAL" && (
+        <div className="bg-[#0f0f15]/50 border border-white/5 rounded-xl px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-inner">
+          <div className="flex items-center gap-2">
+            <span className={`w-2.5 h-2.5 rounded-full ${totalElements >= 3 ? "bg-neon-purple animate-pulse" : "bg-neon-cyan"}`} />
+            <span className="text-zinc-400 font-sans">
+              Account Workspace Quota: <strong className="text-white">{totalElements} / 3 events</strong> created
+            </span>
+          </div>
+          {totalElements >= 3 ? (
+            <span className="text-zinc-400 font-sans flex items-center">
+              Event cap reached.
+              <Link href="/activate-voucher" className="text-neon-cyan hover:underline font-semibold ml-1.5 flex items-center gap-0.5">
+                Upgrade to Premium to create more &rarr;
+              </Link>
+            </span>
+          ) : (
+            <Link href="/activate-voucher" className="text-zinc-400 hover:text-white hover:underline transition-colors font-medium">
+              Upgrade to Premium for unlimited events & guests
+            </Link>
+          )}
+        </div>
+      )}
 
       <InvitationsBanner invitations={invitations} />
 
