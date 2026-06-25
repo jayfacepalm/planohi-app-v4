@@ -50,6 +50,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-planohipassword}
       SPRING_DATA_REDIS_HOST: cache
       SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_SSL_ENABLED: ${SPRING_DATA_REDIS_SSL_ENABLED:-false}
       AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-planohi-banners}
       AWS_S3_ENDPOINT: ${AWS_S3_ENDPOINT:-http://localstack:4566}
       AWS_S3_PRESIGNER_ENDPOINT: ${AWS_S3_PRESIGNER_ENDPOINT:-http://localhost:4566}
@@ -140,6 +141,7 @@ services:
       dockerfile: Dockerfile
     container_name: planohi-email
     environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-planohidb}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-planohiuser}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-planohipassword}
@@ -147,6 +149,7 @@ services:
       SPRING_RABBITMQ_PORT: 5672
       SPRING_DATA_REDIS_HOST: cache
       SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_SSL_ENABLED: ${SPRING_DATA_REDIS_SSL_ENABLED:-false}
       SPRING_MAIL_HOST: maildev
       SPRING_MAIL_PORT: 1025
     depends_on:
@@ -165,6 +168,7 @@ services:
       dockerfile: Dockerfile
     container_name: planohi-activitylogs
     environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-planohidb}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-planohiuser}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-planohipassword}

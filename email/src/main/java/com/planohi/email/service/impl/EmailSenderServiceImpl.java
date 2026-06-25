@@ -9,6 +9,7 @@ import com.planohi.email.service.EmailSenderService;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.env.Environment;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,7 @@ public class EmailSenderServiceImpl implements EmailSenderService {
     private final EmailTemplateRepository emailTemplateRepository;
     private final SentEmailsRepository sentEmailsRepository;
     private final JavaMailSender mailSender;
+    private final Environment env;
 
     @Override
     @Transactional
@@ -44,6 +46,11 @@ public class EmailSenderServiceImpl implements EmailSenderService {
             // 2. Perform placeholder substitution
             subject = replacePlaceholders(template.getSubjectTemplate(), message.getMetadata());
             body = replacePlaceholders(template.getBodyTemplate(), message.getMetadata());
+
+            String prefix = getSubjectPrefix();
+            if (!prefix.isEmpty()) {
+                subject = prefix + " " + subject;
+            }
 
             // 3. Construct and send HTML MIME message
             MimeMessage mimeMessage = mailSender.createMimeMessage();
@@ -107,5 +114,16 @@ public class EmailSenderServiceImpl implements EmailSenderService {
             result = result.replace(placeholder, value);
         }
         return result;
+    }
+
+    private String getSubjectPrefix() {
+        for (String profile : env.getActiveProfiles()) {
+            if ("staging".equalsIgnoreCase(profile)) {
+                return "[staging Testing]";
+            } else if ("dev".equalsIgnoreCase(profile)) {
+                return "[dev Testing]";
+            }
+        }
+        return "";
     }
 }
