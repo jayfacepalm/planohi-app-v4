@@ -152,6 +152,8 @@ services:
       SPRING_DATA_REDIS_SSL_ENABLED: ${SPRING_DATA_REDIS_SSL_ENABLED:-false}
       SPRING_MAIL_HOST: maildev
       SPRING_MAIL_PORT: 1025
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
     depends_on:
       db:
         condition: service_healthy

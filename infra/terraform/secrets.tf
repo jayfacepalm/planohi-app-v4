@@ -14,5 +14,7 @@ resource "aws_secretsmanager_secret_version" "app_secrets_val" {
     jwt_secret_key      = var.jwt_secret_key
     jwt_role_secret_key = var.jwt_role_secret_key
     security_api_key    = var.security_api_key
+    mail_username       = var.mail_username
+    mail_password       = var.mail_password
   })
 }
