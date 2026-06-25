@@ -48,7 +48,6 @@ export const LoginForm: React.FC = () => {
       } else {
         setError(err.message || "Invalid email or password");
       }
-    } finally {
       setLoading(false);
     }
   };

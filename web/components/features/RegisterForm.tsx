@@ -114,7 +114,6 @@ export const RegisterForm: React.FC = () => {
       } else {
         setError(err.message || "Failed to complete registration");
       }
-    } finally {
       setLoading(false);
     }
   };
