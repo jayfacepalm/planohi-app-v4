@@ -50,16 +50,16 @@ security:
   api-key: ${SECURITY_API_KEY}
   jwt:
     secret-key: ${SECURITY_JWT_SECRET_KEY}
-    expiration-time: ${SECURITY_JWT_EXPIRATION_TIME}
+    expiration-time: ${SECURITY_JWT_EXPIRATION_TIME:3600000}
     role-secret-key: ${SECURITY_JWT_ROLE_SECRET_KEY}
 
 aws:
   s3:
     bucket-name: ${AWS_S3_BUCKET_NAME}
-    endpoint: ${AWS_S3_ENDPOINT}
-    presigner-endpoint: ${AWS_S3_PRESIGNER_ENDPOINT}
-    access-key: ${AWS_ACCESS_KEY_ID}
-    secret-key: ${AWS_SECRET_ACCESS_KEY}
+    endpoint: ${AWS_S3_ENDPOINT:}
+    presigner-endpoint: ${AWS_S3_PRESIGNER_ENDPOINT:}
+    access-key: ${AWS_ACCESS_KEY_ID:}
+    secret-key: ${AWS_SECRET_ACCESS_KEY:}
     region: ${AWS_REGION}
 
 logging:
