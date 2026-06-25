@@ -54,10 +54,28 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Determine base commit
+        id: base_commit
+        run: |
+          BEFORE_SHA="${{ github.event.before }}"
+          if [ -n "$BEFORE_SHA" ] && [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ] && git cat-file -e "$BEFORE_SHA" 2>/dev/null; then
+            echo "BASE_COMMIT=$BEFORE_SHA" >> $GITHUB_ENV
+            echo "Using github.event.before ($BEFORE_SHA) as base commit."
+          else
+            if git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
+              echo "BASE_COMMIT=HEAD~1" >> $GITHUB_ENV
+              echo "Using HEAD~1 as base commit fallback."
+            else
+              echo "BASE_COMMIT=HEAD" >> $GITHUB_ENV
+              echo "Using HEAD as base commit fallback (no history)."
+            fi
+          fi
+
       - name: Detect path changes
         id: filter
         uses: dorny/paths-filter@v4
         with:
+          base: ${{ env.BASE_COMMIT }}
           filters: |
             web:
               - 'web/**'

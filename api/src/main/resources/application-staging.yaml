@@ -1,3 +1,0 @@
-app:
-  security:
-    cookie-secure: false
