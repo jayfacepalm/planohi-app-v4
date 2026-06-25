@@ -58,6 +58,7 @@ public class AuthServiceImpl implements AuthService {
                 .id(saved.getId())
                 .email(saved.getEmail())
                 .alias(saved.getAlias())
+                .role(saved.getRole())
                 .build();
 
         activityLogPublisher.publish(userDto.getId(), userDto.getAlias(), "USER_REGISTER", "USER", userDto.getId(), null, "SUCCESS", Map.of("email", userDto.getEmail()));
@@ -81,6 +82,7 @@ public class AuthServiceImpl implements AuthService {
                 .id(account.getId())
                 .email(account.getEmail())
                 .alias(account.getAlias())
+                .role(account.getRole())
                 .build();
 
         activityLogPublisher.publish(userDto.getId(), userDto.getAlias(), "USER_LOGIN", "USER", userDto.getId(), null, "SUCCESS", Map.of("email", userDto.getEmail()));
@@ -90,6 +92,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public String generateToken(UserDto userDto) {
-        return jwtService.generateToken(userDto.getId(), userDto.getEmail(), userDto.getAlias());
+        return jwtService.generateToken(userDto.getId(), userDto.getEmail(), userDto.getAlias(), userDto.getRole() != null ? userDto.getRole().name() : "NORMAL");
     }
 }
+

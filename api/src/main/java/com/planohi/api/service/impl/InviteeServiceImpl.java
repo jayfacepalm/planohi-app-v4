@@ -13,11 +13,15 @@ import com.planohi.api.exception.EntityNotFoundException;
 import com.planohi.api.exception.FieldValidationException;
 import com.planohi.api.repository.EventRepository;
 import com.planohi.api.repository.InviteeRepository;
+import com.planohi.api.repository.UserAccountRepository;
+import com.planohi.api.entity.UserAccount;
+import com.planohi.api.enums.UserRole;
 import com.planohi.api.service.InviteeService;
 import com.planohi.api.service.S3StorageService;
 import com.planohi.api.service.WorkspaceSecurityService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
 import org.quartz.JobBuilder;
 import org.quartz.JobDetail;
 import org.quartz.JobKey;
@@ -47,11 +51,13 @@ public class InviteeServiceImpl implements InviteeService {
 
     private final EventRepository eventRepository;
     private final InviteeRepository inviteeRepository;
+    private final UserAccountRepository userAccountRepository;
     private final S3StorageService s3StorageService;
     private final WorkspaceSecurityService workspaceSecurityService;
     private final EmailPublisher emailPublisher;
     private final Scheduler scheduler;
     private final ActivityLogPublisher activityLogPublisher;
+
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
@@ -65,6 +71,17 @@ public class InviteeServiceImpl implements InviteeService {
                 .orElseThrow(() -> new EntityNotFoundException("Event not found"));
 
         workspaceSecurityService.checkWriteAccess(userId, eventId);
+
+        UserAccount owner = userAccountRepository.findById(event.getUserId())
+                .orElseThrow(() -> new EntityNotFoundException("Event owner not found"));
+
+        if (owner.getRole() == UserRole.NORMAL) {
+            long currentCount = inviteeRepository.countByEventId(eventId);
+            if (currentCount + requests.size() > 25) {
+                throw new IllegalArgumentException("Normal tier accounts are limited to a maximum of 25 guest invitees per event. Current: " + currentCount + ", Requested: " + requests.size() + ".");
+            }
+        }
+
 
         List<Invitee> invitees = new ArrayList<>();
         for (CreateInviteeRequest request : requests) {

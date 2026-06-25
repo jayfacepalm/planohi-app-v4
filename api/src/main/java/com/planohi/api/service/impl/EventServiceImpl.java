@@ -4,10 +4,12 @@ import com.planohi.api.dto.CreateEventRequest;
 import com.planohi.api.dto.UpdateEventRequest;
 import com.planohi.api.dto.EventDto;
 import com.planohi.api.entity.Event;
+import com.planohi.api.entity.UserAccount;
 import com.planohi.api.enums.EventCuratorRole;
 import com.planohi.api.entity.EventSpending;
 import com.planohi.api.entity.Invitee;
 import com.planohi.api.entity.TimelineItem;
+
 import com.planohi.api.exception.EntityNotFoundException;
 import com.planohi.api.exception.FieldValidationException;
 import com.planohi.api.repository.EventRepository;
@@ -59,9 +61,16 @@ public class EventServiceImpl implements EventService {
     public EventDto createEvent(UUID userId, CreateEventRequest request, MultipartFile bannerFile) {
         log.info("Creating event for user {} with title: {}", userId, request.getTitle());
 
-        if (!userAccountRepository.existsById(userId)) {
-            throw new EntityNotFoundException("User organizer not found");
+        UserAccount user = userAccountRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User organizer not found"));
+
+        if (user.getRole() == com.planohi.api.enums.UserRole.NORMAL) {
+            long existingCount = eventRepository.countByUserId(userId);
+            if (existingCount >= 3) {
+                throw new IllegalArgumentException("Normal tier accounts are limited to a maximum of 3 events. Please activate a premium voucher to lift this limit.");
+            }
         }
+
 
         String bannerUrl = null;
         if (bannerFile != null && !bannerFile.isEmpty()) {

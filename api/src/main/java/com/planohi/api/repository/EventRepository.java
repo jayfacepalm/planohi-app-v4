@@ -38,4 +38,7 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
            "WHERE e.id = :eventId " +
            "GROUP BY e.id")
     List<Object[]> findByIdWithBudget(@Param("eventId") UUID eventId);
+
+    long countByUserId(UUID userId);
 }
+

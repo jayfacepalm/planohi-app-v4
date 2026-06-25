@@ -18,8 +18,10 @@ import org.springframework.security.web.session.DisableEncodeUrlFilter;
 
 @Configuration
 @EnableWebSecurity
+@org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
+
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final ApiKeyFilter apiKeyFilter;

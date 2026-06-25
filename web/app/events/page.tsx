@@ -21,8 +21,18 @@ export default async function EventsPage({ searchParams }: Readonly<PageProps>) 
   const cookieStore = await cookies();
   const token = cookieStore.get("AUTH_TOKEN")?.value;
   const headers: Record<string, string> = {};
+  let role: string | undefined = undefined;
+
   if (token) {
     headers["Cookie"] = `AUTH_TOKEN=${token}`;
+    try {
+      const payloadBase64 = token.split(".")[1];
+      const payloadJson = Buffer.from(payloadBase64, "base64").toString("utf-8");
+      const claims = JSON.parse(payloadJson);
+      role = claims.role;
+    } catch (e) {
+      console.error("Failed to decode user details from token", e);
+    }
   }
 
   let eventPageData: any = null;
@@ -70,6 +80,7 @@ export default async function EventsPage({ searchParams }: Readonly<PageProps>) 
       hasPrevious={hasPrevious}
       search={search}
       errorMsg={errorMsg}
+      userRole={role}
     />
   );
 }

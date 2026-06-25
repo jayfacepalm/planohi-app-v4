@@ -12,10 +12,11 @@ export default async function EventsLayout({
     { label: "Dashboard", href: "/events", active: true },
   ];
 
-  // Decode the user alias from AUTH_TOKEN HttpOnly cookie on the server
+  // Decode the user alias and role from AUTH_TOKEN HttpOnly cookie on the server
   const cookieStore = await cookies();
   const token = cookieStore.get("AUTH_TOKEN")?.value;
   let alias: string | undefined = undefined;
+  let role: string | undefined = undefined;
 
   if (token) {
     try {
@@ -23,8 +24,9 @@ export default async function EventsLayout({
       const payloadJson = Buffer.from(payloadBase64, "base64").toString("utf-8");
       const claims = JSON.parse(payloadJson);
       alias = claims.alias;
+      role = claims.role;
     } catch (e) {
-      console.error("Failed to decode user alias from AUTH_TOKEN", e);
+      console.error("Failed to decode user details from AUTH_TOKEN", e);
     }
   }
 
@@ -38,7 +40,8 @@ export default async function EventsLayout({
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.007)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.007)_1px,transparent_1px)] bg-[size:30px_30px] pointer-events-none" />
 
       {/* Navbar header */}
-      <Navbar navItems={navItems} userAlias={alias} />
+      <Navbar navItems={navItems} userAlias={alias} userRole={role} />
+
 
       {/* Main content */}
       <main className="flex-1 flex flex-col justify-start items-center px-6 py-12 relative z-10 w-full">
