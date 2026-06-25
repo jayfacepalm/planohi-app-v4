@@ -325,6 +325,14 @@ resource "aws_ecs_task_definition" "email" {
       {
         name      = "SPRING_RABBITMQ_PASSWORD"
         valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:rabbitmq_password::"
+      },
+      {
+        name      = "SPRING_MAIL_USERNAME"
+        valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:mail_username::"
+      },
+      {
+        name      = "SPRING_MAIL_PASSWORD"
+        valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:mail_password::"
       }
     ]
     logConfiguration = {

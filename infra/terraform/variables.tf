@@ -69,3 +69,17 @@ variable "security_api_key" {
   sensitive   = true
   description = "API key used to authenticate internal system integrations"
 }
+
+variable "mail_username" {
+  type        = string
+  sensitive   = true
+  description = "SMTP username for sending emails"
+  default     = ""
+}
+
+variable "mail_password" {
+  type        = string
+  sensitive   = true
+  description = "SMTP password for sending emails"
+  default     = ""
+}
