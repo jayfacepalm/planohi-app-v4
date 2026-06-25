@@ -48,16 +48,16 @@ class EmailSenderServiceImplTest {
         when(env.getActiveProfiles()).thenReturn(new String[]{"dev"});
 
         EmailTemplate template = new EmailTemplate();
-        template.setId(1L);
+        template.setId("1");
         template.setSubjectTemplate("Welcome to planohi");
         template.setBodyTemplate("Hello ${name}");
-        when(emailTemplateRepository.findById(1L)).thenReturn(Optional.of(template));
+        when(emailTemplateRepository.findById("1")).thenReturn(Optional.of(template));
 
         MimeMessage mimeMessage = mock(MimeMessage.class);
         when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
 
         EmailMessageDto dto = new EmailMessageDto();
-        dto.setTemplateId(1L);
+        dto.setTemplateId("1");
         dto.setRecipientTos(List.of("user@example.com"));
         dto.setMetadata(Map.of("name", "Alice"));
 
@@ -82,16 +82,16 @@ class EmailSenderServiceImplTest {
         when(env.getActiveProfiles()).thenReturn(new String[]{"staging"});
 
         EmailTemplate template = new EmailTemplate();
-        template.setId(1L);
+        template.setId("1");
         template.setSubjectTemplate("Alert: System check");
         template.setBodyTemplate("Warning!");
-        when(emailTemplateRepository.findById(1L)).thenReturn(Optional.of(template));
+        when(emailTemplateRepository.findById("1")).thenReturn(Optional.of(template));
 
         MimeMessage mimeMessage = mock(MimeMessage.class);
         when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
 
         EmailMessageDto dto = new EmailMessageDto();
-        dto.setTemplateId(1L);
+        dto.setTemplateId("1");
         dto.setRecipientTos(List.of("admin@example.com"));
 
         // Act
@@ -111,16 +111,16 @@ class EmailSenderServiceImplTest {
         when(env.getActiveProfiles()).thenReturn(new String[]{"prod"});
 
         EmailTemplate template = new EmailTemplate();
-        template.setId(1L);
+        template.setId("1");
         template.setSubjectTemplate("Alert: System check");
         template.setBodyTemplate("Warning!");
-        when(emailTemplateRepository.findById(1L)).thenReturn(Optional.of(template));
+        when(emailTemplateRepository.findById("1")).thenReturn(Optional.of(template));
 
         MimeMessage mimeMessage = mock(MimeMessage.class);
         when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
 
         EmailMessageDto dto = new EmailMessageDto();
-        dto.setTemplateId(1L);
+        dto.setTemplateId("1");
         dto.setRecipientTos(List.of("admin@example.com"));
 
         // Act
