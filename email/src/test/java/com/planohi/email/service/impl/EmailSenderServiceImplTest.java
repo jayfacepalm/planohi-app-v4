@@ -40,6 +40,7 @@ class EmailSenderServiceImplTest {
                 mailSender,
                 env
         );
+        org.springframework.test.util.ReflectionTestUtils.setField(emailSenderService, "fromAddress", "no-reply@planohi.com");
     }
 
     @Test

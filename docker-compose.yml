@@ -154,6 +154,7 @@ services:
       SPRING_MAIL_PORT: 1025
       SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
       SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
+      SPRING_MAIL_FROM_ADDRESS: ${SPRING_MAIL_FROM_ADDRESS:-no-reply@planohi.com}
     depends_on:
       db:
         condition: service_healthy

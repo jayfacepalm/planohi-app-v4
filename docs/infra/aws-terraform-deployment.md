@@ -94,6 +94,25 @@ aws configure
 ```
 *Recommended region to input:* `ap-northeast-1` (Tokyo, matching your current local settings) or your preferred region.
 
+### Amazon SES SMTP Credentials Setup (Required for Email Service)
+The email background worker container connects to Amazon SES using SMTP over port `587`. To avoid connection authentication failures (`jakarta.mail.AuthenticationFailedException`), you must generate static SMTP credentials from the AWS SES console and configure them in your Terraform variable files (e.g., `staging.tfvars` or `prod.tfvars`) prior to deployment.
+
+**Steps to generate SMTP credentials:**
+1. Open the **Amazon SES Console** at [console.aws.amazon.com/ses](https://console.aws.amazon.com/ses).
+2. In the navigation pane, choose **SMTP Settings**.
+3. Choose **Create SMTP credentials**.
+4. In the dialog box that appears, enter a name for the IAM user or leave the default, then choose **Create**.
+5. Choose **Show User SMTP Credentials** or **Download Credentials** to save the generated credentials.
+   - *Username:* The SMTP Username is an AWS Access Key ID (starts with `AKIA...`).
+   - *Password:* The SMTP Password is a custom signature generated from the IAM Secret Access Key. (Do **not** use the IAM user name or local password!).
+
+**Configuration:**
+Add the generated credentials to your environment `.tfvars` file (e.g., `staging.tfvars`):
+```hcl
+mail_username          = "AKIAIOSFODNN7EXAMPLE" # <-- Your generated SMTP Username
+mail_password          = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" # <-- Your generated SMTP Password
+```
+
 ---
 
 ## 4. Terraform Workspace Directory Structure

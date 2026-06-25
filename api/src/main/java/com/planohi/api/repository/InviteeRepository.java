@@ -28,4 +28,7 @@ public interface InviteeRepository extends JpaRepository<Invitee, UUID> {
            "COALESCE(SUM(i.attendingGuests), 0L)) " +
            "FROM Invitee i WHERE i.eventId = :eventId")
     InviteeMetricsDto getMetricsByEventId(UUID eventId);
+
+    long countByEventId(UUID eventId);
 }
+

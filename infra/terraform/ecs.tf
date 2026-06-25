@@ -333,6 +333,10 @@ resource "aws_ecs_task_definition" "email" {
       {
         name      = "SPRING_MAIL_PASSWORD"
         valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:mail_password::"
+      },
+      {
+        name      = "SPRING_MAIL_FROM_ADDRESS"
+        valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:mail_from_address::"
       }
     ]
     logConfiguration = {

@@ -36,4 +36,10 @@ public class UserAccount extends BaseAuditEntity {
 
     @Column(name = "password_hash", nullable = false, length = 255)
     private String passwordHash;
+
+    @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
+    @Column(name = "role", nullable = false, length = 20)
+    @Builder.Default
+    private com.planohi.api.enums.UserRole role = com.planohi.api.enums.UserRole.NORMAL;
 }
+
