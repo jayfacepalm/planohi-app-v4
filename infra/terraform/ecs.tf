@@ -151,8 +151,10 @@ resource "aws_ecs_task_definition" "api" {
       { name = "SPRING_DATASOURCE_USERNAME", value = var.db_username },
       { name = "SPRING_DATA_REDIS_HOST", value = aws_elasticache_serverless_cache.redis.endpoint[0].address },
       { name = "SPRING_DATA_REDIS_PORT", value = "6379" },
+      { name = "SPRING_DATA_REDIS_SSL_ENABLED", value = "true" },
       { name = "SPRING_RABBITMQ_HOST", value = local.mq_hostname },
-      { name = "SPRING_RABBITMQ_PORT", value = "5672" },
+      { name = "SPRING_RABBITMQ_PORT", value = "5671" },
+      { name = "SPRING_RABBITMQ_SSL_ENABLED", value = "true" },
       { name = "SPRING_RABBITMQ_USERNAME", value = var.rabbitmq_username },
       { name = "AWS_S3_BUCKET_NAME", value = aws_s3_bucket.banners.id },
       { name = "AWS_REGION", value = var.aws_region },
@@ -238,7 +240,9 @@ resource "aws_ecs_task_definition" "web" {
     }]
     environment = [
       { name = "BACKEND_API_URL", value = "http://api:8080" },
-      { name = "NEXT_PUBLIC_API_URL", value = "/api/proxy" }
+      { name = "NEXT_PUBLIC_API_URL", value = "/api/proxy" },
+      { name = "CSP_ALLOWED_IMAGE_SOURCES", value = "'self' data: blob: https://${aws_s3_bucket.banners.bucket_regional_domain_name} https://*.s3.amazonaws.com" },
+      { name = "CSP_ALLOWED_CONNECT_SOURCES", value = "'self' ws: wss:" }
     ]
     secrets = [
       {
@@ -278,14 +282,6 @@ resource "aws_ecs_service" "web" {
   service_connect_configuration {
     enabled   = true
     namespace = aws_service_discovery_private_dns_namespace.internal.arn
-    service {
-      port_name      = "web-port"
-      discovery_name = "web"
-      client_alias {
-        port     = 3000
-        dns_name = "web"
-      }
-    }
   }
 
   depends_on = [aws_lb_listener.http]
@@ -306,12 +302,15 @@ resource "aws_ecs_task_definition" "email" {
     image     = "${aws_ecr_repository.email.repository_url}:latest"
     essential = true
     environment = [
+      { name = "SPRING_PROFILES_ACTIVE", value = "${var.environment}" },
       { name = "SPRING_DATASOURCE_URL", value = "jdbc:postgresql://${aws_db_instance.postgres.endpoint}/${var.db_name}" },
       { name = "SPRING_DATASOURCE_USERNAME", value = var.db_username },
       { name = "SPRING_DATA_REDIS_HOST", value = aws_elasticache_serverless_cache.redis.endpoint[0].address },
       { name = "SPRING_DATA_REDIS_PORT", value = "6379" },
+      { name = "SPRING_DATA_REDIS_SSL_ENABLED", value = "true" },
       { name = "SPRING_RABBITMQ_HOST", value = local.mq_hostname },
-      { name = "SPRING_RABBITMQ_PORT", value = "5672" },
+      { name = "SPRING_RABBITMQ_PORT", value = "5671" },
+      { name = "SPRING_RABBITMQ_SSL_ENABLED", value = "true" },
       { name = "SPRING_RABBITMQ_USERNAME", value = var.rabbitmq_username },
       { name = "SPRING_MAIL_HOST", value = "email-smtp.${var.aws_region}.amazonaws.com" },
       { name = "SPRING_MAIL_PORT", value = "587" },
@@ -367,10 +366,12 @@ resource "aws_ecs_task_definition" "activitylogs" {
     image     = "${aws_ecr_repository.activitylogs.repository_url}:latest"
     essential = true
     environment = [
+      { name = "SPRING_PROFILES_ACTIVE", value = "${var.environment}" },
       { name = "SPRING_DATASOURCE_URL", value = "jdbc:postgresql://${aws_db_instance.postgres.endpoint}/${var.db_name}" },
       { name = "SPRING_DATASOURCE_USERNAME", value = var.db_username },
       { name = "SPRING_RABBITMQ_HOST", value = local.mq_hostname },
-      { name = "SPRING_RABBITMQ_PORT", value = "5672" },
+      { name = "SPRING_RABBITMQ_PORT", value = "5671" },
+      { name = "SPRING_RABBITMQ_SSL_ENABLED", value = "true" },
       { name = "SPRING_RABBITMQ_USERNAME", value = var.rabbitmq_username }
     ]
     secrets = [
