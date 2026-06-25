@@ -5,6 +5,33 @@ on:
     branches:
       - staging
       - prod
+  workflow_dispatch:
+    inputs:
+      force_all:
+        description: 'Force deploy all services'
+        type: boolean
+        required: false
+        default: false
+      force_web:
+        description: 'Force deploy Web'
+        type: boolean
+        required: false
+        default: false
+      force_api:
+        description: 'Force deploy API'
+        type: boolean
+        required: false
+        default: false
+      force_email:
+        description: 'Force deploy Email'
+        type: boolean
+        required: false
+        default: false
+      force_activitylogs:
+        description: 'Force deploy Activity Logs'
+        type: boolean
+        required: false
+        default: false
 
 env:
   ENV_NAME: ${{ github.ref_name == 'prod' && 'prod' || 'staging' }}
@@ -42,7 +69,10 @@ jobs:
   # Job 2: Build and deploy the Web Frontend if web/ changes
   deploy-web:
     needs: detect-changes
-    if: needs.detect-changes.outputs.web == 'true'
+    if: |
+      needs.detect-changes.outputs.web == 'true' ||
+      inputs.force_all == true ||
+      inputs.force_web == true
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -75,7 +105,10 @@ jobs:
   # Job 3: Build and deploy the API Backend if api/ changes
   deploy-api:
     needs: detect-changes
-    if: needs.detect-changes.outputs.api == 'true'
+    if: |
+      needs.detect-changes.outputs.api == 'true' ||
+      inputs.force_all == true ||
+      inputs.force_api == true
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -108,7 +141,10 @@ jobs:
   # Job 4: Build and deploy the Email Worker if email/ changes
   deploy-email:
     needs: detect-changes
-    if: needs.detect-changes.outputs.email == 'true'
+    if: |
+      needs.detect-changes.outputs.email == 'true' ||
+      inputs.force_all == true ||
+      inputs.force_email == true
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -141,7 +177,10 @@ jobs:
   # Job 5: Build and deploy the Activity Logs Worker if activityLogs/ changes
   deploy-activitylogs:
     needs: detect-changes
-    if: needs.detect-changes.outputs.activitylogs == 'true'
+    if: |
+      needs.detect-changes.outputs.activitylogs == 'true' ||
+      inputs.force_all == true ||
+      inputs.force_activitylogs == true
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

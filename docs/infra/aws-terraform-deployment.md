@@ -1280,6 +1280,17 @@ The workflow is saved in [.github/workflows/deploy.yml](file:///c:/Users/jayma/D
 2. **Build and Tag**: The pipeline logs into Amazon ECR, compiles the Dockerfile for the modified folder, and tags it as `latest`.
 3. **Trigger ECS Update**: It runs the AWS CLI command `aws ecs update-service --cluster planohi-cluster-${{ env.ENV_NAME }} --service <service_name> --force-new-deployment`. Fargate automatically downloads the new image from ECR and performs a zero-downtime rolling update.
 
+### Manual "Force Deploy" Option
+If you want to redeploy a service without making a new code commit, you can trigger the workflow manually using **`workflow_dispatch`**:
+1. Go to your repository on GitHub.
+2. Navigate to the **Actions** tab.
+3. Click on the **Build and Deploy to AWS ECS** workflow on the left sidebar.
+4. Click the **Run workflow** dropdown on the right.
+5. Select the branch you want to deploy (e.g., `staging` or `prod`).
+6. Optionally, check the box to **Force deploy all services** or force-deploy individual services (like Web or API).
+7. Click the green **Run workflow** button. This will bypass path filtering and force-rebuild the checked services.
+
+
 ---
 
 ## 11. Multi-Environment Management (Staging vs. Production)
