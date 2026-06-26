@@ -22,16 +22,6 @@ on:
         type: boolean
         required: false
         default: false
-      force_email:
-        description: 'Force deploy Email'
-        type: boolean
-        required: false
-        default: false
-      force_activitylogs:
-        description: 'Force deploy Activity Logs'
-        type: boolean
-        required: false
-        default: false
 
 env:
   ENV_NAME: ${{ github.ref_name == 'prod' && 'prod' || 'staging' }}
@@ -46,8 +36,6 @@ jobs:
     outputs:
       web: ${{ steps.filter.outputs.web }}
       api: ${{ steps.filter.outputs.api }}
-      email: ${{ steps.filter.outputs.email }}
-      activitylogs: ${{ steps.filter.outputs.activitylogs }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -81,13 +69,9 @@ jobs:
               - 'web/**'
             api:
               - 'api/**'
-            email:
-              - 'email/**'
-            activitylogs:
-              - 'activityLogs/**'
 
-  # Job 2: Build and deploy the Web Frontend if web/ changes
-  deploy-web:
+  # Job 2: Build and push the Web Frontend if web/ changes
+  build-web:
     needs: detect-changes
     if: |
       needs.detect-changes.outputs.web == 'true' ||
@@ -118,12 +102,8 @@ jobs:
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f web/Dockerfile web/
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
-      - name: Force ECS Fargate Deployment
-        run: |
-          aws ecs update-service --cluster planohi-cluster-${{ env.ENV_NAME }} --service web --force-new-deployment
-
-  # Job 3: Build and deploy the API Backend if api/ changes
-  deploy-api:
+  # Job 3: Build and push the API Backend if api/ changes
+  build-api:
     needs: detect-changes
     if: |
       needs.detect-changes.outputs.api == 'true' ||
@@ -154,22 +134,16 @@ jobs:
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f api/Dockerfile api/
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
-      - name: Force ECS Fargate Deployment
-        run: |
-          aws ecs update-service --cluster planohi-cluster-${{ env.ENV_NAME }} --service api --force-new-deployment
-
-  # Job 4: Build and deploy the Email Worker if email/ changes
-  deploy-email:
-    needs: detect-changes
+  # Job 4: Deploy consolidated ECS service
+  deploy:
+    needs: [detect-changes, build-web, build-api]
     if: |
-      needs.detect-changes.outputs.email == 'true' ||
-      inputs.force_all == true ||
-      inputs.force_email == true
+      always() &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled') &&
+      (needs.build-web.result == 'success' || needs.build-api.result == 'success')
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -177,55 +151,6 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Log in to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Build, tag, and push image to Amazon ECR
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: planohi-email-${{ env.ENV_NAME }}
-          IMAGE_TAG: latest
-        run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f email/Dockerfile email/
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-
       - name: Force ECS Fargate Deployment
         run: |
-          aws ecs update-service --cluster planohi-cluster-${{ env.ENV_NAME }} --service email --force-new-deployment
-
-  # Job 5: Build and deploy the Activity Logs Worker if activityLogs/ changes
-  deploy-activitylogs:
-    needs: detect-changes
-    if: |
-      needs.detect-changes.outputs.activitylogs == 'true' ||
-      inputs.force_all == true ||
-      inputs.force_activitylogs == true
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-
-      - name: Log in to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Build, tag, and push image to Amazon ECR
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: planohi-activitylogs-${{ env.ENV_NAME }}
-          IMAGE_TAG: latest
-        run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f activityLogs/Dockerfile activityLogs/
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-
-      - name: Force ECS Fargate Deployment
-        run: |
-          aws ecs update-service --cluster planohi-cluster-${{ env.ENV_NAME }} --service activitylogs --force-new-deployment
+          aws ecs update-service --cluster planohi-cluster-${{ env.ENV_NAME }} --service web --force-new-deployment

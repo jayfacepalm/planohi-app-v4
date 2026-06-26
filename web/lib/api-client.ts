@@ -78,6 +78,7 @@ export async function fetchApi<T>(path: string, config: RequestConfig = {}): Pro
   }
 
   const res = await fetch(urlString, {
+    cache: 'no-store',
     ...config,
     headers,
   });

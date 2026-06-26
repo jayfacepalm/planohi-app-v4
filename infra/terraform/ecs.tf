@@ -3,13 +3,6 @@ resource "aws_ecs_cluster" "main" {
   name = "planohi-cluster-${var.environment}"
 }
 
-# ECS Cluster Service Connect Namespace (allows containers to find each other by name)
-resource "aws_service_discovery_private_dns_namespace" "internal" {
-  name        = "planohi.local-${var.environment}"
-  vpc         = aws_vpc.main.id
-  description = "Internal service discovery namespace"
-}
-
 # Create ECR Repositories for Docker Images
 resource "aws_ecr_repository" "web" {
   name                 = "planohi-web-${var.environment}"
@@ -19,18 +12,6 @@ resource "aws_ecr_repository" "web" {
 
 resource "aws_ecr_repository" "api" {
   name                 = "planohi-api-${var.environment}"
-  image_tag_mutability = "MUTABLE"
-  force_delete         = true
-}
-
-resource "aws_ecr_repository" "email" {
-  name                 = "planohi-email-${var.environment}"
-  image_tag_mutability = "MUTABLE"
-  force_delete         = true
-}
-
-resource "aws_ecr_repository" "activitylogs" {
-  name                 = "planohi-activitylogs-${var.environment}"
   image_tag_mutability = "MUTABLE"
   force_delete         = true
 }
@@ -120,157 +101,124 @@ resource "aws_cloudwatch_log_group" "ecs_logs" {
   retention_in_days = 7
 }
 
-# Local helper variables to clean up AWS RabbitMQ MQ Hostname parsing
-locals {
-  mq_endpoint_part = element(split(":", aws_mq_broker.rabbitmq.instances[0].endpoints[0]), 1)
-  mq_hostname      = trimprefix(local.mq_endpoint_part, "//")
-}
-
-# ----------------- 1. Spring Boot API Service -----------------
-resource "aws_ecs_task_definition" "api" {
-  family                   = "planohi-api-${var.environment}"
-  network_mode             = "awsvpc"
-  requires_compatibilities = ["FARGATE"]
-  cpu                      = "512"  # 0.5 vCPU
-  memory                   = "1024" # 1 GB RAM
-  execution_role_arn       = aws_iam_role.ecs_execution.arn
-  task_role_arn            = aws_iam_role.ecs_task.arn
-
-  container_definitions = jsonencode([{
-    name      = "api"
-    image     = "${aws_ecr_repository.api.repository_url}:latest"
-    essential = true
-    portMappings = [{
-      name          = "api-port"
-      containerPort = 8080
-      hostPort      = 8080
-    }]
-    environment = [
-      { name = "SPRING_PROFILES_ACTIVE", value = "${var.environment}" },
-      { name = "SPRING_DATASOURCE_URL", value = "jdbc:postgresql://${aws_db_instance.postgres.endpoint}/${var.db_name}" },
-      { name = "SPRING_DATASOURCE_USERNAME", value = var.db_username },
-      { name = "SPRING_DATA_REDIS_HOST", value = aws_elasticache_serverless_cache.redis.endpoint[0].address },
-      { name = "SPRING_DATA_REDIS_PORT", value = "6379" },
-      { name = "SPRING_DATA_REDIS_SSL_ENABLED", value = "true" },
-      { name = "SPRING_RABBITMQ_HOST", value = local.mq_hostname },
-      { name = "SPRING_RABBITMQ_PORT", value = "5671" },
-      { name = "SPRING_RABBITMQ_SSL_ENABLED", value = "true" },
-      { name = "SPRING_RABBITMQ_USERNAME", value = var.rabbitmq_username },
-      { name = "AWS_S3_BUCKET_NAME", value = aws_s3_bucket.banners.id },
-      { name = "AWS_REGION", value = var.aws_region },
-      { name = "APP_FRONTEND_URL", value = "http://web.planohi.local-${var.environment}:3000" }
-    ]
-    secrets = [
-      {
-        name      = "SPRING_DATASOURCE_PASSWORD"
-        valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:db_password::"
-      },
-      {
-        name      = "SPRING_RABBITMQ_PASSWORD"
-        valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:rabbitmq_password::"
-      },
-      {
-        name      = "SECURITY_JWT_SECRET_KEY"
-        valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:jwt_secret_key::"
-      },
-      {
-        name      = "SECURITY_JWT_ROLE_SECRET_KEY"
-        valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:jwt_role_secret_key::"
-      },
-      {
-        name      = "SECURITY_API_KEY"
-        valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:security_api_key::"
-      }
-    ]
-    logConfiguration = {
-      logDriver = "awslogs"
-      options = {
-        "awslogs-group"         = aws_cloudwatch_log_group.ecs_logs.name
-        "awslogs-region"        = var.aws_region
-        "awslogs-stream-prefix" = "api"
-      }
-    }
-  }])
-}
-
-resource "aws_ecs_service" "api" {
-  name            = "api"
-  cluster         = aws_ecs_cluster.main.id
-  task_definition = aws_ecs_task_definition.api.arn
-  desired_count   = 1
-  launch_type     = "FARGATE"
-
-  network_configuration {
-    subnets         = aws_subnet.private[*].id
-    security_groups = [aws_security_group.ecs.id]
-  }
-
-  service_connect_configuration {
-    enabled   = true
-    namespace = aws_service_discovery_private_dns_namespace.internal.arn
-    service {
-      port_name      = "api-port"
-      discovery_name = "api"
-      client_alias {
-        port     = 8080
-        dns_name = "api"
-      }
-    }
-  }
-}
-
-# ----------------- 2. Next.js Web Frontend Service -----------------
+# ----------------- Consolidated Web/API Service -----------------
 resource "aws_ecs_task_definition" "web" {
   family                   = "planohi-web-${var.environment}"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  cpu                      = "256" # 0.25 vCPU
-  memory                   = "512" # 512 MB RAM
+  cpu                      = var.ecs_task_cpu
+  memory                   = var.ecs_task_memory
   execution_role_arn       = aws_iam_role.ecs_execution.arn
   task_role_arn            = aws_iam_role.ecs_task.arn
 
-  container_definitions = jsonencode([{
-    name      = "web"
-    image     = "${aws_ecr_repository.web.repository_url}:latest"
-    essential = true
-    portMappings = [{
-      name          = "web-port"
-      containerPort = 3000
-      hostPort      = 3000
-    }]
-    environment = [
-      { name = "BACKEND_API_URL", value = "http://api:8080" },
-      { name = "NEXT_PUBLIC_API_URL", value = "/api/proxy" },
-      { name = "CSP_ALLOWED_IMAGE_SOURCES", value = "'self' data: blob: https://${aws_s3_bucket.banners.bucket_regional_domain_name} https://s3.amazonaws.com https://*.s3.amazonaws.com" },
-      { name = "CSP_ALLOWED_CONNECT_SOURCES", value = "'self' ws: wss:" }
-    ]
-    secrets = [
-      {
-        name      = "SECURITY_API_KEY"
-        valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:security_api_key::"
+  container_definitions = jsonencode([
+    {
+      name      = "web"
+      image     = "${aws_ecr_repository.web.repository_url}:latest"
+      essential = true
+      portMappings = [{
+        name          = "web-port"
+        containerPort = 3000
+        hostPort      = 3000
+      }]
+      environment = [
+        { name = "BACKEND_API_URL", value = "http://localhost:8080" },
+        { name = "NEXT_PUBLIC_API_URL", value = "/api/proxy" },
+        { name = "CSP_ALLOWED_IMAGE_SOURCES", value = "'self' data: blob: https://${aws_s3_bucket.banners.bucket_regional_domain_name} https://s3.amazonaws.com https://*.s3.amazonaws.com" },
+        { name = "CSP_ALLOWED_CONNECT_SOURCES", value = "'self' ws: wss:" }
+      ]
+      secrets = [
+        {
+          name      = "SECURITY_API_KEY"
+          valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:security_api_key::"
+        }
+      ]
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.ecs_logs.name
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "web"
+        }
       }
-    ]
-    logConfiguration = {
-      logDriver = "awslogs"
-      options = {
-        "awslogs-group"         = aws_cloudwatch_log_group.ecs_logs.name
-        "awslogs-region"        = var.aws_region
-        "awslogs-stream-prefix" = "web"
+    },
+    {
+      name      = "api"
+      image     = "${aws_ecr_repository.api.repository_url}:latest"
+      essential = true
+      portMappings = [{
+        name          = "api-port"
+        containerPort = 8080
+        hostPort      = 8080
+      }]
+      environment = [
+        { name = "SPRING_PROFILES_ACTIVE", value = "${var.environment}" },
+        { name = "SPRING_DATASOURCE_URL", value = "jdbc:postgresql://${aws_db_instance.postgres.endpoint}/${var.db_name}" },
+        { name = "SPRING_DATASOURCE_USERNAME", value = var.db_username },
+        { name = "SPRING_DATA_REDIS_HOST", value = aws_elasticache_cluster.redis.cache_nodes[0].address },
+        { name = "SPRING_DATA_REDIS_PORT", value = "6379" },
+        { name = "SPRING_DATA_REDIS_SSL_ENABLED", value = "false" },
+        { name = "AWS_S3_BUCKET_NAME", value = aws_s3_bucket.banners.id },
+        { name = "AWS_REGION", value = var.aws_region },
+        { name = "APP_FRONTEND_URL", value = "http://localhost:3000" },
+        { name = "SPRING_MAIL_HOST", value = "email-smtp.${var.aws_region}.amazonaws.com" },
+        { name = "SPRING_MAIL_PORT", value = "587" },
+        { name = "SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH", value = "true" },
+        { name = "SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE", value = "true" }
+      ]
+      secrets = [
+        {
+          name      = "SPRING_DATASOURCE_PASSWORD"
+          valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:db_password::"
+        },
+        {
+          name      = "SECURITY_JWT_SECRET_KEY"
+          valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:jwt_secret_key::"
+        },
+        {
+          name      = "SECURITY_JWT_ROLE_SECRET_KEY"
+          valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:jwt_role_secret_key::"
+        },
+        {
+          name      = "SECURITY_API_KEY"
+          valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:security_api_key::"
+        },
+        {
+          name      = "SPRING_MAIL_USERNAME"
+          valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:mail_username::"
+        },
+        {
+          name      = "SPRING_MAIL_PASSWORD"
+          valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:mail_password::"
+        },
+        {
+          name      = "SPRING_MAIL_FROM_ADDRESS"
+          valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:mail_from_address::"
+        }
+      ]
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.ecs_logs.name
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "api"
+        }
       }
     }
-  }])
+  ])
 }
 
 resource "aws_ecs_service" "web" {
   name            = "web"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.web.arn
-  desired_count   = 1
+  desired_count   = var.ecs_task_count
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets         = aws_subnet.private[*].id
-    security_groups = [aws_security_group.ecs.id]
+    subnets          = aws_subnet.public[*].id
+    security_groups  = [aws_security_group.ecs.id]
+    assign_public_ip = true
   }
 
   load_balancer {
@@ -279,143 +227,6 @@ resource "aws_ecs_service" "web" {
     container_port   = 3000
   }
 
-  service_connect_configuration {
-    enabled   = true
-    namespace = aws_service_discovery_private_dns_namespace.internal.arn
-  }
-
   depends_on = [aws_lb_listener.http]
 }
 
-# ----------------- 3. Email Background Worker Service -----------------
-resource "aws_ecs_task_definition" "email" {
-  family                   = "planohi-email-${var.environment}"
-  network_mode             = "awsvpc"
-  requires_compatibilities = ["FARGATE"]
-  cpu                      = "256"
-  memory                   = "512"
-  execution_role_arn       = aws_iam_role.ecs_execution.arn
-  task_role_arn            = aws_iam_role.ecs_task.arn
-
-  container_definitions = jsonencode([{
-    name      = "email"
-    image     = "${aws_ecr_repository.email.repository_url}:latest"
-    essential = true
-    environment = [
-      { name = "SPRING_PROFILES_ACTIVE", value = "${var.environment}" },
-      { name = "SPRING_DATASOURCE_URL", value = "jdbc:postgresql://${aws_db_instance.postgres.endpoint}/${var.db_name}" },
-      { name = "SPRING_DATASOURCE_USERNAME", value = var.db_username },
-      { name = "SPRING_DATA_REDIS_HOST", value = aws_elasticache_serverless_cache.redis.endpoint[0].address },
-      { name = "SPRING_DATA_REDIS_PORT", value = "6379" },
-      { name = "SPRING_DATA_REDIS_SSL_ENABLED", value = "true" },
-      { name = "SPRING_RABBITMQ_HOST", value = local.mq_hostname },
-      { name = "SPRING_RABBITMQ_PORT", value = "5671" },
-      { name = "SPRING_RABBITMQ_SSL_ENABLED", value = "true" },
-      { name = "SPRING_RABBITMQ_USERNAME", value = var.rabbitmq_username },
-      { name = "SPRING_MAIL_HOST", value = "email-smtp.${var.aws_region}.amazonaws.com" },
-      { name = "SPRING_MAIL_PORT", value = "587" },
-      { name = "SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH", value = "true" },
-      { name = "SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE", value = "true" }
-    ]
-    secrets = [
-      {
-        name      = "SPRING_DATASOURCE_PASSWORD"
-        valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:db_password::"
-      },
-      {
-        name      = "SPRING_RABBITMQ_PASSWORD"
-        valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:rabbitmq_password::"
-      },
-      {
-        name      = "SPRING_MAIL_USERNAME"
-        valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:mail_username::"
-      },
-      {
-        name      = "SPRING_MAIL_PASSWORD"
-        valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:mail_password::"
-      },
-      {
-        name      = "SPRING_MAIL_FROM_ADDRESS"
-        valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:mail_from_address::"
-      }
-    ]
-    logConfiguration = {
-      logDriver = "awslogs"
-      options = {
-        "awslogs-group"         = aws_cloudwatch_log_group.ecs_logs.name
-        "awslogs-region"        = var.aws_region
-        "awslogs-stream-prefix" = "email"
-      }
-    }
-  }])
-}
-
-resource "aws_ecs_service" "email" {
-  name            = "email"
-  cluster         = aws_ecs_cluster.main.id
-  task_definition = aws_ecs_task_definition.email.arn
-  desired_count   = 1
-  launch_type     = "FARGATE"
-
-  network_configuration {
-    subnets         = aws_subnet.private[*].id
-    security_groups = [aws_security_group.ecs.id]
-  }
-}
-
-# ----------------- 4. Activity Logs Background Worker Service -----------------
-resource "aws_ecs_task_definition" "activitylogs" {
-  family                   = "planohi-activitylogs-${var.environment}"
-  network_mode             = "awsvpc"
-  requires_compatibilities = ["FARGATE"]
-  cpu                      = "256"
-  memory                   = "512"
-  execution_role_arn       = aws_iam_role.ecs_execution.arn
-  task_role_arn            = aws_iam_role.ecs_task.arn
-
-  container_definitions = jsonencode([{
-    name      = "activitylogs"
-    image     = "${aws_ecr_repository.activitylogs.repository_url}:latest"
-    essential = true
-    environment = [
-      { name = "SPRING_PROFILES_ACTIVE", value = "${var.environment}" },
-      { name = "SPRING_DATASOURCE_URL", value = "jdbc:postgresql://${aws_db_instance.postgres.endpoint}/${var.db_name}" },
-      { name = "SPRING_DATASOURCE_USERNAME", value = var.db_username },
-      { name = "SPRING_RABBITMQ_HOST", value = local.mq_hostname },
-      { name = "SPRING_RABBITMQ_PORT", value = "5671" },
-      { name = "SPRING_RABBITMQ_SSL_ENABLED", value = "true" },
-      { name = "SPRING_RABBITMQ_USERNAME", value = var.rabbitmq_username }
-    ]
-    secrets = [
-      {
-        name      = "SPRING_DATASOURCE_PASSWORD"
-        valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:db_password::"
-      },
-      {
-        name      = "SPRING_RABBITMQ_PASSWORD"
-        valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:rabbitmq_password::"
-      }
-    ]
-    logConfiguration = {
-      logDriver = "awslogs"
-      options = {
-        "awslogs-group"         = aws_cloudwatch_log_group.ecs_logs.name
-        "awslogs-region"        = var.aws_region
-        "awslogs-stream-prefix" = "activitylogs"
-      }
-    }
-  }])
-}
-
-resource "aws_ecs_service" "activitylogs" {
-  name            = "activitylogs"
-  cluster         = aws_ecs_cluster.main.id
-  task_definition = aws_ecs_task_definition.activitylogs.arn
-  desired_count   = 1
-  launch_type     = "FARGATE"
-
-  network_configuration {
-    subnets         = aws_subnet.private[*].id
-    security_groups = [aws_security_group.ecs.id]
-  }
-}

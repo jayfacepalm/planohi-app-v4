@@ -48,21 +48,6 @@ resource "aws_internet_gateway" "igw" {
   }
 }
 
-# Elastic IP for the NAT Gateway
-resource "aws_eip" "nat" {
-  domain = "vpc"
-}
-
-# NAT Gateway inside Public Subnet 0 so private containers can request external pages
-resource "aws_nat_gateway" "nat" {
-  allocation_id = aws_eip.nat.id
-  subnet_id     = aws_subnet.public[0].id
-
-  tags = {
-    Name = "planohi-nat-gateway-${var.environment}"
-  }
-}
-
 # Route table for public subnet (points traffic to Internet Gateway)
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
@@ -77,14 +62,9 @@ resource "aws_route_table" "public" {
   }
 }
 
-# Route table for private subnet (points traffic to NAT Gateway)
+# Route table for private subnet (no default outbound route to internet)
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.main.id
-
-  route {
-    cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.nat.id
-  }
 
   tags = {
     Name = "planohi-private-rt-${var.environment}"

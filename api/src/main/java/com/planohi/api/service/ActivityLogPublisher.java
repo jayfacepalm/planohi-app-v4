@@ -2,9 +2,10 @@ package com.planohi.api.service;
 
 import com.planohi.api.dto.ActivityLogEvent;
 import com.planohi.api.config.UserPrincipal;
+import com.planohi.api.event.ActivityLogPublishEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -17,7 +18,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ActivityLogPublisher {
 
-    private final RabbitTemplate rabbitTemplate;
+    private final ApplicationEventPublisher eventPublisher;
 
     public void publish(UUID userId, String userAlias, String action, String entityType, UUID entityId, UUID eventId, String status, Map<String, Object> details) {
         UUID finalUserId = userId;
@@ -43,12 +44,11 @@ public class ActivityLogPublisher {
                 .timestamp(Instant.now())
                 .build();
 
-        String routingKey = "activity." + action.toLowerCase();
         try {
-            rabbitTemplate.convertAndSend("activity.exchange", routingKey, event);
-            log.debug("Successfully published activity log event: {}", action);
+            eventPublisher.publishEvent(new ActivityLogPublishEvent(this, event));
+            log.debug("Successfully published activity log event locally: {}", action);
         } catch (Exception e) {
-            log.error("Failed to publish activity log event for action: {}", action, e);
+            log.error("Failed to publish activity log event locally for action: {}", action, e);
         }
     }
 }
