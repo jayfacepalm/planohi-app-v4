@@ -8,8 +8,32 @@ if (!cspAllowedImageSources || !cspAllowedConnectSources) {
   throw new Error('Required CSP environment variables (CSP_ALLOWED_IMAGE_SOURCES and CSP_ALLOWED_CONNECT_SOURCES) are not defined.');
 }
 
+function isTokenExpired(token: string): boolean {
+  try {
+    const payloadBase64 = token.split('.')[1];
+    if (!payloadBase64) return true;
+    
+    // Add padding if missing
+    let base64 = payloadBase64.replaceAll('-', '+').replaceAll('_', '/');
+    while (base64.length % 4) {
+      base64 += '=';
+    }
+    
+    const decoded = atob(base64);
+    const claims = JSON.parse(decoded);
+    if (claims.exp) {
+      return Date.now() >= claims.exp * 1000;
+    }
+    return false;
+  } catch (e) {
+    console.error('Failed to parse or check token expiration:', e);
+    return true; // Treat invalid tokens as expired
+  }
+}
+
 export function proxy(request: NextRequest) {
   const token = request.cookies.get('AUTH_TOKEN')?.value;
+  const hasValidToken = token ? !isTokenExpired(token) : false;
   const { pathname } = request.nextUrl;
 
   const isProd = process.env.NODE_ENV === 'production';
@@ -31,10 +55,13 @@ export function proxy(request: NextRequest) {
 
   if (isStaticResource || isRsvpPage) {
     response = NextResponse.next();
-  } else if (token && (isRootPage || isAuthPage)) {
+  } else if (hasValidToken && (isRootPage || isAuthPage)) {
     response = NextResponse.redirect(new URL('/events', request.url));
-  } else if (!token && !isRootPage && !isAuthPage) {
+  } else if (!hasValidToken && !isRootPage && !isAuthPage) {
     response = NextResponse.redirect(new URL('/login', request.url));
+    if (token) {
+      response.cookies.delete('AUTH_TOKEN');
+    }
   } else {
     response = NextResponse.next();
   }

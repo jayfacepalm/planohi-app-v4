@@ -241,7 +241,7 @@ resource "aws_ecs_task_definition" "web" {
     environment = [
       { name = "BACKEND_API_URL", value = "http://api:8080" },
       { name = "NEXT_PUBLIC_API_URL", value = "/api/proxy" },
-      { name = "CSP_ALLOWED_IMAGE_SOURCES", value = "'self' data: blob: https://${aws_s3_bucket.banners.bucket_regional_domain_name} https://*.s3.amazonaws.com" },
+      { name = "CSP_ALLOWED_IMAGE_SOURCES", value = "'self' data: blob: https://${aws_s3_bucket.banners.bucket_regional_domain_name} https://s3.amazonaws.com https://*.s3.amazonaws.com" },
       { name = "CSP_ALLOWED_CONNECT_SOURCES", value = "'self' ws: wss:" }
     ]
     secrets = [

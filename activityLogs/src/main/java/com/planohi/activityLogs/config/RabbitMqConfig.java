@@ -6,8 +6,9 @@ import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
-import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
-import org.springframework.amqp.support.converter.Jackson2JavaTypeMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
+import org.springframework.amqp.support.converter.JacksonJavaTypeMapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -23,9 +24,9 @@ public class RabbitMqConfig {
     public static final String ACTIVITY_DLQ_ROUTING_KEY = "activity.log";
 
     @Bean
-    public Jackson2JsonMessageConverter consumerJackson2MessageConverter() {
-        Jackson2JsonMessageConverter converter = new Jackson2JsonMessageConverter();
-        converter.setTypePrecedence(Jackson2JavaTypeMapper.TypePrecedence.INFERRED);
+    public JacksonJsonMessageConverter consumerJackson2MessageConverter(tools.jackson.databind.json.JsonMapper jsonMapper) {
+        JacksonJsonMessageConverter converter = new JacksonJsonMessageConverter(jsonMapper);
+        converter.setTypePrecedence(JacksonJavaTypeMapper.TypePrecedence.INFERRED);
         return converter;
     }
 

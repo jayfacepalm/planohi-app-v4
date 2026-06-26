@@ -1,6 +1,6 @@
 package com.planohi.email.config;
 
-import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
+import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Configuration;
 public class RabbitMqConfig {
 
     @Bean
-    public Jackson2JsonMessageConverter consumerJackson2MessageConverter() {
-        return new Jackson2JsonMessageConverter();
+    public JacksonJsonMessageConverter consumerJackson2MessageConverter(tools.jackson.databind.json.JsonMapper jsonMapper) {
+        return new JacksonJsonMessageConverter(jsonMapper);
     }
 }
