@@ -10,4 +10,5 @@ public interface AuthService {
     UserDto registerUser(RegisterRequest request);
     UserDto login(LoginRequest request);
     String generateToken(UserDto userDto);
+    UserDto authenticateGoogleUser(String credentialToken);
 }

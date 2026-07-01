@@ -70,6 +70,9 @@ security:
     expiration-time: ${SECURITY_JWT_EXPIRATION_TIME:3600000}
     role-secret-key: ${SECURITY_JWT_ROLE_SECRET_KEY}
 
+google:
+  client-id: ${GOOGLE_CLIENT_ID:}
+
 aws:
   s3:
     bucket-name: ${AWS_S3_BUCKET_NAME}

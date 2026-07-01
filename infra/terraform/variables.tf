@@ -107,3 +107,10 @@ variable "mail_from_address" {
   description = "The email address to send emails from (must be verified in SES)"
   sensitive   = true
 }
+
+variable "google_client_id" {
+  type        = string
+  sensitive   = true
+  description = "Google Client ID for OAuth login"
+}
+

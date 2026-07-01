@@ -16,5 +16,6 @@ resource "aws_secretsmanager_secret_version" "app_secrets_val" {
     mail_username       = var.mail_username
     mail_password       = var.mail_password
     mail_from_address   = var.mail_from_address
+    google_client_id    = var.google_client_id
   })
 }

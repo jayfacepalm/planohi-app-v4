@@ -131,6 +131,10 @@ resource "aws_ecs_task_definition" "web" {
         {
           name      = "SECURITY_API_KEY"
           valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:security_api_key::"
+        },
+        {
+          name      = "NEXT_PUBLIC_GOOGLE_CLIENT_ID"
+          valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:google_client_id::"
         }
       ]
       logConfiguration = {
@@ -194,6 +198,10 @@ resource "aws_ecs_task_definition" "web" {
         {
           name      = "SPRING_MAIL_FROM_ADDRESS"
           valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:mail_from_address::"
+        },
+        {
+          name      = "GOOGLE_CLIENT_ID"
+          valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:google_client_id::"
         }
       ]
       logConfiguration = {
