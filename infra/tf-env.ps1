@@ -1,9 +1,9 @@
 param (
-    [Parameter(Mandatory=$true)]
-    [ValidateSet("staging", "prod")]
+    [Parameter(Mandatory = $true)]
+    [ValidateSet("staging", "production")]
     [string]$EnvName,
 
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory = $true)]
     [ValidateSet("apply", "destroy", "plan")]
     [string]$Action
 )
@@ -30,15 +30,18 @@ try {
     # 3. Execute the action
     if ($Action -eq "plan") {
         terraform plan -var-file="$EnvName.tfvars" -out="$EnvName.tfplan"
-    } elseif ($Action -eq "apply") {
+    }
+    elseif ($Action -eq "apply") {
         if (Test-Path "$EnvName.tfplan") {
             Write-Host "Found plan file '$EnvName.tfplan'. Applying saved plan..." -ForegroundColor Cyan
             terraform apply "$EnvName.tfplan"
-        } else {
+        }
+        else {
             Write-Host "No plan file found. Running apply with variable file..." -ForegroundColor Yellow
             terraform apply -var-file="$EnvName.tfvars"
         }
-    } elseif ($Action -eq "destroy") {
+    }
+    elseif ($Action -eq "destroy") {
         terraform destroy -var-file="$EnvName.tfvars"
     }
 }

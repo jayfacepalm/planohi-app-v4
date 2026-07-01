@@ -4,8 +4,8 @@ set -e
 ENV_NAME=$1
 ACTION=$2
 
-if [[ "$ENV_NAME" != "staging" && "$ENV_NAME" != "prod" ]]; then
-  echo "Usage: ./tf-env.sh [staging|prod] [plan|apply|destroy]"
+if [[ "$ENV_NAME" != "staging" && "$ENV_NAME" != "production" ]]; then
+  echo "Usage: ./tf-env.sh [staging|production] [plan|apply|destroy]"
   exit 1
 fi
 
