@@ -30,6 +30,58 @@ export const LoginForm: React.FC = () => {
     resolver: zodResolver(loginSchema),
   });
 
+  const handleGoogleCallback = async (response: any) => {
+    setLoading(true);
+    setError(null);
+    try {
+      await fetchApi<any>("/auth/google", {
+        method: "POST",
+        body: JSON.stringify({ credentialToken: response.credential }),
+      });
+      window.location.href = "/events";
+    } catch (err: any) {
+      setError(err.message || "Failed to authenticate with Google");
+      setLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    const id = "google-gsi-client";
+    let script = document.getElementById(id) as HTMLScriptElement;
+    if (!script) {
+      script = document.createElement("script");
+      script.src = "https://accounts.google.com/gsi/client";
+      script.id = id;
+      script.async = true;
+      script.defer = true;
+      document.body.appendChild(script);
+    }
+
+    const initializeGoogle = () => {
+      if ((window as any).google?.accounts?.id) {
+        const google = (window as any).google;
+        google.accounts.id.initialize({
+          client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
+          callback: handleGoogleCallback,
+        });
+        google.accounts.id.renderButton(
+          document.getElementById("google-signin-btn"),
+          { theme: "filled_black", size: "large", width: 382, text: "signin_with", shape: "rectangular" }
+        );
+      }
+    };
+
+    if ((window as any).google?.accounts?.id) {
+      initializeGoogle();
+    } else {
+      script.addEventListener("load", initializeGoogle);
+    }
+
+    return () => {
+      script.removeEventListener("load", initializeGoogle);
+    };
+  }, []);
+
   const onSubmit = async (data: LoginFields) => {
     setLoading(true);
     setError(null);
@@ -48,7 +100,6 @@ export const LoginForm: React.FC = () => {
       } else {
         setError(err.message || "Invalid email or password");
       }
-    } finally {
       setLoading(false);
     }
   };
@@ -98,6 +149,16 @@ export const LoginForm: React.FC = () => {
           >
             {loading ? "Authenticating..." : "Establish Connection"}
           </Button>
+
+          <div className="relative flex py-2 items-center">
+            <div className="flex-grow border-t border-zinc-800"></div>
+            <span className="flex-shrink mx-4 text-zinc-500 text-xs uppercase tracking-wider font-sans">Or authenticate with</span>
+            <div className="flex-grow border-t border-zinc-800"></div>
+          </div>
+
+          <div className="flex justify-center w-full min-h-[44px]">
+            <div id="google-signin-btn" />
+          </div>
 
           <div className="text-center text-xs text-zinc-500 font-sans pt-2">
             New organizer?{" "}

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "../ui/Button";
 import { GlowCard } from "../ui/GlowCard";
 import { Badge } from "../ui/Badge";
@@ -44,6 +45,7 @@ interface EventGuestCanvasProps {
   currentPage?: number;
   currentSearch?: string;
   userRole?: string;
+  accountRole?: string;
 }
 
 const getBadgeVariant = (status: string): "cyan" | "red" | "amber" => {
@@ -60,6 +62,7 @@ export const EventGuestCanvas: React.FC<EventGuestCanvasProps> = ({
   currentPage = 0,
   currentSearch = "",
   userRole,
+  accountRole,
 }) => {
   useEffect(() => {
     if (userRole) {
@@ -243,6 +246,29 @@ export const EventGuestCanvas: React.FC<EventGuestCanvasProps> = ({
 
   return (
     <div className="space-y-6 w-full max-w-7xl mx-auto">
+      {accountRole === "NORMAL" && (
+        <div className="bg-[#0f0f15]/50 border border-white/5 rounded-xl px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-inner">
+          <div className="flex items-center gap-2">
+            <span className={`w-2.5 h-2.5 rounded-full ${initialMetrics.totalInvited >= 25 ? "bg-neon-purple animate-pulse" : "bg-neon-cyan"}`} />
+            <span className="text-zinc-400 font-sans">
+              Account Guest Quota: <strong className="text-white">{initialMetrics.totalInvited} / 25 guest invitees</strong> registered
+            </span>
+          </div>
+          {initialMetrics.totalInvited >= 25 ? (
+            <span className="text-zinc-400 font-sans flex items-center">
+              Guest cap reached.
+              <Link href="/activate-voucher" className="text-neon-cyan hover:underline font-semibold ml-1.5 flex items-center gap-0.5">
+                Upgrade to Premium to invite more &rarr;
+              </Link>
+            </span>
+          ) : (
+            <Link href="/activate-voucher" className="text-zinc-400 hover:text-white hover:underline transition-colors font-medium">
+              Upgrade to Premium for unlimited events & guests
+            </Link>
+          )}
+        </div>
+      )}
+
       {/* Metrics Summary Strip */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {/* Total Invited */}
@@ -366,14 +392,25 @@ export const EventGuestCanvas: React.FC<EventGuestCanvasProps> = ({
                 <Send className="w-4 h-4 text-neon-cyan" />
                 Send All Invites
               </Button>
-              <Button
-                variant="gradient"
-                onClick={() => setIsAddOpen(true)}
-                className="w-full sm:w-auto px-4 py-2 font-heading text-xs tracking-wider uppercase flex items-center justify-center gap-1.5 h-auto"
-              >
-                <UserPlus className="w-4 h-4" />
-                Add Guest Invitation
-              </Button>
+              {accountRole === "NORMAL" && initialMetrics.totalInvited >= 25 ? (
+                <Link href="/activate-voucher">
+                  <Button
+                    variant="secondary"
+                    className="w-full sm:w-auto px-4 py-2 font-heading text-xs tracking-wider uppercase flex items-center justify-center gap-1.5 h-auto border-neon-purple/50 text-[#d8b4fe] hover:bg-neon-purple/10 hover:shadow-[0_0_15px_rgba(168,85,247,0.3)] transition-all duration-300"
+                  >
+                    Upgrade to Premium
+                  </Button>
+                </Link>
+              ) : (
+                <Button
+                  variant="gradient"
+                  onClick={() => setIsAddOpen(true)}
+                  className="w-full sm:w-auto px-4 py-2 font-heading text-xs tracking-wider uppercase flex items-center justify-center gap-1.5 h-auto"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  Add Guest Invitation
+                </Button>
+              )}
             </div>
           )}
         </div>

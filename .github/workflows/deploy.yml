@@ -5,6 +5,23 @@ on:
     branches:
       - staging
       - prod
+  workflow_dispatch:
+    inputs:
+      force_all:
+        description: 'Force deploy all services'
+        type: boolean
+        required: false
+        default: false
+      force_web:
+        description: 'Force deploy Web'
+        type: boolean
+        required: false
+        default: false
+      force_api:
+        description: 'Force deploy API'
+        type: boolean
+        required: false
+        default: false
 
 env:
   ENV_NAME: ${{ github.ref_name == 'prod' && 'prod' || 'staging' }}
@@ -19,30 +36,47 @@ jobs:
     outputs:
       web: ${{ steps.filter.outputs.web }}
       api: ${{ steps.filter.outputs.api }}
-      email: ${{ steps.filter.outputs.email }}
-      activitylogs: ${{ steps.filter.outputs.activitylogs }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine base commit
+        id: base_commit
+        run: |
+          BEFORE_SHA="${{ github.event.before }}"
+          if [ -n "$BEFORE_SHA" ] && [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ] && git cat-file -e "$BEFORE_SHA" 2>/dev/null; then
+            echo "BASE_COMMIT=$BEFORE_SHA" >> $GITHUB_ENV
+            echo "Using github.event.before ($BEFORE_SHA) as base commit."
+          else
+            if git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
+              echo "BASE_COMMIT=HEAD~1" >> $GITHUB_ENV
+              echo "Using HEAD~1 as base commit fallback."
+            else
+              echo "BASE_COMMIT=HEAD" >> $GITHUB_ENV
+              echo "Using HEAD as base commit fallback (no history)."
+            fi
+          fi
 
       - name: Detect path changes
         id: filter
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         with:
+          base: ${{ env.BASE_COMMIT }}
           filters: |
             web:
               - 'web/**'
             api:
               - 'api/**'
-            email:
-              - 'email/**'
-            activitylogs:
-              - 'activityLogs/**'
 
-  # Job 2: Build and deploy the Web Frontend if web/ changes
-  deploy-web:
+  # Job 2: Build and push the Web Frontend if web/ changes
+  build-web:
     needs: detect-changes
-    if: needs.detect-changes.outputs.web == 'true'
+    if: |
+      needs.detect-changes.outputs.web == 'true' ||
+      inputs.force_all == true ||
+      inputs.force_web == true
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -68,14 +102,13 @@ jobs:
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f web/Dockerfile web/
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
-      - name: Force ECS Fargate Deployment
-        run: |
-          aws ecs update-service --cluster planohi-cluster-${{ env.ENV_NAME }} --service web --force-new-deployment
-
-  # Job 3: Build and deploy the API Backend if api/ changes
-  deploy-api:
+  # Job 3: Build and push the API Backend if api/ changes
+  build-api:
     needs: detect-changes
-    if: needs.detect-changes.outputs.api == 'true'
+    if: |
+      needs.detect-changes.outputs.api == 'true' ||
+      inputs.force_all == true ||
+      inputs.force_api == true
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -101,19 +134,16 @@ jobs:
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f api/Dockerfile api/
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
-      - name: Force ECS Fargate Deployment
-        run: |
-          aws ecs update-service --cluster planohi-cluster-${{ env.ENV_NAME }} --service api --force-new-deployment
-
-  # Job 4: Build and deploy the Email Worker if email/ changes
-  deploy-email:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.email == 'true'
+  # Job 4: Deploy consolidated ECS service
+  deploy:
+    needs: [detect-changes, build-web, build-api]
+    if: |
+      always() &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled') &&
+      (needs.build-web.result == 'success' || needs.build-api.result == 'success')
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -121,52 +151,6 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Log in to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Build, tag, and push image to Amazon ECR
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: planohi-email-${{ env.ENV_NAME }}
-          IMAGE_TAG: latest
-        run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f email/Dockerfile email/
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-
       - name: Force ECS Fargate Deployment
         run: |
-          aws ecs update-service --cluster planohi-cluster-${{ env.ENV_NAME }} --service email --force-new-deployment
-
-  # Job 5: Build and deploy the Activity Logs Worker if activityLogs/ changes
-  deploy-activitylogs:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.activitylogs == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-
-      - name: Log in to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Build, tag, and push image to Amazon ECR
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: planohi-activitylogs-${{ env.ENV_NAME }}
-          IMAGE_TAG: latest
-        run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f activityLogs/Dockerfile activityLogs/
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-
-      - name: Force ECS Fargate Deployment
-        run: |
-          aws ecs update-service --cluster planohi-cluster-${{ env.ENV_NAME }} --service activitylogs --force-new-deployment
+          aws ecs update-service --cluster planohi-cluster-${{ env.ENV_NAME }} --service web --force-new-deployment

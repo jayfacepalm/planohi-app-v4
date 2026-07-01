@@ -75,10 +75,11 @@ public class JwtService {
         return extractAllRoleClaims(token).getExpiration().before(new Date());
     }
 
-    public String generateToken(UUID userId, String email, String alias) {
+    public String generateToken(UUID userId, String email, String alias, String role) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("id", userId.toString());
         claims.put("alias", alias);
+        claims.put("role", role);
 
         return Jwts.builder()
                 .claims(claims)
@@ -108,6 +109,18 @@ public class JwtService {
 
     public String extractAlias(String token) {
         return extractAllClaims(token).get("alias", String.class);
+    }
+
+    public com.planohi.api.enums.UserRole extractRole(String token) {
+        String roleStr = extractAllClaims(token).get("role", String.class);
+        if (roleStr == null) {
+            return com.planohi.api.enums.UserRole.NORMAL;
+        }
+        try {
+            return com.planohi.api.enums.UserRole.valueOf(roleStr);
+        } catch (IllegalArgumentException e) {
+            return com.planohi.api.enums.UserRole.NORMAL;
+        }
     }
 
     public boolean isTokenExpired(String token) {

@@ -57,17 +57,49 @@ services:
     ports:
       - "${API_PORT:-8080}:8080"
     environment:
-      SPRING_PROFILES_ACTIVE: dev
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-planohidb}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-planohiuser}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-planohipassword}
       SPRING_DATA_REDIS_HOST: cache
       SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_SSL_ENABLED: ${SPRING_DATA_REDIS_SSL_ENABLED:-false}
+      AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-planohi-banners}
+      AWS_S3_ENDPOINT: ${AWS_S3_ENDPOINT:-http://localstack:4566}
+      AWS_S3_PRESIGNER_ENDPOINT: ${AWS_S3_PRESIGNER_ENDPOINT:-http://localhost:4566}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-mockkey}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-mocksecret}
+      AWS_REGION: ${AWS_REGION:-ap-northeast-1}
+      APP_FRONTEND_URL: ${APP_FRONTEND_URL:-http://localhost:3000}
+      SPRING_MAIL_HOST: maildev
+      SPRING_MAIL_PORT: 1025
+      SECURITY_JWT_SECRET_KEY: ${SECURITY_JWT_SECRET_KEY}
+      SECURITY_JWT_EXPIRATION_TIME: ${SECURITY_JWT_EXPIRATION_TIME}
+      SECURITY_JWT_ROLE_SECRET_KEY: ${SECURITY_JWT_ROLE_SECRET_KEY}
+      SECURITY_API_KEY: ${SECURITY_API_KEY}
     depends_on:
       db:
         condition: service_healthy
       cache:
         condition: service_healthy
+      localstack:
+        condition: service_started
+    volumes:
+      - ./uploads:/app/uploads
+    networks:
+      - app-network
+
+  localstack:
+    image: localstack/localstack:latest
+    container_name: planohi-localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=s3
+      - AWS_DEFAULT_REGION=ap-northeast-1
+    volumes:
+      - ./infra/localstack:/etc/localstack/init/ready.d
+      - localstack-data:/var/lib/localstack
     networks:
       - app-network
 
@@ -81,14 +113,27 @@ services:
     environment:
       BACKEND_API_URL: http://api:8080
       NEXT_PUBLIC_API_URL: /api/proxy
+      CSP_ALLOWED_IMAGE_SOURCES: "${CSP_ALLOWED_IMAGE_SOURCES:-'self' data: blob: http://localhost:4566 http://127.0.0.1:4566}"
+      CSP_ALLOWED_CONNECT_SOURCES: "${CSP_ALLOWED_CONNECT_SOURCES:-'self' ws: http://localhost:8080 http://localhost:3000}"
+      SECURITY_API_KEY: ${SECURITY_API_KEY}
     depends_on:
       - api
+    networks:
+      - app-network
+
+  maildev:
+    image: maildev/maildev:latest
+    container_name: planohi-maildev
+    ports:
+      - "1025:1025"
+      - "1080:1080"
     networks:
       - app-network
 
 volumes:
   pgdata:
   redisdata:
+  localstack-data:
 
 networks:
   app-network:
@@ -191,4 +236,3 @@ To ensure developers boot into a fully populated UI, the system uses automated d
    - The runner checks if the database contains records; if empty, it instantiates mock domain entities and writes them to PostgreSQL repositories (e.g. creating a default admin user, demo events, and tags).
 3. **Seeding Conditionals**:
    - All seed scripts and runners must strictly verify that they are running under the `dev` profile to prevent accidental seeding or data overwrites in Staging and Production databases.
-

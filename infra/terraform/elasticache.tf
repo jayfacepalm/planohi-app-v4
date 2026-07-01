@@ -4,19 +4,18 @@ resource "aws_elasticache_subnet_group" "redis" {
   subnet_ids = aws_subnet.private[*].id
 }
 
-# Redis Serverless Cache Resource
-resource "aws_elasticache_serverless_cache" "redis" {
-  name                 = "planohi-cache-${var.environment}"
+resource "aws_elasticache_cluster" "redis" {
+  cluster_id           = "planohi-cache-${var.environment}"
   engine               = "redis"
-  major_engine_version = "7"
+  engine_version       = "7.0"
+  node_type            = var.redis_node_type
+  num_cache_nodes      = 1
+  parameter_group_name = "default.redis7"
+  port                 = 6379
+  subnet_group_name    = aws_elasticache_subnet_group.redis.name
+  security_group_ids   = [aws_security_group.redis.id]
 
-  subnet_ids         = aws_subnet.private[*].id
-  security_group_ids = [aws_security_group.redis.id]
-
-  cache_usage_limits {
-    data_storage {
-      maximum = 5 # limit to 5 GB storage to keep costs down
-      unit    = "GB"
-    }
+  tags = {
+    Name = "planohi-redis-cluster-${var.environment}"
   }
 }
