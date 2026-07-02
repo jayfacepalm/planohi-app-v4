@@ -29,6 +29,7 @@ interface EditComponentModalProps {
     estimatedCost: number;
   } | null;
   onSuccess: () => void;
+  currency?: string;
 }
 
 export const EditComponentModal: React.FC<EditComponentModalProps> = ({
@@ -37,6 +38,7 @@ export const EditComponentModal: React.FC<EditComponentModalProps> = ({
   eventId,
   component,
   onSuccess,
+  currency,
 }) => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -170,7 +172,7 @@ export const EditComponentModal: React.FC<EditComponentModalProps> = ({
 
         <Input
           id="edit-component-cost"
-          label="Estimated Cost (PHP)"
+          label={`Estimated Cost (${currency || "USD"})`}
           type="number"
           step="0.01"
           placeholder="e.g. 25000"

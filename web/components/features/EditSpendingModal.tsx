@@ -32,6 +32,7 @@ interface EditSpendingModalProps {
     spentAt: string;
   } | null;
   onSuccess: () => void;
+  currency?: string;
 }
 
 export const EditSpendingModal: React.FC<EditSpendingModalProps> = ({
@@ -40,6 +41,7 @@ export const EditSpendingModal: React.FC<EditSpendingModalProps> = ({
   componentId,
   spending,
   onSuccess,
+  currency,
 }) => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -177,7 +179,7 @@ export const EditSpendingModal: React.FC<EditSpendingModalProps> = ({
 
         <Input
           id="edit-spending-amount"
-          label="Amount Spent (PHP)"
+          label={`Amount Spent (${currency || "USD"})`}
           type="number"
           step="0.01"
           placeholder="e.g. 5000"

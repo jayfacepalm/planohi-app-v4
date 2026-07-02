@@ -956,6 +956,7 @@ export const EventBudgetCanvas: React.FC<EventBudgetCanvasProps> = ({
         onClose={() => setIsAddOpen(false)}
         eventId={eventId}
         onSuccess={refreshComponents}
+        currency={currency}
       />
 
       {/* Edit Component Modal popup */}
@@ -968,6 +969,7 @@ export const EventBudgetCanvas: React.FC<EventBudgetCanvasProps> = ({
         eventId={eventId}
         component={componentToEdit}
         onSuccess={refreshComponents}
+        currency={currency}
       />
 
       {/* Edit Spending Modal popup */}
@@ -980,6 +982,7 @@ export const EventBudgetCanvas: React.FC<EventBudgetCanvasProps> = ({
         componentId={activeSpendingComponentId}
         spending={spendingToEdit}
         onSuccess={refreshComponents}
+        currency={currency}
       />
 
       {/* Delete Spending Confirmation Modal */}
@@ -1020,6 +1023,7 @@ export const EventBudgetCanvas: React.FC<EventBudgetCanvasProps> = ({
           componentId={activeComponent.id}
           componentName={activeComponent.name}
           onSuccess={refreshComponents}
+          currency={currency}
         />
       )}
 

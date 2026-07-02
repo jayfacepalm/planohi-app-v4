@@ -79,7 +79,7 @@ export const ActivateVoucherClient: React.FC<ActivateVoucherClientProps> = ({
       <Navbar navItems={navItems} userAlias={userAlias} userRole={userRole} />
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col justify-center items-center px-6 py-16 relative z-10 w-full max-w-md mx-auto">
+      <main className="flex-1 flex flex-col justify-center items-center px-1 md:px-6 py-16 relative z-10 w-full max-w-md mx-auto">
         <div className="w-full border border-white/5 bg-[#0f0f15]/60 backdrop-blur-xl rounded-2xl p-8 shadow-[0_15px_35px_rgba(0,0,0,0.5)] relative overflow-hidden group">
           {/* Card Ambient Glow Line */}
           <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-neon-cyan/50 to-transparent group-hover:via-neon-cyan transition-all duration-500" />

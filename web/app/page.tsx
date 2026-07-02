@@ -35,7 +35,7 @@ export default function Home() {
       <Navbar actions={actions} />
 
       {/* Main hero section */}
-      <main className="flex-1 flex flex-col items-center px-6 py-16 md:py-24 relative z-10 w-full max-w-7xl mx-auto">
+      <main className="flex-1 flex flex-col items-center px-1 md:px-6 py-16 md:py-24 relative z-10 w-full max-w-7xl mx-auto">
         <div className="text-center max-w-3xl space-y-6 mb-16 md:mb-20">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-neon-cyan/30 bg-neon-cyan/5 text-neon-cyan text-xs font-mono font-medium tracking-wide uppercase">
             <Sparkles className="w-3.5 h-3.5" /> Next-Gen Event Coordination
