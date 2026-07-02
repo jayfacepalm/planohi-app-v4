@@ -23,7 +23,7 @@ const registerSchema = z.object({
 
 type RegisterFields = z.infer<typeof registerSchema>;
 
-export const RegisterForm: React.FC = () => {
+export const RegisterForm: React.FC<{ googleClientId: string }> = ({ googleClientId }) => {
   const [step, setStep] = useState<1 | 2>(1);
   const [otp, setOtp] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -79,7 +79,7 @@ export const RegisterForm: React.FC = () => {
       if ((window as any).google?.accounts?.id) {
         const google = (window as any).google;
         google.accounts.id.initialize({
-          client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
+          client_id: googleClientId,
           callback: handleGoogleCallback,
         });
       }
@@ -94,17 +94,19 @@ export const RegisterForm: React.FC = () => {
     return () => {
       script.removeEventListener("load", initializeGoogle);
     };
-  }, []);
+  }, [googleClientId]);
 
   const googleBtnRef = React.useCallback((node: HTMLDivElement | null) => {
     if (node && (window as any).google?.accounts?.id) {
       const google = (window as any).google;
+      // Dynamically calculate width based on container, capped between GSI limits (250px - 400px)
+      const targetWidth = Math.max(250, Math.min(400, node.offsetWidth || 382));
       google.accounts.id.renderButton(
         node,
-        { theme: "filled_black", size: "large", width: 382, text: "signup_with", shape: "rectangular" }
+        { theme: "filled_black", size: "large", width: targetWidth, text: "signup_with", shape: "rectangular" }
       );
     }
-  }, []);
+  }, [googleClientId]);
 
   const onProceed = async (data: RegisterFields) => {
     setLoading(true);

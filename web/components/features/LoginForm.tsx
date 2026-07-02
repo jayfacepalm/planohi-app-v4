@@ -17,7 +17,7 @@ const loginSchema = z.object({
 
 type LoginFields = z.infer<typeof loginSchema>;
 
-export const LoginForm: React.FC = () => {
+export const LoginForm: React.FC<{ googleClientId: string }> = ({ googleClientId }) => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -61,13 +61,9 @@ export const LoginForm: React.FC = () => {
       if ((window as any).google?.accounts?.id) {
         const google = (window as any).google;
         google.accounts.id.initialize({
-          client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
+          client_id: googleClientId,
           callback: handleGoogleCallback,
         });
-        google.accounts.id.renderButton(
-          document.getElementById("google-signin-btn"),
-          { theme: "filled_black", size: "large", width: 382, text: "signin_with", shape: "rectangular" }
-        );
       }
     };
 
@@ -80,7 +76,19 @@ export const LoginForm: React.FC = () => {
     return () => {
       script.removeEventListener("load", initializeGoogle);
     };
-  }, []);
+  }, [googleClientId]);
+
+  const googleBtnRef = React.useCallback((node: HTMLDivElement | null) => {
+    if (node && (window as any).google?.accounts?.id) {
+      const google = (window as any).google;
+      // Dynamically calculate width based on container, capped between GSI limits (250px - 400px)
+      const targetWidth = Math.max(250, Math.min(400, node.offsetWidth || 382));
+      google.accounts.id.renderButton(
+        node,
+        { theme: "filled_black", size: "large", width: targetWidth, text: "signin_with", shape: "rectangular" }
+      );
+    }
+  }, [googleClientId]);
 
   const onSubmit = async (data: LoginFields) => {
     setLoading(true);
@@ -157,7 +165,7 @@ export const LoginForm: React.FC = () => {
           </div>
 
           <div className="flex justify-center w-full min-h-[44px]">
-            <div id="google-signin-btn" />
+            <div ref={googleBtnRef} className="w-full flex justify-center" />
           </div>
 
           <div className="text-center text-xs text-zinc-500 font-sans pt-2">
