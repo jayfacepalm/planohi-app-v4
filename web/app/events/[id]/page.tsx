@@ -204,8 +204,8 @@ export default async function EventDetailPage({ params, searchParams }: PageProp
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex gap-6 border-b border-white/5 pb-px overflow-x-auto no-scrollbar whitespace-nowrap -mx-4 px-4 md:mx-0 md:px-0">
-        <Link href={`/events/${event.id}?tab=budget`}>
+      <div id="tabs-container" className="flex gap-6 border-b border-white/5 pb-px overflow-x-auto no-scrollbar whitespace-nowrap -mx-4 px-4 md:mx-0 md:px-0 scroll-mt-24">
+        <Link href={`/events/${event.id}?tab=budget#tabs-container`}>
           <span className={`pb-3 font-heading text-sm font-bold tracking-wider uppercase cursor-pointer border-b-2 transition-all block ${
             activeTab === "budget" 
               ? "border-neon-cyan text-white drop-shadow-[0_0_8px_rgba(6,182,212,0.4)]" 
@@ -214,7 +214,7 @@ export default async function EventDetailPage({ params, searchParams }: PageProp
             Budget Canvas
           </span>
         </Link>
-        <Link href={`/events/${event.id}?tab=timeline`}>
+        <Link href={`/events/${event.id}?tab=timeline#tabs-container`}>
           <span className={`pb-3 font-heading text-sm font-bold tracking-wider uppercase cursor-pointer border-b-2 transition-all block ${
             activeTab === "timeline" 
               ? "border-neon-purple text-white drop-shadow-[0_0_8px_rgba(168,85,247,0.4)]" 
@@ -223,26 +223,26 @@ export default async function EventDetailPage({ params, searchParams }: PageProp
             Timeline Canvas
           </span>
         </Link>
-        <Link href={`/events/${event.id}?tab=guests`}>
+        <Link href={`/events/${event.id}?tab=guests#tabs-container`}>
           <span className={`pb-3 font-heading text-sm font-bold tracking-wider uppercase cursor-pointer border-b-2 transition-all block ${
             activeTab === "guests" 
               ? "border-neon-cyan text-white drop-shadow-[0_0_8px_rgba(6,182,212,0.4)]" 
-              : "border-transparent text-zinc-500 hover:text-zinc-300"
+              : "border-transparent text-zinc-550 hover:text-zinc-300"
           }`}>
             Guest Canvas
           </span>
         </Link>
-        <Link href={`/events/${event.id}?tab=curators`}>
+        <Link href={`/events/${event.id}?tab=curators#tabs-container`}>
           <span className={`pb-3 font-heading text-sm font-bold tracking-wider uppercase cursor-pointer border-b-2 transition-all block ${
             activeTab === "curators" 
               ? "border-neon-purple text-white drop-shadow-[0_0_8px_rgba(168,85,247,0.4)]" 
-              : "border-transparent text-zinc-500 hover:text-zinc-300"
+              : "border-transparent text-zinc-550 hover:text-zinc-300"
           }`}>
             Curators
           </span>
         </Link>
         {((decodeRoleToken(event.userRole) === "OWNER" || decodeRoleToken(event.userRole) === "ORGANIZER")) && (
-          <Link href={`/events/${event.id}?tab=approvals`}>
+          <Link href={`/events/${event.id}?tab=approvals#tabs-container`}>
             <span className={`pb-3 font-heading text-sm font-bold tracking-wider uppercase cursor-pointer border-b-2 transition-all flex items-center gap-1.5 ${
               activeTab === "approvals" 
                 ? "border-neon-purple text-white drop-shadow-[0_0_8px_rgba(168,85,247,0.4)]" 

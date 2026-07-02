@@ -149,6 +149,7 @@ export const EditEventModal: React.FC<EditEventModalProps> = ({
     setBannerError(null);
     setBannerFile(file);
     setBannerPreview(URL.createObjectURL(file));
+    setShowUploadUI(false);
   };
 
   const handleRemoveBanner = () => {

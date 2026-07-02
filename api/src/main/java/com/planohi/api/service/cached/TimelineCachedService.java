@@ -3,6 +3,7 @@ package com.planohi.api.service.cached;
 import com.planohi.api.dto.CreateTimelineItemRequest;
 import com.planohi.api.dto.EventTimelineResponse;
 import com.planohi.api.dto.TimelineItemDto;
+import com.planohi.api.dto.UpdateTimelineItemRequest;
 import com.planohi.api.service.TimelineService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,5 +35,17 @@ public class TimelineCachedService {
     public TimelineItemDto toggleTimelineItem(UUID userId, UUID itemId, boolean isDone) {
         log.info("Evicting event_timeline cache due to status toggle for item: {}", itemId);
         return timelineService.toggleTimelineItem(userId, itemId, isDone);
+    }
+
+    @CacheEvict(value = "event_timeline", key = "#userId.toString() + ':' + #result.eventId.toString()")
+    public TimelineItemDto updateTimelineItem(UUID userId, UUID itemId, UpdateTimelineItemRequest request) {
+        log.info("Evicting event_timeline cache due to details update for item: {}", itemId);
+        return timelineService.updateTimelineItem(userId, itemId, request);
+    }
+
+    @CacheEvict(value = "event_timeline", key = "#userId.toString() + ':' + #eventId.toString()")
+    public void deleteTimelineItem(UUID userId, UUID itemId, UUID eventId) {
+        log.info("Evicting event_timeline cache for event {} due to deletion of item: {}", eventId, itemId);
+        timelineService.deleteTimelineItem(userId, itemId);
     }
 }

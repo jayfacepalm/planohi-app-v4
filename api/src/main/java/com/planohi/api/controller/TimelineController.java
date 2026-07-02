@@ -15,11 +15,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestHeader;
+import com.planohi.api.dto.UpdateTimelineItemRequest;
 import com.planohi.api.repository.TimelineItemRepository;
 import com.planohi.api.service.WorkspaceSecurityService;
 import com.planohi.api.enums.EventCuratorRole;
@@ -76,5 +79,31 @@ public class TimelineController {
         workspaceSecurityService.validateRoleToken(roleToken, userPrincipal.getId(), getEventId(itemId), EventCuratorRole.COLLABORATOR);
         TimelineItemDto updated = timelineCachedService.toggleTimelineItem(userPrincipal.getId(), itemId, request.getIsDone());
         return ResponseEntity.ok(ApiResponse.success("Timeline item toggled successfully", updated));
+    }
+
+    @PutMapping("/api/timeline/{itemId}")
+    public ResponseEntity<ApiResponse<TimelineItemDto>> updateTimelineItem(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestHeader(value = WorkspaceSecurityService.ROLE_TOKEN_HEADER, required = false) String roleToken,
+            @PathVariable("itemId") UUID itemId,
+            @Valid @RequestBody UpdateTimelineItemRequest request) {
+
+        log.info("Request received to update timeline item {} by user {}", itemId, userPrincipal.getId());
+        workspaceSecurityService.validateRoleToken(roleToken, userPrincipal.getId(), getEventId(itemId), EventCuratorRole.COLLABORATOR);
+        TimelineItemDto updated = timelineCachedService.updateTimelineItem(userPrincipal.getId(), itemId, request);
+        return ResponseEntity.ok(ApiResponse.success("Timeline item updated successfully", updated));
+    }
+
+    @DeleteMapping("/api/timeline/{itemId}")
+    public ResponseEntity<ApiResponse<Void>> deleteTimelineItem(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestHeader(value = WorkspaceSecurityService.ROLE_TOKEN_HEADER, required = false) String roleToken,
+            @PathVariable("itemId") UUID itemId) {
+
+        log.info("Request received to delete timeline item {} by user {}", itemId, userPrincipal.getId());
+        UUID eventId = getEventId(itemId);
+        workspaceSecurityService.validateRoleToken(roleToken, userPrincipal.getId(), eventId, EventCuratorRole.COLLABORATOR);
+        timelineCachedService.deleteTimelineItem(userPrincipal.getId(), itemId, eventId);
+        return ResponseEntity.ok(ApiResponse.success("Timeline item deleted successfully", null));
     }
 }

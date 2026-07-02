@@ -10,6 +10,7 @@ import com.planohi.api.dto.CreateTimelineItemRequest;
 import com.planohi.api.dto.ReviewProposalRequest;
 import com.planohi.api.dto.UpdateComponentRequest;
 import com.planohi.api.dto.UpdateSpendingRequest;
+import com.planohi.api.dto.UpdateTimelineItemRequest;
 import com.planohi.api.entity.ChangeProposal;
 import com.planohi.api.enums.ChangeProposalAction;
 import com.planohi.api.enums.ChangeProposalStatus;
@@ -241,11 +242,22 @@ public class ChangeProposalServiceImpl implements ChangeProposalService {
                             .build();
                     timelineItemRepository.save(item);
                 } else if (action == ChangeProposalAction.UPDATE) {
-                    boolean isDone = (Boolean) proposal.getProposedData().get("isDone");
                     TimelineItem item = timelineItemRepository.findById(proposal.getTargetId())
                             .orElseThrow(() -> new EntityNotFoundException("Timeline milestone not found"));
-                    item.setDone(isDone);
+                    if (proposal.getProposedData() != null && (proposal.getProposedData().containsKey("title") || proposal.getProposedData().containsKey("dueAt"))) {
+                        UpdateTimelineItemRequest req = objectMapper.convertValue(proposal.getProposedData(),
+                                UpdateTimelineItemRequest.class);
+                        item.setTitle(req.getTitle());
+                        item.setDueAt(req.getDueAt());
+                    } else if (proposal.getProposedData() != null && proposal.getProposedData().containsKey("isDone")) {
+                        boolean isDone = (Boolean) proposal.getProposedData().get("isDone");
+                        item.setDone(isDone);
+                    }
                     timelineItemRepository.save(item);
+                } else if (action == ChangeProposalAction.DELETE) {
+                    TimelineItem item = timelineItemRepository.findById(proposal.getTargetId())
+                            .orElseThrow(() -> new EntityNotFoundException("Timeline milestone not found"));
+                    timelineItemRepository.delete(item);
                 }
             }
         });

@@ -5,8 +5,9 @@ import { Checkbox } from "../ui/Checkbox";
 import { Button } from "../ui/Button";
 import { GlowCard } from "../ui/GlowCard";
 import { AddTimelineItemModal } from "./AddTimelineItemModal";
+import { EditTimelineItemModal } from "./EditTimelineItemModal";
 import { Modal } from "../ui/Modal";
-import { Calendar, Plus, AlertCircle, CheckCircle2, Circle } from "lucide-react";
+import { Calendar, Plus, AlertCircle, CheckCircle2, Circle, Edit, Trash2 } from "lucide-react";
 import { fetchApi, setRoleToken } from "../../lib/api-client";
 import { UserRole, USER_ROLES, PROPOSAL_STATUSES, PROPOSAL_ACTIONS, PROPOSAL_TARGETS } from "../../lib/constants";
 import { decodeRoleToken } from "../../lib/security";
@@ -19,6 +20,8 @@ interface TimelineItemDto {
   isDone: boolean;
   isPendingCreate?: boolean;
   pendingToggle?: any;
+  pendingUpdate?: any;
+  pendingDelete?: any;
 }
 
 interface EventTimelineCanvasProps {
@@ -56,6 +59,12 @@ export const EventTimelineCanvas: React.FC<EventTimelineCanvasProps> = ({
   const canEdit = decodedRole === USER_ROLES.OWNER || decodedRole === USER_ROLES.ORGANIZER || decodedRole === USER_ROLES.COLLABORATOR;
   
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<TimelineItemDto | null>(null);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [togglingIds, setTogglingIds] = useState<Record<string, boolean>>({});
   const activeTogglesCount = useRef(0);
   
@@ -85,12 +94,22 @@ export const EventTimelineCanvas: React.FC<EventTimelineCanvasProps> = ({
 
   const processedItems = items.map((item) => {
     const pendingToggle = (proposals || []).find(
-      (p) => p.targetType === PROPOSAL_TARGETS.TIMELINE_ITEM && p.actionType === PROPOSAL_ACTIONS.UPDATE && p.targetId === item.id && p.status === PROPOSAL_STATUSES.PENDING
+      (p) => p.targetType === PROPOSAL_TARGETS.TIMELINE_ITEM && p.actionType === PROPOSAL_ACTIONS.UPDATE && p.targetId === item.id && p.status === PROPOSAL_STATUSES.PENDING && p.proposedData?.isDone !== undefined
+    );
+
+    const pendingUpdate = (proposals || []).find(
+      (p) => p.targetType === PROPOSAL_TARGETS.TIMELINE_ITEM && p.actionType === PROPOSAL_ACTIONS.UPDATE && p.targetId === item.id && p.status === PROPOSAL_STATUSES.PENDING && (p.proposedData?.title !== undefined || p.proposedData?.dueAt !== undefined)
+    );
+
+    const pendingDelete = (proposals || []).find(
+      (p) => p.targetType === PROPOSAL_TARGETS.TIMELINE_ITEM && p.actionType === PROPOSAL_ACTIONS.DELETE && p.targetId === item.id && p.status === PROPOSAL_STATUSES.PENDING
     );
 
     return {
       ...item,
       pendingToggle,
+      pendingUpdate,
+      pendingDelete,
     };
   });
 
@@ -188,6 +207,43 @@ export const EventTimelineCanvas: React.FC<EventTimelineCanvasProps> = ({
       });
       setErrorMessage("Failed to update status. Please try again.");
       setErrorModalOpen(true);
+    }
+  };
+
+  const handleEditClick = (item: TimelineItemDto) => {
+    setSelectedItem(item);
+    setIsEditOpen(true);
+  };
+
+  const handleDeleteClick = (itemId: string) => {
+    setDeletingId(itemId);
+    setDeleteError(null);
+    setIsDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingId) return;
+    setDeleteLoading(true);
+    setDeleteError(null);
+    try {
+      const response = await fetchApi<any>(`/timeline/${deletingId}`, {
+        method: "DELETE",
+      });
+      if (response && response.targetType) {
+        setInfoModalMessage("Change proposal submitted: Milestone deletion queued for Organizer review.");
+        setInfoModalOpen(true);
+      }
+      setIsDeleteConfirmOpen(false);
+      setDeletingId(null);
+      refreshTimeline();
+    } catch (err: any) {
+      if (err.data && err.data.msg) {
+        setDeleteError(err.data.msg);
+      } else {
+        setDeleteError(err.message || "Failed to delete timeline milestone");
+      }
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -306,16 +362,48 @@ export const EventTimelineCanvas: React.FC<EventTimelineCanvasProps> = ({
                             Pending Check Toggle ({item.pendingToggle.proposedData?.isDone === true || item.pendingToggle.proposedData?.isDone === "true" ? "Complete" : "Incomplete"})
                           </span>
                         )}
+                        {item.pendingUpdate && (
+                          <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded border border-yellow-500/20 shadow-[0_0_5px_rgba(234,179,8,0.2)]">
+                            Pending Detail Update
+                          </span>
+                        )}
+                        {item.pendingDelete && (
+                          <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20 shadow-[0_0_5px_rgba(239,68,68,0.2)]">
+                            Pending Deletion
+                          </span>
+                        )}
                       </div>
                       <span className="text-[10px] font-mono text-zinc-550 block">
                         Due: {formatDueAt(item.dueAt)}
                       </span>
                     </div>
  
-                    <div className="flex items-center shrink-0">
+                    <div className="flex items-center gap-2 shrink-0">
+                      {canEdit && !item.isPendingCreate && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleEditClick(item)}
+                            disabled={!!togglingIds[item.id] || item.isPendingCreate || !!item.pendingToggle || !!item.pendingUpdate || !!item.pendingDelete}
+                            className="text-zinc-500 hover:text-neon-cyan p-1 rounded-lg border border-transparent hover:border-neon-cyan/20 hover:bg-neon-cyan/5 transition-all cursor-pointer disabled:opacity-30 disabled:hover:border-transparent disabled:hover:bg-transparent"
+                            aria-label="Edit milestone"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteClick(item.id)}
+                            disabled={!!togglingIds[item.id] || item.isPendingCreate || !!item.pendingToggle || !!item.pendingUpdate || !!item.pendingDelete}
+                            className="text-zinc-500 hover:text-red-400 p-1 rounded-lg border border-transparent hover:border-red-500/20 hover:bg-red-500/5 transition-all cursor-pointer disabled:opacity-30 disabled:hover:border-transparent disabled:hover:bg-transparent mr-1"
+                            aria-label="Delete milestone"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      )}
                       <Checkbox
                         checked={item.isDone}
-                        disabled={!!togglingIds[item.id] || !canEdit || item.isPendingCreate || !!item.pendingToggle}
+                        disabled={!!togglingIds[item.id] || !canEdit || item.isPendingCreate || !!item.pendingToggle || !!item.pendingUpdate || !!item.pendingDelete}
                         onChange={() => handleToggle(item.id, item.isDone)}
                       />
                     </div>
@@ -419,6 +507,50 @@ export const EventTimelineCanvas: React.FC<EventTimelineCanvasProps> = ({
         eventEndDate={eventEndDate}
         onSuccess={refreshTimeline}
       />
+
+      {/* Edit Milestone Modal popup */}
+      <EditTimelineItemModal
+        isOpen={isEditOpen}
+        onClose={() => {
+          setIsEditOpen(false);
+          setSelectedItem(null);
+        }}
+        eventId={eventId}
+        item={selectedItem}
+        eventStartDate={eventStartDate}
+        eventEndDate={eventEndDate}
+        onSuccess={refreshTimeline}
+      />
+
+      {/* Delete Milestone Confirmation Modal */}
+      <Modal
+        isOpen={isDeleteConfirmOpen}
+        onClose={() => setIsDeleteConfirmOpen(false)}
+        title="DELETE TIMELINE MILESTONE"
+        footer={
+          <div className="flex gap-3">
+            <Button variant="ghost" onClick={() => setIsDeleteConfirmOpen(false)} disabled={deleteLoading}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={handleConfirmDelete}
+              disabled={deleteLoading}
+            >
+              {deleteLoading ? "Deleting..." : "Confirm Delete"}
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-sm text-zinc-300">
+          Are you sure you want to delete this milestone? This action cannot be undone.
+        </p>
+        {deleteError && (
+          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-xs text-red-400 font-sans mt-3">
+            {deleteError}
+          </div>
+        )}
+      </Modal>
 
       {/* Info / Proposal Confirmation Modal */}
       <Modal
