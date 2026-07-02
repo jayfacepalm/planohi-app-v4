@@ -23,11 +23,13 @@ interface ProposalItem {
 interface EventApprovalsCanvasProps {
   eventId: string;
   initialProposals: ProposalItem[];
+  currency?: string;
 }
 
 export const EventApprovalsCanvas: React.FC<EventApprovalsCanvasProps> = ({
   eventId,
   initialProposals,
+  currency,
 }) => {
   const [proposals, setProposals] = useState<ProposalItem[]>(
     initialProposals.filter((p) => p.status === PROPOSAL_STATUSES.PENDING)
@@ -36,9 +38,9 @@ export const EventApprovalsCanvas: React.FC<EventApprovalsCanvasProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-PH", {
+    return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "PHP",
+      currency: currency || "USD",
     }).format(amount);
   };
 

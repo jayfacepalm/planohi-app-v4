@@ -28,6 +28,7 @@ interface EditEventModalProps {
     startDate: string;
     endDate: string;
     bannerUrl?: string;
+    currency?: string;
   };
   onSuccess: () => void;
 }
@@ -51,6 +52,17 @@ export const EditEventModal: React.FC<EditEventModalProps> = ({
   const [bannerError, setBannerError] = useState<string | null>(null);
   const [showUploadUI, setShowUploadUI] = useState(false);
 
+  // Currency Selection States
+  const [currencyMode, setCurrencyMode] = useState<"PREDEFINED" | "CUSTOM">("PREDEFINED");
+  const [selectedCurrency, setSelectedCurrency] = useState("USD");
+  const [customCurrency, setCustomCurrency] = useState("");
+  const [currencyError, setCurrencyError] = useState<string | null>(null);
+
+  // Warning Modal States
+  const [showWarningModal, setShowWarningModal] = useState(false);
+  const [pendingCurrency, setPendingCurrency] = useState<string | null>(null);
+  const [pendingCurrencyMode, setPendingCurrencyMode] = useState<"PREDEFINED" | "CUSTOM" | null>(null);
+
   // Sync state if event prop changes
   useEffect(() => {
     if (event) {
@@ -62,6 +74,22 @@ export const EditEventModal: React.FC<EditEventModalProps> = ({
       setShowUploadUI(false);
       setError(null);
       setDateError(null);
+
+      // Initialize Currency States
+      const isPredefined = ["USD", "PHP", "EUR", "GBP", "JPY", "SGD"].includes(event.currency || "USD");
+      if (isPredefined) {
+        setCurrencyMode("PREDEFINED");
+        setSelectedCurrency(event.currency || "USD");
+        setCustomCurrency("");
+      } else {
+        setCurrencyMode("CUSTOM");
+        setSelectedCurrency("USD");
+        setCustomCurrency(event.currency || "");
+      }
+      setCurrencyError(null);
+      setShowWarningModal(false);
+      setPendingCurrency(null);
+      setPendingCurrencyMode(null);
     }
   }, [event, isOpen]);
 
@@ -136,7 +164,17 @@ export const EditEventModal: React.FC<EditEventModalProps> = ({
       return;
     }
 
+    let finalCurrency = selectedCurrency;
+    if (currencyMode === "CUSTOM") {
+      if (!/^[A-Za-z]{3}$/.test(customCurrency)) {
+        setCurrencyError("Custom currency must be exactly a 3-character alphabetic code");
+        return;
+      }
+      finalCurrency = customCurrency.toUpperCase();
+    }
+
     setDateError(null);
+    setCurrencyError(null);
     setLoading(true);
     setError(null);
 
@@ -146,6 +184,7 @@ export const EditEventModal: React.FC<EditEventModalProps> = ({
       formData.append("description", data.description || "");
       formData.append("startDate", fromDate.toISOString());
       formData.append("endDate", toDate.toISOString());
+      formData.append("currency", finalCurrency);
       if (bannerFile) {
         formData.append("banner", bannerFile);
       }
@@ -188,8 +227,9 @@ export const EditEventModal: React.FC<EditEventModalProps> = ({
   const currentBannerUrl = event?.bannerUrl || null;
 
   return (
-    <Modal
-      isOpen={isOpen}
+    <>
+      <Modal
+        isOpen={isOpen}
       onClose={handleClose}
       title="EDIT EVENT WORKSPACE"
       footer={
@@ -259,6 +299,80 @@ export const EditEventModal: React.FC<EditEventModalProps> = ({
         </div>
 
         <div>
+          <label htmlFor="edit-event-currency" className="text-xs text-zinc-400 block mb-1.5 font-heading tracking-wide">
+            Event Currency Configuration
+          </label>
+          <div className="flex gap-3">
+            <select
+              id="edit-event-currency"
+              value={currencyMode === "CUSTOM" ? "CUSTOM" : selectedCurrency}
+              onChange={(e) => {
+                const val = e.target.value;
+                setCurrencyError(null);
+                
+                const targetCurrency = val;
+                const targetMode = val === "CUSTOM" ? "CUSTOM" : "PREDEFINED";
+                
+                // Compare with original event.currency
+                const originalVal = event.currency || "USD";
+                const isDifferent = val === "CUSTOM" ? (originalVal !== customCurrency) : (originalVal !== val);
+                
+                if (isDifferent) {
+                  setPendingCurrency(targetCurrency);
+                  setPendingCurrencyMode(targetMode);
+                  setShowWarningModal(true);
+                } else {
+                  setCurrencyMode(targetMode);
+                  if (targetMode === "PREDEFINED") {
+                    setSelectedCurrency(targetCurrency);
+                  }
+                }
+              }}
+              disabled={loading}
+              className="bg-[#18181b] border border-white/10 focus:border-neon-cyan focus:shadow-[0_0_15px_rgba(6,182,212,0.25)] rounded-lg px-4 py-2.5 text-white focus:outline-none transition-all font-sans text-xs flex-1 cursor-pointer"
+            >
+              <option value="USD">USD ($)</option>
+              <option value="PHP">PHP (₱)</option>
+              <option value="EUR">EUR (€)</option>
+              <option value="GBP">GBP (£)</option>
+              <option value="JPY">JPY (¥)</option>
+              <option value="SGD">SGD (S$)</option>
+              <option value="CUSTOM">Custom Code...</option>
+            </select>
+
+            {currencyMode === "CUSTOM" && (
+              <input
+                type="text"
+                maxLength={3}
+                placeholder="e.g. CAD"
+                value={customCurrency}
+                onChange={(e) => {
+                  const val = e.target.value.toUpperCase();
+                  setCurrencyError(null);
+                  
+                  // Only warn if they type a valid 3-letter code that is different from original
+                  const originalVal = event.currency || "USD";
+                  if (val.length === 3 && val !== originalVal) {
+                    setPendingCurrency(val);
+                    setPendingCurrencyMode("CUSTOM");
+                    setShowWarningModal(true);
+                  } else {
+                    setCustomCurrency(val);
+                  }
+                }}
+                disabled={loading}
+                className="bg-[#18181b] border border-white/10 focus:border-neon-cyan focus:shadow-[0_0_15px_rgba(6,182,212,0.25)] rounded-lg px-4 py-2.5 text-white focus:outline-none transition-all font-mono text-xs w-28 uppercase"
+              />
+            )}
+          </div>
+          {currencyError && (
+            <p className="text-xs text-red-400 mt-1.5 font-medium">
+              {currencyError}
+            </p>
+          )}
+        </div>
+
+        <div>
           <span className="text-xs text-zinc-400 block mb-1.5 font-heading tracking-wide">
             Event Banner Image
           </span>
@@ -323,5 +437,54 @@ export const EditEventModal: React.FC<EditEventModalProps> = ({
         </div>
       </form>
     </Modal>
+
+      {/* Currency Warning Modal (Overlay) */}
+      {showWarningModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-sm rounded-xl border border-red-500/25 bg-[#121214] p-6 shadow-2xl animate-in zoom-in-95 duration-150 text-left">
+            <h3 className="text-sm font-bold font-heading text-red-400 uppercase tracking-wider mb-2">
+              ⚠️ Warning: Currency Change
+            </h3>
+            <p className="text-xs text-zinc-300 font-sans leading-relaxed mb-4">
+              You are changing the event currency from <strong className="text-white">{event.currency || "USD"}</strong> to <strong className="text-white">{pendingCurrency === "CUSTOM" ? "a custom currency" : pendingCurrency}</strong>.
+              <br /><br />
+              Please note that all existing estimated budget costs and actual expenditure values will keep their current numerical amounts and will <strong>not</strong> be automatically converted. You will need to adjust these values manually.
+            </p>
+            <div className="flex justify-end gap-3 text-xs font-heading font-medium">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowWarningModal(false);
+                  setPendingCurrency(null);
+                  setPendingCurrencyMode(null);
+                }}
+                className="px-4 py-2 border border-white/10 hover:bg-white/5 rounded-lg text-zinc-400 hover:text-white transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (pendingCurrencyMode && pendingCurrency) {
+                    setCurrencyMode(pendingCurrencyMode);
+                    if (pendingCurrencyMode === "PREDEFINED") {
+                      setSelectedCurrency(pendingCurrency);
+                    } else {
+                      setCustomCurrency(pendingCurrency);
+                    }
+                  }
+                  setShowWarningModal(false);
+                  setPendingCurrency(null);
+                  setPendingCurrencyMode(null);
+                }}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-all cursor-pointer shadow-lg"
+              >
+                I Understand
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };

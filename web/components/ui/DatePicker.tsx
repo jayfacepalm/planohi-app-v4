@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface DatePickerProps {
@@ -56,11 +57,15 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   const [currentMonth, setCurrentMonth] = useState(baseDate.getMonth());
 
   const pickerRef = useRef<HTMLDivElement>(null);
+  const calendarRef = useRef<HTMLDivElement>(null);
 
   // Close picker when clicking outside, pressing Escape key, or tabbing away
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      const clickedTrigger = pickerRef.current && pickerRef.current.contains(target);
+      const clickedCalendar = calendarRef.current && calendarRef.current.contains(target);
+      if (!clickedTrigger && !clickedCalendar) {
         setIsOpen(false);
       }
     };
@@ -70,7 +75,12 @@ export const DatePicker: React.FC<DatePickerProps> = ({
       }
     };
     const handleFocusOut = (e: FocusEvent) => {
-      if (pickerRef.current && !pickerRef.current.contains(e.relatedTarget as Node)) {
+      const target = e.relatedTarget as Node;
+      if (
+        pickerRef.current &&
+        !pickerRef.current.contains(target) &&
+        (!calendarRef.current || !calendarRef.current.contains(target))
+      ) {
         setIsOpen(false);
       }
     };
@@ -202,6 +212,151 @@ export const DatePicker: React.FC<DatePickerProps> = ({
     return internalDate && date.toDateString() === internalDate.toDateString();
   };
 
+  const calendarContent = (
+    <>
+      {/* Header Navigation */}
+      <div className="flex items-center justify-between mb-4">
+        <button
+          type="button"
+          onClick={() => changeMonth(-1)}
+          aria-label="Previous month"
+          className="p-1.5 rounded-lg border border-white/5 hover:border-neon-purple/40 text-zinc-400 hover:text-white transition-all cursor-pointer"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <span className="font-heading font-bold text-white tracking-wide">
+          {monthNames[currentMonth]} {currentYear}
+        </span>
+        <button
+          type="button"
+          onClick={() => changeMonth(1)}
+          aria-label="Next month"
+          className="p-1.5 rounded-lg border border-white/5 hover:border-neon-purple/40 text-zinc-400 hover:text-white transition-all cursor-pointer"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Weekday headers */}
+      <div className="grid grid-cols-7 gap-1 text-center text-xs font-heading font-semibold text-zinc-500 mb-2">
+        <span>Su</span>
+        <span>Mo</span>
+        <span>Tu</span>
+        <span>We</span>
+        <span>Th</span>
+        <span>Fr</span>
+        <span>Sa</span>
+      </div>
+
+      {/* Days Grid */}
+      <div className="grid grid-cols-7 gap-1 text-center">
+        {daysGrid.map((day, idx) => {
+          const isSelected = isDateSelected(day);
+          const isCurrentMonth = day.getMonth() === currentMonth;
+          const isDisabled = isDateDisabled(day);
+
+          // Formatting styles
+          let btnStyles = "h-8 w-8 rounded-lg flex items-center justify-center text-xs transition-all relative select-none ";
+
+          if (isDisabled) {
+            btnStyles += "text-zinc-800 opacity-40 cursor-not-allowed ";
+          } else {
+            btnStyles += "cursor-pointer ";
+            if (!isCurrentMonth) {
+              btnStyles += "text-zinc-700 hover:text-zinc-500 ";
+            } else {
+              btnStyles += "text-zinc-300 hover:text-white ";
+            }
+
+            if (isSelected) {
+              btnStyles += "bg-neon-purple text-white shadow-[0_0_12px_rgba(168,85,247,0.5)] z-10 ";
+            } else {
+              btnStyles += "hover:bg-white/5 ";
+            }
+          }
+
+          const dayLabel = `${day.toLocaleDateString("en-US", {
+            weekday: "long",
+            year: "numeric",
+            month: "long",
+            day: "numeric"
+          })}${isSelected ? " - Selected date" : ""}${isDisabled ? " - Unavailable" : ""}`;
+
+          return (
+            <div key={idx} className="flex justify-center items-center py-0.5">
+              <button
+                type="button"
+                onClick={() => handleDayClick(day)}
+                aria-label={dayLabel}
+                disabled={isDisabled}
+                className={btnStyles}
+              >
+                {day.getDate()}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Time Selector Section */}
+      <div className="border-t border-white/5 mt-4 pt-3 flex items-center justify-between">
+        <span className="text-xs text-zinc-400 font-heading">Set Time</span>
+        <div className="flex items-center gap-1.5 font-mono text-xs text-white">
+          <select
+            value={selectedHour}
+            onChange={(e) => handleHourChange(Number(e.target.value))}
+            className="bg-[#070708] border border-white/10 rounded px-2 py-1 focus:outline-none focus:border-neon-cyan text-white text-xs cursor-pointer"
+          >
+            {Array.from({ length: 24 }).map((_, h) => (
+              <option key={h} value={h}>
+                {String(h).padStart(2, "0")}
+              </option>
+            ))}
+          </select>
+          <span>:</span>
+          <select
+            value={selectedMinute}
+            onChange={(e) => handleMinuteChange(Number(e.target.value))}
+            className="bg-[#070708] border border-white/10 rounded px-2 py-1 focus:outline-none focus:border-neon-cyan text-white text-xs cursor-pointer"
+          >
+            {Array.from({ length: 60 }).map((_, m) => (
+              <option key={m} value={m}>
+                {String(m).padStart(2, "0")}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Footer Controls */}
+      <div className="border-t border-white/5 mt-4 pt-3 flex items-center justify-between text-xs">
+        {internalDate ? (
+          <button
+            type="button"
+            onClick={() => {
+              setInternalDate(null);
+              setSelectedHour(0);
+              setSelectedMinute(0);
+              if (onChange) onChange(null);
+            }}
+            className="text-red-400 hover:underline cursor-pointer"
+          >
+            Clear
+          </button>
+        ) : (
+          <span className="text-zinc-500">Choose date and time</span>
+        )}
+        <button
+          type="button"
+          onClick={() => setIsOpen(false)}
+          className="text-neon-cyan hover:underline cursor-pointer font-medium"
+        >
+          Done
+        </button>
+      </div>
+    </>
+  );
+
   return (
     <div ref={pickerRef} className={`relative w-full ${className}`}>
 
@@ -226,152 +381,14 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         </div>
       </button>
 
-      {/* Dropdown Calendar Drawer */}
-      {isOpen && (
-        <div className={`absolute ${align === "top" ? "bottom-[calc(100%+8px)]" : "top-[calc(100%+8px)]"} left-0 z-30 w-full min-w-[320px] max-w-[360px] rounded-2xl border border-neon-purple/20 bg-[#121214] p-5 shadow-[0_15px_40px_-10px_rgba(168,85,247,0.25)] animate-in fade-in slide-in-from-top-2 duration-150`}>
-
-          {/* Header Navigation */}
-          <div className="flex items-center justify-between mb-4">
-            <button
-              type="button"
-              onClick={() => changeMonth(-1)}
-              aria-label="Previous month"
-              className="p-1.5 rounded-lg border border-white/5 hover:border-neon-purple/40 text-zinc-400 hover:text-white transition-all cursor-pointer"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="font-heading font-bold text-white tracking-wide">
-              {monthNames[currentMonth]} {currentYear}
-            </span>
-            <button
-              type="button"
-              onClick={() => changeMonth(1)}
-              aria-label="Next month"
-              className="p-1.5 rounded-lg border border-white/5 hover:border-neon-purple/40 text-zinc-400 hover:text-white transition-all cursor-pointer"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
+      {/* Dropdown Calendar Drawer - Portaled Center Modal Overlay */}
+      {isOpen && mounted && typeof window !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-100">
+          <div ref={calendarRef} className="w-full max-w-[360px] rounded-2xl border border-neon-purple/20 bg-[#121214] p-5 shadow-[0_15px_50px_rgba(168,85,247,0.3)] animate-in zoom-in-95 duration-150">
+            {calendarContent}
           </div>
-
-          {/* Weekday headers */}
-          <div className="grid grid-cols-7 gap-1 text-center text-xs font-heading font-semibold text-zinc-500 mb-2">
-            <span>Su</span>
-            <span>Mo</span>
-            <span>Tu</span>
-            <span>We</span>
-            <span>Th</span>
-            <span>Fr</span>
-            <span>Sa</span>
-          </div>
-
-          {/* Days Grid */}
-          <div className="grid grid-cols-7 gap-1 text-center">
-            {daysGrid.map((day, idx) => {
-              const isSelected = isDateSelected(day);
-              const isCurrentMonth = day.getMonth() === currentMonth;
-              const isDisabled = isDateDisabled(day);
-
-              // Formatting styles
-              let btnStyles = "h-8 w-8 rounded-lg flex items-center justify-center text-xs transition-all relative select-none ";
-
-              if (isDisabled) {
-                btnStyles += "text-zinc-800 opacity-40 cursor-not-allowed ";
-              } else {
-                btnStyles += "cursor-pointer ";
-                if (!isCurrentMonth) {
-                  btnStyles += "text-zinc-700 hover:text-zinc-500 ";
-                } else {
-                  btnStyles += "text-zinc-300 hover:text-white ";
-                }
-
-                if (isSelected) {
-                  btnStyles += "bg-neon-purple text-white shadow-[0_0_12px_rgba(168,85,247,0.5)] z-10 ";
-                } else {
-                  btnStyles += "hover:bg-white/5 ";
-                }
-              }
-
-              const dayLabel = `${day.toLocaleDateString("en-US", {
-                weekday: "long",
-                year: "numeric",
-                month: "long",
-                day: "numeric"
-              })}${isSelected ? " - Selected date" : ""}${isDisabled ? " - Unavailable" : ""}`;
-
-              return (
-                <div key={idx} className="flex justify-center items-center py-0.5">
-                  <button
-                    type="button"
-                    onClick={() => handleDayClick(day)}
-                    aria-label={dayLabel}
-                    disabled={isDisabled}
-                    className={btnStyles}
-                  >
-                    {day.getDate()}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Time Selector Section */}
-          <div className="border-t border-white/5 mt-4 pt-3 flex items-center justify-between">
-            <span className="text-xs text-zinc-400 font-heading">Set Time</span>
-            <div className="flex items-center gap-1.5 font-mono text-xs text-white">
-              <select
-                value={selectedHour}
-                onChange={(e) => handleHourChange(Number(e.target.value))}
-                className="bg-[#070708] border border-white/10 rounded px-2 py-1 focus:outline-none focus:border-neon-cyan text-white text-xs cursor-pointer"
-              >
-                {Array.from({ length: 24 }).map((_, h) => (
-                  <option key={h} value={h}>
-                    {String(h).padStart(2, "0")}
-                  </option>
-                ))}
-              </select>
-              <span>:</span>
-              <select
-                value={selectedMinute}
-                onChange={(e) => handleMinuteChange(Number(e.target.value))}
-                className="bg-[#070708] border border-white/10 rounded px-2 py-1 focus:outline-none focus:border-neon-cyan text-white text-xs cursor-pointer"
-              >
-                {Array.from({ length: 60 }).map((_, m) => (
-                  <option key={m} value={m}>
-                    {String(m).padStart(2, "0")}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Footer Controls */}
-          <div className="border-t border-white/5 mt-4 pt-3 flex items-center justify-between text-xs">
-            {internalDate ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setInternalDate(null);
-                  setSelectedHour(0);
-                  setSelectedMinute(0);
-                  if (onChange) onChange(null);
-                }}
-                className="text-red-400 hover:underline cursor-pointer"
-              >
-                Clear
-              </button>
-            ) : (
-              <span className="text-zinc-500">Choose date and time</span>
-            )}
-            <button
-              type="button"
-              onClick={() => setIsOpen(false)}
-              className="text-neon-cyan hover:underline cursor-pointer font-medium"
-            >
-              Done
-            </button>
-          </div>
-
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

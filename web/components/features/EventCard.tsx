@@ -15,6 +15,7 @@ interface EventItem {
   bannerUrl?: string;
   totalEstimatedCost: number;
   createdAt: string;
+  currency?: string;
 }
 
 interface EventCardProps {
@@ -41,9 +42,9 @@ export const EventCard: React.FC<EventCardProps> = ({ event }) => {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-PH", {
+    return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "PHP",
+      currency: event.currency || "USD",
     }).format(amount);
   };
 

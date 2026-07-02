@@ -46,4 +46,8 @@ public class Event extends BaseAuditEntity {
 
     @Column(name = "banner_url", length = 512)
     private String bannerUrl;
+
+    @Column(name = "currency", nullable = false, length = 3)
+    @Builder.Default
+    private String currency = "USD";
 }

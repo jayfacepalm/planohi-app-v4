@@ -45,6 +45,7 @@ interface EventBudgetCanvasProps {
   initialTotalActualSpent: number;
   userRole?: string;
   proposals?: any[];
+  currency?: string;
 }
 
 export const EventBudgetCanvas: React.FC<EventBudgetCanvasProps> = ({
@@ -54,6 +55,7 @@ export const EventBudgetCanvas: React.FC<EventBudgetCanvasProps> = ({
   initialTotalActualSpent,
   userRole,
   proposals: initialProposals = [],
+  currency,
 }) => {
   const [components, setComponents] = useState<ComponentItem[]>(initialComponents);
   const [totalCost, setTotalCost] = useState<number>(initialTotalCost);
@@ -233,9 +235,9 @@ export const EventBudgetCanvas: React.FC<EventBudgetCanvasProps> = ({
   const allRenderComponents: ComponentItem[] = [...processedComponents, ...pendingCreations];
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-PH", {
+    return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "PHP",
+      currency: currency || "USD",
     }).format(amount);
   };
 

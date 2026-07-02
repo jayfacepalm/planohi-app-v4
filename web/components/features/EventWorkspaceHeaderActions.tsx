@@ -19,6 +19,7 @@ interface EventWorkspaceHeaderActionsProps {
     endDate: string;
     bannerUrl?: string;
     userRole?: string;
+    currency?: string;
   };
 }
 

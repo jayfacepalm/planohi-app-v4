@@ -299,6 +299,7 @@ export default async function EventDetailPage({ params, searchParams }: PageProp
         <EventApprovalsCanvas
           eventId={event.id}
           initialProposals={proposalsData || []}
+          currency={event.currency}
         />
       ) : (
         <EventBudgetCanvas
@@ -308,6 +309,7 @@ export default async function EventDetailPage({ params, searchParams }: PageProp
           initialTotalActualSpent={componentsData?.totalActualSpent || 0}
           userRole={event.userRole}
           proposals={proposalsData || []}
+          currency={event.currency}
         />
       )}
     </div>
