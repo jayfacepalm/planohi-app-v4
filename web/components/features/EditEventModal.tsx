@@ -247,7 +247,7 @@ export const EditEventModal: React.FC<EditEventModalProps> = ({
         </div>
       }
     >
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <p className="text-xs text-zinc-400 font-sans leading-relaxed">
           Update the profile details of this event workspace, including timing configurations or cover showcase assets.
         </p>

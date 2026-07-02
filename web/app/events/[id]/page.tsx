@@ -204,7 +204,7 @@ export default async function EventDetailPage({ params, searchParams }: PageProp
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex gap-6 border-b border-white/5 pb-px">
+      <div className="flex gap-6 border-b border-white/5 pb-px overflow-x-auto no-scrollbar whitespace-nowrap -mx-4 px-4 md:mx-0 md:px-0">
         <Link href={`/events/${event.id}?tab=budget`}>
           <span className={`pb-3 font-heading text-sm font-bold tracking-wider uppercase cursor-pointer border-b-2 transition-all block ${
             activeTab === "budget" 

@@ -94,6 +94,19 @@ export const DatePicker: React.FC<DatePickerProps> = ({
     };
   }, []);
 
+  // Lock body scroll when calendar modal is active
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    }
+    return () => {
+      const activeDialogs = document.querySelectorAll('[role="dialog"]');
+      if (activeDialogs.length <= 1) {
+        document.body.style.overflow = "";
+      }
+    };
+  }, [isOpen]);
+
   const formatDateLabel = (date: Date | null, ph: string) => {
     if (!date) return ph;
     if (!mounted) return ph; // Prevent Next.js hydration mismatch
@@ -383,8 +396,8 @@ export const DatePicker: React.FC<DatePickerProps> = ({
 
       {/* Dropdown Calendar Drawer - Portaled Center Modal Overlay */}
       {isOpen && mounted && typeof window !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-100">
-          <div ref={calendarRef} className="w-full max-w-[360px] rounded-2xl border border-neon-purple/20 bg-[#121214] p-5 shadow-[0_15px_50px_rgba(168,85,247,0.3)] animate-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm animate-in fade-in duration-100">
+          <div ref={calendarRef} role="dialog" aria-modal="true" className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] max-w-[340px] rounded-2xl border border-neon-purple/20 bg-[#121214] p-4 shadow-[0_15px_50px_rgba(168,85,247,0.3)] animate-in zoom-in-95 duration-150">
             {calendarContent}
           </div>
         </div>,

@@ -51,7 +51,8 @@ export const LoginForm: React.FC<{ googleClientId: string }> = ({ googleClientId
     const node = googleBtnNodeRef.current;
     if (node && (window as any).google?.accounts?.id) {
       const google = (window as any).google;
-      const targetWidth = Math.max(250, Math.min(400, node.offsetWidth || 382));
+      const fallbackWidth = typeof window !== "undefined" ? Math.min(382, window.innerWidth - 64) : 280;
+      const targetWidth = Math.max(250, Math.min(400, node.offsetWidth || fallbackWidth));
       google.accounts.id.renderButton(
         node,
         { theme: "filled_black", size: "large", width: targetWidth, text: "signin_with", shape: "rectangular" }
