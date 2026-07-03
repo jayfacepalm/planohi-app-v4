@@ -202,8 +202,14 @@ export const EditEventModal: React.FC<EditEventModalProps> = ({
         Object.entries(err.data.result).forEach(([field, msg]) => {
           if (field === "banner") {
             setBannerError(msg as string);
-          } else {
+          } else if (field === "startDate" || field === "endDate" || field === "dateRange") {
+            setDateError(msg as string);
+          } else if (field === "currency") {
+            setCurrencyError(msg as string);
+          } else if (field === "title" || field === "description") {
             setFormFieldError(field as any, { type: "server", message: msg as string });
+          } else {
+            setError(msg as string);
           }
         });
       } else if (err.data && err.data.msg) {

@@ -230,15 +230,6 @@ public class EventServiceImpl implements EventService {
             }
         }
 
-        // Validate boundary against existing spendings (GAP 19)
-        List<EventSpending> spendings = eventSpendingRepository.findByEventIdOrderBySpentAtAsc(eventId);
-        for (EventSpending spending : spendings) {
-            if (spending.getSpentAt().isBefore(startDate) || spending.getSpentAt().isAfter(endDate)) {
-                throw new FieldValidationException("startDate", 
-                        "New date range excludes logged spending transaction: '" + spending.getDescription() + "' spent at " + spending.getSpentAt());
-            }
-        }
-
         // Save new banner file if provided
         String oldBannerUrl = event.getBannerUrl();
         if (bannerFile != null && !bannerFile.isEmpty()) {

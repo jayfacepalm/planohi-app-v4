@@ -345,5 +345,13 @@ Verbose and detailed logging is required across all backend layers to ensure tra
    - `WARN`: User-driven errors (invalid OTP inputs, failed logins, bad requests).
    - `ERROR`: System anomalies, external service failures, and uncaught exceptions.
 
+---
+
+## 11. Date Validation & Boundary Constraints
+
+To align with real-world coordination scenarios:
+1. **Event Milestones (Timeline Items)**: Milestone due dates must fall within the event's date boundaries (plus/minus a 24-hour buffer window) to ensure tasks correspond with event scheduling.
+2. **Spendings (Budget Outflows)**: Spending transaction dates (`spent_at`) must **not** be validated against the event's date boundaries, since payments, deposits, plane tickets, or vendor invoices are commonly paid weeks before the event starts or settled days after the event completes.
+
 
 
