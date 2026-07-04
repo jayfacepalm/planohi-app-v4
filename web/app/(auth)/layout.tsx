@@ -16,7 +16,7 @@ export default function AuthLayout({
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.007)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.007)_1px,transparent_1px)] bg-[size:30px_30px] pointer-events-none" />
 
       {/* Main content */}
-      <main className="flex-1 flex flex-col justify-center items-center px-6 py-12 relative z-10">
+      <main className="flex-1 flex flex-col justify-center items-center px-1 md:px-6 py-12 relative z-10">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold font-heading tracking-wider bg-gradient-to-r from-neon-purple to-neon-cyan bg-clip-text text-transparent">
             PLANO.HI

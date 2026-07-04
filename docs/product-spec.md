@@ -23,6 +23,7 @@ Planohi (Bisaya word for "To Plan") is a comprehensive, self-contained event coo
 * **Spending Registry**:
   - Individual cash/credit outflows (Spendings) are logged and tagged to specific `EventComponents`.
   - Actual expenditure totals are aggregated and compared against the estimated cost of each component.
+  - **Date Independence**: Spending transactions (`spent_at`) can occur at any time (e.g. advance deposits or plane tickets purchased before the event begins, or invoice settlements paid after it ends) and are not bounded by the event's `start_date` and `end_date`.
 
 ### ⏱️ Event Timeline
 * **Task Tracker**: Chronological list of event milestones or checklists.

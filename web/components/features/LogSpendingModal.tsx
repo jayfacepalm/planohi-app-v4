@@ -27,6 +27,7 @@ interface LogSpendingModalProps {
   componentId: string;
   componentName: string;
   onSuccess: () => void;
+  currency?: string;
 }
 
 export const LogSpendingModal: React.FC<LogSpendingModalProps> = ({
@@ -35,6 +36,7 @@ export const LogSpendingModal: React.FC<LogSpendingModalProps> = ({
   componentId,
   componentName,
   onSuccess,
+  currency,
 }) => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -161,7 +163,7 @@ export const LogSpendingModal: React.FC<LogSpendingModalProps> = ({
 
         <Input
           id="spending-amount"
-          label="Amount Spent (PHP)"
+          label={`Amount Spent (${currency || "USD"})`}
           type="number"
           step="0.01"
           placeholder="e.g. 5000"

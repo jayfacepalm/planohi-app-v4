@@ -72,4 +72,8 @@ public class AuthCachedService {
     public String generateToken(UserDto userDto) {
         return authService.generateToken(userDto);
     }
+
+    public UserDto authenticateGoogleUser(String credentialToken) {
+        return authService.authenticateGoogleUser(credentialToken);
+    }
 }

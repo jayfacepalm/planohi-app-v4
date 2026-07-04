@@ -40,16 +40,34 @@ variable "db_backup_retention_period" {
   description = "The number of days to retain automated database backups. Set to 0 to disable backups."
 }
 
-variable "rabbitmq_username" {
-  type        = string
-  sensitive   = true
-  description = "RabbitMQ broker administrator username"
+variable "ecs_task_count" {
+  type        = number
+  default     = 1
+  description = "Number of Fargate task instances for the Consolidated Web/API Service"
 }
 
-variable "rabbitmq_password" {
+variable "ecs_task_cpu" {
   type        = string
-  sensitive   = true
-  description = "RabbitMQ broker administrator password (must be 12+ chars, no special chars except subset)"
+  default     = "1024"
+  description = "vCPU allocation for the combined ECS task (in CPU units)"
+}
+
+variable "ecs_task_memory" {
+  type        = string
+  default     = "2048"
+  description = "Memory allocation for the combined ECS task (in MB)"
+}
+
+variable "rds_instance_class" {
+  type        = string
+  default     = "db.t4g.micro"
+  description = "Database instance class for RDS Postgres"
+}
+
+variable "redis_node_type" {
+  type        = string
+  default     = "cache.t4g.micro"
+  description = "Node type for ElastiCache Redis cluster"
 }
 
 variable "jwt_secret_key" {
@@ -89,3 +107,10 @@ variable "mail_from_address" {
   description = "The email address to send emails from (must be verified in SES)"
   sensitive   = true
 }
+
+variable "google_client_id" {
+  type        = string
+  sensitive   = true
+  description = "Google Client ID for OAuth login"
+}
+

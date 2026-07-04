@@ -38,6 +38,7 @@ export async function handleProxy(req: NextRequest) {
       method: req.method,
       headers: headers,
       body: req.method !== 'GET' && req.method !== 'HEAD' ? await req.blob() : undefined,
+      cache: 'no-store',
     });
 
     const data = await res.blob();

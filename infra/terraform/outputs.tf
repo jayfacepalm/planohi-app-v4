@@ -13,12 +13,9 @@ output "api_ecr_repo_url" {
   description = "ECR URL for the backend api image"
 }
 
-output "email_ecr_repo_url" {
-  value       = aws_ecr_repository.email.repository_url
-  description = "ECR URL for the email worker image"
+output "cloudfront_domain_name" {
+  value       = aws_cloudfront_distribution.web.domain_name
+  description = "The CloudFront CDN distribution URL"
 }
 
-output "activitylogs_ecr_repo_url" {
-  value       = aws_ecr_repository.activitylogs.repository_url
-  description = "ECR URL for the activity logs worker image"
-}
+

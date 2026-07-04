@@ -95,6 +95,7 @@ public class EventServiceImpl implements EventService {
                 .startDate(startDate)
                 .endDate(endDate)
                 .bannerUrl(bannerUrl)
+                .currency(request.getCurrency())
                 .build();
 
         Event saved = eventRepository.save(event);
@@ -190,6 +191,7 @@ public class EventServiceImpl implements EventService {
                 .bannerUrl(s3StorageService.generatePresignedUrl(event.getBannerUrl()))
                 .totalEstimatedCost(BigDecimal.ZERO) // Aggregation is added in US-2.5
                 .createdAt(event.getCreatedAt())
+                .currency(event.getCurrency())
                 .build();
     }
 
@@ -228,15 +230,6 @@ public class EventServiceImpl implements EventService {
             }
         }
 
-        // Validate boundary against existing spendings (GAP 19)
-        List<EventSpending> spendings = eventSpendingRepository.findByEventIdOrderBySpentAtAsc(eventId);
-        for (EventSpending spending : spendings) {
-            if (spending.getSpentAt().isBefore(startDate) || spending.getSpentAt().isAfter(endDate)) {
-                throw new FieldValidationException("startDate", 
-                        "New date range excludes logged spending transaction: '" + spending.getDescription() + "' spent at " + spending.getSpentAt());
-            }
-        }
-
         // Save new banner file if provided
         String oldBannerUrl = event.getBannerUrl();
         if (bannerFile != null && !bannerFile.isEmpty()) {
@@ -253,6 +246,7 @@ public class EventServiceImpl implements EventService {
         event.setDescription(request.getDescription());
         event.setStartDate(startDate);
         event.setEndDate(endDate);
+        event.setCurrency(request.getCurrency());
 
         Event saved = eventRepository.save(event);
         log.info("Event successfully updated in DB: {}", saved.getId());

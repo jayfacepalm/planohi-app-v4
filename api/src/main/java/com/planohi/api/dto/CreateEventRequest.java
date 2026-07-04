@@ -29,4 +29,8 @@ public class CreateEventRequest {
     @NotNull(message = "End date is required")
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
     private Instant endDate;
+
+    @NotBlank(message = "Currency is required")
+    @Size(min = 3, max = 3, message = "Currency must be exactly a 3-character ISO code")
+    private String currency;
 }

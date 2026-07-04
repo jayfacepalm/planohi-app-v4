@@ -112,7 +112,7 @@ export const AdminVouchersClient: React.FC<AdminVouchersClientProps> = ({
       <Navbar navItems={navItems} userAlias={userAlias} userRole={userRole} />
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col justify-start items-center px-6 py-12 relative z-10 w-full max-w-5xl mx-auto space-y-12">
+      <main className="flex-1 flex flex-col justify-start items-center px-1 md:px-6 py-12 relative z-10 w-full max-w-5xl mx-auto space-y-12">
         
         {/* Admin Header */}
         <div className="w-full flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-6">

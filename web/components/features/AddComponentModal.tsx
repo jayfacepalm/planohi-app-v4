@@ -24,6 +24,7 @@ interface AddComponentModalProps {
   onClose: () => void;
   eventId: string;
   onSuccess: () => void;
+  currency?: string;
 }
 
 export const AddComponentModal: React.FC<AddComponentModalProps> = ({
@@ -31,6 +32,7 @@ export const AddComponentModal: React.FC<AddComponentModalProps> = ({
   onClose,
   eventId,
   onSuccess,
+  currency,
 }) => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -154,7 +156,7 @@ export const AddComponentModal: React.FC<AddComponentModalProps> = ({
 
         <Input
           id="component-cost"
-          label="Estimated Cost (PHP)"
+          label={`Estimated Cost (${currency || "USD"})`}
           type="number"
           step="0.01"
           placeholder="e.g. 25000"

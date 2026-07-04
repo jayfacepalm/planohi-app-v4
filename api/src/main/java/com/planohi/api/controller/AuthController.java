@@ -1,6 +1,7 @@
 package com.planohi.api.controller;
 
 import com.planohi.api.dto.ApiResponse;
+import com.planohi.api.dto.GoogleLoginRequest;
 import com.planohi.api.dto.LoginRequest;
 import com.planohi.api.dto.RegisterOtpRequest;
 import com.planohi.api.dto.RegisterRequest;
@@ -95,6 +96,32 @@ public class AuthController {
         log.info("Successfully authenticated and logged in user: {} in {}ms", request.getEmail(), duration);
 
         return ResponseEntity.ok(ApiResponse.success("Logged in successfully", user));
+    }
+
+    @PostMapping("/google")
+    public ResponseEntity<ApiResponse<UserDto>> googleLogin(
+            @Valid @RequestBody GoogleLoginRequest request,
+            HttpServletResponse response) {
+        log.info("Received request to login/register via Google OAuth");
+        long startTime = System.currentTimeMillis();
+
+        UserDto user = cachedAuthService.authenticateGoogleUser(request.getCredentialToken());
+        String token = cachedAuthService.generateToken(user);
+
+        // Inject session cookie
+        ResponseCookie sessionCookie = ResponseCookie.from("AUTH_TOKEN", token)
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .sameSite("Strict")
+                .path("/")
+                .maxAge(Duration.ofDays(1))
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, sessionCookie.toString());
+
+        long duration = System.currentTimeMillis() - startTime;
+        log.info("Successfully authenticated Google user: {} in {}ms", user.getEmail(), duration);
+
+        return ResponseEntity.ok(ApiResponse.success("Logged in with Google successfully", user));
     }
 
     @PostMapping("/logout")

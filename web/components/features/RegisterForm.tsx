@@ -23,12 +23,20 @@ const registerSchema = z.object({
 
 type RegisterFields = z.infer<typeof registerSchema>;
 
-export const RegisterForm: React.FC = () => {
+export const RegisterForm: React.FC<{ googleClientId: string }> = ({ googleClientId }) => {
   const [step, setStep] = useState<1 | 2>(1);
   const [otp, setOtp] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [otpResent, setOtpResent] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
+  React.useEffect(() => {
+    if (cooldown > 0) {
+      const timer = setTimeout(() => setCooldown(cooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [cooldown]);
 
   const {
     register,
@@ -39,6 +47,75 @@ export const RegisterForm: React.FC = () => {
   } = useForm<RegisterFields>({
     resolver: zodResolver(registerSchema),
   });
+
+  const handleGoogleCallback = async (response: any) => {
+    setLoading(true);
+    setError(null);
+    try {
+      await fetchApi<any>("/auth/google", {
+        method: "POST",
+        body: JSON.stringify({ credentialToken: response.credential }),
+      });
+      window.location.href = "/events";
+    } catch (err: any) {
+      setError(err.message || "Failed to authenticate with Google");
+      setLoading(false);
+    }
+  };
+
+  const googleBtnNodeRef = React.useRef<HTMLDivElement | null>(null);
+
+  const renderGoogleButton = React.useCallback(() => {
+    const node = googleBtnNodeRef.current;
+    if (node && (window as any).google?.accounts?.id) {
+      const google = (window as any).google;
+      const fallbackWidth = typeof window !== "undefined" ? Math.min(382, window.innerWidth - 64) : 280;
+      const targetWidth = Math.max(250, Math.min(400, node.offsetWidth || fallbackWidth));
+      google.accounts.id.renderButton(
+        node,
+        { theme: "filled_black", size: "large", width: targetWidth, text: "signup_with", shape: "rectangular" }
+      );
+    }
+  }, [googleClientId]);
+
+  const googleBtnRef = React.useCallback((node: HTMLDivElement | null) => {
+    googleBtnNodeRef.current = node;
+    renderGoogleButton();
+  }, [renderGoogleButton]);
+
+  React.useEffect(() => {
+    const id = "google-gsi-client";
+    let script = document.getElementById(id) as HTMLScriptElement;
+    if (!script) {
+      script = document.createElement("script");
+      script.src = "https://accounts.google.com/gsi/client";
+      script.id = id;
+      script.async = true;
+      script.defer = true;
+      document.body.appendChild(script);
+    }
+
+    const initializeGoogle = () => {
+      if ((window as any).google?.accounts?.id) {
+        const google = (window as any).google;
+        google.accounts.id.initialize({
+          client_id: googleClientId,
+          callback: handleGoogleCallback,
+        });
+        renderGoogleButton();
+      }
+    };
+
+    if ((window as any).google?.accounts?.id) {
+      initializeGoogle();
+    } else {
+      script.addEventListener("load", initializeGoogle);
+    }
+
+    return () => {
+      script.removeEventListener("load", initializeGoogle);
+    };
+  }, [googleClientId, renderGoogleButton]);
 
   const onProceed = async (data: RegisterFields) => {
     setLoading(true);
@@ -64,6 +141,7 @@ export const RegisterForm: React.FC = () => {
   };
 
   const handleResendOtp = async () => {
+    if (cooldown > 0) return;
     setLoading(true);
     setError(null);
     setOtpResent(false);
@@ -76,6 +154,7 @@ export const RegisterForm: React.FC = () => {
       });
       setOtpResent(true);
       setOtp("");
+      setCooldown(60);
     } catch (err: any) {
       setError(err.message || "Failed to resend verification code");
     } finally {
@@ -185,6 +264,16 @@ export const RegisterForm: React.FC = () => {
               {loading ? "Verifying..." : "Proceed to Verification"}
             </Button>
 
+            <div className="relative flex py-2 items-center">
+              <div className="flex-grow border-t border-zinc-800"></div>
+              <span className="flex-shrink mx-4 text-zinc-500 text-xs uppercase tracking-wider font-sans">Or authenticate with</span>
+              <div className="flex-grow border-t border-zinc-800"></div>
+            </div>
+
+            <div className="flex justify-center w-full min-h-[44px]">
+              <div ref={googleBtnRef} />
+            </div>
+
             <div className="text-center text-xs text-zinc-500 font-sans pt-2">
               Already registered?{" "}
               <Link
@@ -242,10 +331,10 @@ export const RegisterForm: React.FC = () => {
               <button
                 type="button"
                 onClick={handleResendOtp}
-                className="text-neon-cyan hover:underline transition-colors font-medium"
-                disabled={loading}
+                className="text-neon-cyan hover:underline transition-colors font-medium disabled:text-zinc-600 disabled:no-underline disabled:cursor-not-allowed"
+                disabled={loading || cooldown > 0}
               >
-                Resend Code
+                {cooldown > 0 ? `Resend Code (${cooldown}s)` : "Resend Code"}
               </button>
             </div>
           </form>

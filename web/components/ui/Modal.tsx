@@ -27,9 +27,14 @@ export const Modal: React.FC<ModalProps> = ({
     };
     if (isOpen) {
       document.addEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "hidden";
     }
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
+      const openModals = document.querySelectorAll('[role="dialog"]');
+      if (openModals.length <= 1) {
+        document.body.style.overflow = "";
+      }
     };
   }, [isOpen, onClose]);
 
@@ -50,11 +55,11 @@ export const Modal: React.FC<ModalProps> = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
-        className="relative w-full max-w-md rounded-2xl border border-neon-purple/35 bg-[#121214] shadow-[0_0_40px_rgba(168,85,247,0.25)] animate-in fade-in zoom-in duration-200 z-10"
+        className="relative w-full max-w-md max-h-[80dvh] md:max-h-[85dvh] flex flex-col rounded-2xl border border-neon-purple/35 bg-[#121214] shadow-[0_0_40px_rgba(168,85,247,0.25)] animate-in fade-in zoom-in duration-200 z-10"
       >
         
         {/* Header */}
-        <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between rounded-t-2xl">
+        <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between rounded-t-2xl flex-shrink-0">
           <span id="modal-title" className="font-heading font-bold text-white text-lg tracking-wider">
             {title}
           </span>
@@ -69,12 +74,12 @@ export const Modal: React.FC<ModalProps> = ({
         </div>
 
         {/* Content Body */}
-        <div className="p-6">
+        <div className="p-6 overflow-y-auto flex-1">
           {children}
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-black/20 border-t border-white/5 flex items-center justify-end gap-3 rounded-b-2xl">
+        <div className="px-6 py-4 bg-black/20 border-t border-white/5 flex items-center justify-end gap-3 rounded-b-2xl flex-shrink-0">
           {footer || (
             <>
               <Button variant="ghost" onClick={onClose}>

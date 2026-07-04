@@ -21,5 +21,7 @@ public class UserDto {
     private String alias;
 
     private com.planohi.api.enums.UserRole role;
+
+    private com.planohi.api.enums.AuthProvider provider;
 }
 

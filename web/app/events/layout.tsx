@@ -44,7 +44,7 @@ export default async function EventsLayout({
 
 
       {/* Main content */}
-      <main className="flex-1 flex flex-col justify-start items-center px-6 py-12 relative z-10 w-full">
+      <main className="flex-1 flex flex-col justify-start items-center px-1 md:px-6 py-12 relative z-10 w-full">
         {children}
       </main>
 

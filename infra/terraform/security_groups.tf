@@ -102,31 +102,3 @@ resource "aws_security_group" "redis" {
   }
 }
 
-# MQ Security Group (Only allows RabbitMQ ports from containers)
-resource "aws_security_group" "rabbitmq" {
-  name   = "planohi-rabbitmq-sg-${var.environment}"
-  vpc_id = aws_vpc.main.id
-
-  ingress {
-    description     = "Allow AMQPS secure messaging port from ECS containers"
-    from_port       = 5671
-    to_port         = 5671
-    protocol        = "tcp"
-    security_groups = [aws_security_group.ecs.id]
-  }
-
-  ingress {
-    description     = "Allow standard AMQP port from ECS containers"
-    from_port       = 5672
-    to_port         = 5672
-    protocol        = "tcp"
-    security_groups = [aws_security_group.ecs.id]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}

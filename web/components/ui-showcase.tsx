@@ -40,7 +40,7 @@ export default function UiShowcase() {
       <Navbar navItems={showcaseNavItems} />
 
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-12">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-1 md:px-6 py-12">
 
         {/* Header */}
         <div className="mb-12 border-b border-white/5 pb-8">

@@ -1,14 +1,9 @@
 import { cookies } from "next/headers";
 import { fetchApi } from "../../../lib/api-client";
-import { decodeRoleToken } from "../../../lib/security";
-import { EventBudgetCanvas } from "../../../components/features/EventBudgetCanvas";
-import { EventTimelineCanvas } from "../../../components/features/EventTimelineCanvas";
-import { EventGuestCanvas } from "../../../components/features/EventGuestCanvas";
-import { EventCuratorsCanvas } from "../../../components/features/EventCuratorsCanvas";
-import { EventApprovalsCanvas } from "../../../components/features/EventApprovalsCanvas";
 import { Badge } from "../../../components/ui/Badge";
 import { EventWorkspaceHeaderActions } from "../../../components/features/EventWorkspaceHeaderActions";
 import { LocalEventDates } from "../../../components/ui/LocalEventDates";
+import { EventDetailPageClient } from "../../../components/features/EventDetailPageClient";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import React from "react";
@@ -203,113 +198,20 @@ export default async function EventDetailPage({ params, searchParams }: PageProp
         <EventWorkspaceHeaderActions event={event} />
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="flex gap-6 border-b border-white/5 pb-px">
-        <Link href={`/events/${event.id}?tab=budget`}>
-          <span className={`pb-3 font-heading text-sm font-bold tracking-wider uppercase cursor-pointer border-b-2 transition-all block ${
-            activeTab === "budget" 
-              ? "border-neon-cyan text-white drop-shadow-[0_0_8px_rgba(6,182,212,0.4)]" 
-              : "border-transparent text-zinc-500 hover:text-zinc-300"
-          }`}>
-            Budget Canvas
-          </span>
-        </Link>
-        <Link href={`/events/${event.id}?tab=timeline`}>
-          <span className={`pb-3 font-heading text-sm font-bold tracking-wider uppercase cursor-pointer border-b-2 transition-all block ${
-            activeTab === "timeline" 
-              ? "border-neon-purple text-white drop-shadow-[0_0_8px_rgba(168,85,247,0.4)]" 
-              : "border-transparent text-zinc-500 hover:text-zinc-300"
-          }`}>
-            Timeline Canvas
-          </span>
-        </Link>
-        <Link href={`/events/${event.id}?tab=guests`}>
-          <span className={`pb-3 font-heading text-sm font-bold tracking-wider uppercase cursor-pointer border-b-2 transition-all block ${
-            activeTab === "guests" 
-              ? "border-neon-cyan text-white drop-shadow-[0_0_8px_rgba(6,182,212,0.4)]" 
-              : "border-transparent text-zinc-500 hover:text-zinc-300"
-          }`}>
-            Guest Canvas
-          </span>
-        </Link>
-        <Link href={`/events/${event.id}?tab=curators`}>
-          <span className={`pb-3 font-heading text-sm font-bold tracking-wider uppercase cursor-pointer border-b-2 transition-all block ${
-            activeTab === "curators" 
-              ? "border-neon-purple text-white drop-shadow-[0_0_8px_rgba(168,85,247,0.4)]" 
-              : "border-transparent text-zinc-500 hover:text-zinc-300"
-          }`}>
-            Curators
-          </span>
-        </Link>
-        {((decodeRoleToken(event.userRole) === "OWNER" || decodeRoleToken(event.userRole) === "ORGANIZER")) && (
-          <Link href={`/events/${event.id}?tab=approvals`}>
-            <span className={`pb-3 font-heading text-sm font-bold tracking-wider uppercase cursor-pointer border-b-2 transition-all flex items-center gap-1.5 ${
-              activeTab === "approvals" 
-                ? "border-neon-purple text-white drop-shadow-[0_0_8px_rgba(168,85,247,0.4)]" 
-                : "border-transparent text-zinc-500 hover:text-zinc-300"
-            }`}>
-              <span>Approvals</span>
-              {proposalsData && proposalsData.length > 0 && (
-                <span className="bg-neon-purple text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center border border-neon-purple/50 shadow-[0_0_5px_rgba(168,85,247,0.5)]">
-                  {proposalsData.length}
-                </span>
-              )}
-            </span>
-          </Link>
-        )}
-      </div>
-
-      {/* Canvas rendering content */}
-      {activeTab === "timeline" ? (
-        <EventTimelineCanvas
-          eventId={event.id}
-          initialCompletedCount={timelineData?.completedCount || 0}
-          initialTotalCount={timelineData?.totalCount || 0}
-          initialItems={timelineData?.items || []}
-          eventStartDate={event.startDate}
-          eventEndDate={event.endDate}
-          userRole={event.userRole}
-          proposals={proposalsData || []}
-        />
-      ) : activeTab === "guests" ? (
-        <EventGuestCanvas
-          eventId={event.id}
-          initialInvitees={inviteesData?.content || []}
-          initialTotalElements={inviteesData?.totalElements || 0}
-          initialMetrics={metricsData || {
-            totalInvited: 0,
-            respondedCount: 0,
-            acceptedCount: 0,
-            declinedCount: 0,
-            pendingCount: 0,
-            totalAttendingHeadcount: 0
-          }}
-          currentPage={currentPage}
-          currentSearch={currentSearch}
-          userRole={event.userRole}
-          accountRole={accountRole}
-        />
-      ) : activeTab === "curators" ? (
-        <EventCuratorsCanvas
-          eventId={event.id}
-          initialCurators={curatorsData || []}
-          userRole={event.userRole}
-        />
-      ) : activeTab === "approvals" && (decodeRoleToken(event.userRole) === "OWNER" || decodeRoleToken(event.userRole) === "ORGANIZER") ? (
-        <EventApprovalsCanvas
-          eventId={event.id}
-          initialProposals={proposalsData || []}
-        />
-      ) : (
-        <EventBudgetCanvas
-          eventId={event.id}
-          initialComponents={componentsData?.components || []}
-          initialTotalCost={componentsData?.totalEstimatedCost || 0}
-          initialTotalActualSpent={componentsData?.totalActualSpent || 0}
-          userRole={event.userRole}
-          proposals={proposalsData || []}
-        />
-      )}
+      {/* Event Details Client Tabs & Canvas Container */}
+      <EventDetailPageClient
+        event={event}
+        activeTab={activeTab}
+        proposalsData={proposalsData}
+        timelineData={timelineData}
+        inviteesData={inviteesData}
+        metricsData={metricsData}
+        curatorsData={curatorsData}
+        componentsData={componentsData}
+        currentPage={currentPage}
+        currentSearch={currentSearch}
+        accountRole={accountRole}
+      />
     </div>
   );
 }

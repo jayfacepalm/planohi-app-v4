@@ -24,4 +24,5 @@ public class EventDto {
     private String bannerUrl;
     private BigDecimal totalEstimatedCost;
     private Instant createdAt;
+    private String currency;
 }

@@ -3,6 +3,7 @@ package com.planohi.api.service.impl;
 import com.planohi.api.dto.CreateTimelineItemRequest;
 import com.planohi.api.dto.EventTimelineResponse;
 import com.planohi.api.dto.TimelineItemDto;
+import com.planohi.api.dto.UpdateTimelineItemRequest;
 import com.planohi.api.dto.ChangeProposalResponseDto;
 import com.planohi.api.enums.ChangeProposalAction;
 import com.planohi.api.enums.ChangeProposalTarget;
@@ -157,6 +158,86 @@ public class TimelineServiceImpl implements TimelineService {
         TimelineItem item = timelineItemRepository.findById(itemId)
                 .orElseThrow(() -> new EntityNotFoundException("Timeline item not found"));
         return item.getEventId();
+    }
+
+    @Override
+    @Transactional
+    public TimelineItemDto updateTimelineItem(UUID userId, UUID itemId, UpdateTimelineItemRequest request) {
+        log.info("Updating timeline item {} by user {}", itemId, userId);
+
+        TimelineItem item = timelineItemRepository.findById(itemId)
+                .orElseThrow(() -> new EntityNotFoundException("Timeline item not found"));
+
+        Event event = eventRepository.findById(item.getEventId())
+                .orElseThrow(() -> new EntityNotFoundException("Event not found"));
+
+        EventCuratorRole role = workspaceSecurityService.getCuratorRole(userId, event.getId());
+        if (role == EventCuratorRole.VIEWER) {
+            throw new IllegalArgumentException("Access Denied: Viewers cannot modify event timeline");
+        }
+
+        // Apply a 24-hour buffer window to due date comparisons to accommodate timezone offsets
+        Instant minBound = event.getStartDate().minus(24, ChronoUnit.HOURS);
+        Instant maxBound = event.getEndDate().plus(24, ChronoUnit.HOURS);
+
+        if (request.getDueAt().isBefore(minBound) || request.getDueAt().isAfter(maxBound)) {
+            throw new FieldValidationException("dueAt", "Due date must be within the event's start and end date boundaries");
+        }
+
+        if (role == EventCuratorRole.COLLABORATOR) {
+            ChangeProposalResponseDto proposal = changeProposalService.createProposal(
+                    event.getId(),
+                    userId,
+                    ChangeProposalTarget.TIMELINE_ITEM,
+                    ChangeProposalAction.UPDATE,
+                    itemId,
+                    request
+            );
+            throw new ProposalSubmittedException(proposal);
+        }
+
+        item.setTitle(request.getTitle());
+        item.setDueAt(request.getDueAt());
+        TimelineItem saved = timelineItemRepository.save(item);
+        log.info("Timeline item {} updated successfully", itemId);
+
+        activityLogPublisher.publish(userId, null, "TIMELINE_ITEM_UPDATE", "TIMELINE_ITEM", saved.getId(), event.getId(), "SUCCESS", java.util.Map.of("title", saved.getTitle(), "dueAt", saved.getDueAt().toString()));
+
+        return mapToDto(saved);
+    }
+
+    @Override
+    @Transactional
+    public void deleteTimelineItem(UUID userId, UUID itemId) {
+        log.info("Deleting timeline item {} by user {}", itemId, userId);
+
+        TimelineItem item = timelineItemRepository.findById(itemId)
+                .orElseThrow(() -> new EntityNotFoundException("Timeline item not found"));
+
+        Event event = eventRepository.findById(item.getEventId())
+                .orElseThrow(() -> new EntityNotFoundException("Event not found"));
+
+        EventCuratorRole role = workspaceSecurityService.getCuratorRole(userId, event.getId());
+        if (role == EventCuratorRole.VIEWER) {
+            throw new IllegalArgumentException("Access Denied: Viewers cannot modify event timeline");
+        }
+
+        if (role == EventCuratorRole.COLLABORATOR) {
+            ChangeProposalResponseDto proposal = changeProposalService.createProposal(
+                    event.getId(),
+                    userId,
+                    ChangeProposalTarget.TIMELINE_ITEM,
+                    ChangeProposalAction.DELETE,
+                    itemId,
+                    null
+            );
+            throw new ProposalSubmittedException(proposal);
+        }
+
+        timelineItemRepository.delete(item);
+        log.info("Timeline item {} deleted successfully", itemId);
+
+        activityLogPublisher.publish(userId, null, "TIMELINE_ITEM_DELETE", "TIMELINE_ITEM", itemId, event.getId(), "SUCCESS", java.util.Map.of("title", item.getTitle()));
     }
 
     private TimelineItemDto mapToDto(TimelineItem item) {

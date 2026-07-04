@@ -9,7 +9,7 @@ export function decodeRoleToken(token?: string): string | null {
   try {
     const base64Url = token.split('.')[1];
     if (!base64Url) return null;
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const base64 = base64Url.replaceAll('-', '+').replaceAll('_', '/');
     const jsonPayload = decodeURIComponent(
       atob(base64)
         .split('')

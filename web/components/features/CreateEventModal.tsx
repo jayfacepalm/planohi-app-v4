@@ -41,6 +41,12 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
   const [bannerError, setBannerError] = useState<string | null>(null);
 
+  // Currency Selection States
+  const [currencyMode, setCurrencyMode] = useState<"PREDEFINED" | "CUSTOM">("PREDEFINED");
+  const [selectedCurrency, setSelectedCurrency] = useState("USD");
+  const [customCurrency, setCustomCurrency] = useState("");
+  const [currencyError, setCurrencyError] = useState<string | null>(null);
+
   const {
     register,
     handleSubmit,
@@ -101,7 +107,17 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
       return;
     }
 
+    let finalCurrency = selectedCurrency;
+    if (currencyMode === "CUSTOM") {
+      if (!/^[A-Za-z]{3}$/.test(customCurrency)) {
+        setCurrencyError("Custom currency must be exactly a 3-character alphabetic code");
+        return;
+      }
+      finalCurrency = customCurrency.toUpperCase();
+    }
+
     setDateError(null);
+    setCurrencyError(null);
     setLoading(true);
     setError(null);
 
@@ -117,6 +133,7 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
       }
       formData.append("startDate", toUtcDateString(fromDate));
       formData.append("endDate", toUtcDateString(toDate));
+      formData.append("currency", finalCurrency);
       if (bannerFile) {
         formData.append("banner", bannerFile);
       }
@@ -156,6 +173,10 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
     setError(null);
     setDateError(null);
     setBannerError(null);
+    setCurrencyMode("PREDEFINED");
+    setSelectedCurrency("USD");
+    setCustomCurrency("");
+    setCurrencyError(null);
     onClose();
   };
 
@@ -224,6 +245,58 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
           {dateError && (
             <p className="text-xs text-red-400 mt-1.5 font-medium flex items-center gap-1">
               {dateError}
+            </p>
+          )}
+        </div>
+
+        <div>
+          <label htmlFor="event-currency" className="text-xs text-zinc-400 block mb-1.5 font-heading tracking-wide">
+            Event Currency Configuration
+          </label>
+          <div className="flex gap-3">
+            <select
+              id="event-currency"
+              value={currencyMode === "CUSTOM" ? "CUSTOM" : selectedCurrency}
+              onChange={(e) => {
+                const val = e.target.value;
+                setCurrencyError(null);
+                if (val === "CUSTOM") {
+                  setCurrencyMode("CUSTOM");
+                } else {
+                  setCurrencyMode("PREDEFINED");
+                  setSelectedCurrency(val);
+                }
+              }}
+              disabled={loading}
+              className="bg-[#18181b] border border-white/10 focus:border-neon-cyan focus:shadow-[0_0_15px_rgba(6,182,212,0.25)] rounded-lg px-4 py-2.5 text-white focus:outline-none transition-all font-sans text-xs flex-1 cursor-pointer"
+            >
+              <option value="USD">USD ($)</option>
+              <option value="PHP">PHP (₱)</option>
+              <option value="EUR">EUR (€)</option>
+              <option value="GBP">GBP (£)</option>
+              <option value="JPY">JPY (¥)</option>
+              <option value="SGD">SGD (S$)</option>
+              <option value="CUSTOM">Custom Code...</option>
+            </select>
+
+            {currencyMode === "CUSTOM" && (
+              <input
+                type="text"
+                maxLength={3}
+                placeholder="e.g. CAD"
+                value={customCurrency}
+                onChange={(e) => {
+                  setCurrencyError(null);
+                  setCustomCurrency(e.target.value.toUpperCase());
+                }}
+                disabled={loading}
+                className="bg-[#18181b] border border-white/10 focus:border-neon-cyan focus:shadow-[0_0_15px_rgba(6,182,212,0.25)] rounded-lg px-4 py-2.5 text-white focus:outline-none transition-all font-mono text-xs w-28 uppercase"
+              />
+            )}
+          </div>
+          {currencyError && (
+            <p className="text-xs text-red-400 mt-1.5 font-medium flex items-center gap-1">
+              {currencyError}
             </p>
           )}
         </div>

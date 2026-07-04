@@ -197,19 +197,26 @@ export const EventGuestCanvas: React.FC<EventGuestCanvasProps> = ({
   // Sync debounced search to URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const currentSearchParam = params.get("search") || "";
+    
+    // Only push if the search value has actually changed to prevent immediate redirection on mount
+    if (debouncedSearch === currentSearchParam) {
+      return;
+    }
+
     if (debouncedSearch) {
       params.set("search", debouncedSearch);
     } else {
       params.delete("search");
     }
     params.set("page", "0"); // Reset page index on search
-    router.push(`?${params.toString()}`);
+    router.push(`?${params.toString()}#tabs-container`, { scroll: false });
   }, [debouncedSearch, router]);
 
   const handlePageChange = (newPage: number) => {
     const params = new URLSearchParams(window.location.search);
     params.set("page", newPage.toString());
-    router.push(`?${params.toString()}`);
+    router.push(`?${params.toString()}#tabs-container`, { scroll: false });
   };
 
   const handleCopyLink = async (inviteeId: string, token: string) => {
