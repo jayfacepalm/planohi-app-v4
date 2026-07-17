@@ -42,8 +42,8 @@ export function proxy(request: NextRequest) {
     : "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://accounts.google.com/gsi/client https://pagead2.googlesyndication.com https://adservice.google.com https://*.googlesyndication.com https://*.doubleclick.net https://*.adtrafficquality.google https://*.google.com https://*.gstatic.com";
   const styleSrc = "style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style";
   const connectSrc = `connect-src ${cspAllowedConnectSources} https://accounts.google.com https://*.adtrafficquality.google https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com https://*.gstatic.com`;
-  const frameSrc = "frame-src https://accounts.google.com https://googleads.g.doubleclick.net https://tpc.googlesyndication.com https://*.google.com https://*.doubleclick.net";
-  const cspString = `default-src 'self'; ${scriptSrc}; ${styleSrc}; font-src 'self' https://fonts.gstatic.com; img-src ${cspAllowedImageSources}; ${connectSrc}; ${frameSrc}; frame-ancestors 'none';`;
+  const frameSrc = "frame-src https://accounts.google.com https://googleads.g.doubleclick.net https://tpc.googlesyndication.com https://*.google.com https://*.doubleclick.net https://*.adtrafficquality.google";
+  const cspString = `default-src 'self'; ${scriptSrc}; ${styleSrc}; font-src 'self' https://fonts.gstatic.com; img-src ${cspAllowedImageSources} https://*.adtrafficquality.google https://*.google.com https://*.gstatic.com; ${connectSrc}; ${frameSrc}; frame-ancestors 'none';`;
 
   let response: NextResponse;
 
