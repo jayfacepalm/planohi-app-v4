@@ -38,10 +38,10 @@ export function proxy(request: NextRequest) {
 
   const isProd = process.env.NODE_ENV === 'production';
   const scriptSrc = isProd 
-    ? "script-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/client https://pagead2.googlesyndication.com https://adservice.google.com https://*.googlesyndication.com https://*.doubleclick.net" 
-    : "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://accounts.google.com/gsi/client https://pagead2.googlesyndication.com https://adservice.google.com https://*.googlesyndication.com https://*.doubleclick.net";
+    ? "script-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/client https://pagead2.googlesyndication.com https://adservice.google.com https://*.googlesyndication.com https://*.doubleclick.net https://*.adtrafficquality.google https://*.google.com https://*.gstatic.com" 
+    : "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://accounts.google.com/gsi/client https://pagead2.googlesyndication.com https://adservice.google.com https://*.googlesyndication.com https://*.doubleclick.net https://*.adtrafficquality.google https://*.google.com https://*.gstatic.com";
   const styleSrc = "style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style";
-  const connectSrc = `connect-src ${cspAllowedConnectSources} https://accounts.google.com https://*.adtrafficquality.google https://*.googlesyndication.com https://*.doubleclick.net`;
+  const connectSrc = `connect-src ${cspAllowedConnectSources} https://accounts.google.com https://*.adtrafficquality.google https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com https://*.gstatic.com`;
   const frameSrc = "frame-src https://accounts.google.com https://googleads.g.doubleclick.net https://tpc.googlesyndication.com https://*.google.com https://*.doubleclick.net";
   const cspString = `default-src 'self'; ${scriptSrc}; ${styleSrc}; font-src 'self' https://fonts.gstatic.com; img-src ${cspAllowedImageSources}; ${connectSrc}; ${frameSrc}; frame-ancestors 'none';`;
 
