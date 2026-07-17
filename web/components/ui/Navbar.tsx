@@ -157,7 +157,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   );
 
   return (
-    <nav className="sticky top-0 z-40 w-full border-b border-white/5 bg-[#070708]/85 backdrop-blur-md">
+    <nav className="sticky top-0 z-40 w-full border-b border-white/5 bg-[#070708] shadow-[0_4px_20px_rgba(0,0,0,0.3)]">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <div className="flex items-center gap-8">
           <Link href="/">

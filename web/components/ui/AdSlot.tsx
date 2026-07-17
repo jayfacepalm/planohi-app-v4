@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { Button } from "./Button";
 import { decodeRoleToken } from "../../lib/security";
@@ -13,7 +13,8 @@ interface AdSlotProps {
 
 export const AdSlot: React.FC<AdSlotProps> = ({ slotId, userRole, variant = "horizontal", pubId: propPubId }) => {
   const [mounted, setMounted] = useState(false);
-  const [isBlocked, setIsBlocked] = useState(false);
+  const [hasLoadedAd, setHasLoadedAd] = useState(false);
+  const insRef = useRef<HTMLModElement>(null);
   const pubId = propPubId || process.env.NEXT_PUBLIC_ADSENSE_PUBLISHER_ID || "pub-0000000000000000";
 
   // Check if account is PREMIUM or ADMIN to hide ads
@@ -39,20 +40,40 @@ export const AdSlot: React.FC<AdSlotProps> = ({ slotId, userRole, variant = "hor
       try {
         ((window as any).adsbygoogle = (window as any).adsbygoogle || []).push({});
       } catch (e) {
-        setIsBlocked(true);
+        // Safe catch, defaults to fallback UI
       }
     }, 150);
 
-    // Verify script loaded successfully after 1.5 seconds
-    const timer = setTimeout(() => {
-      if (!(window as any).adsbygoogle?.loaded) {
-        setIsBlocked(true);
+    const targetNode = insRef.current;
+    if (!targetNode) return;
+
+    // Watch for attributes change to immediately detect loaded ad status
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === "attributes" && mutation.attributeName === "data-ad-status") {
+          const status = targetNode.getAttribute("data-ad-status");
+          if (status === "filled") {
+            setHasLoadedAd(true);
+          }
+        }
+      });
+    });
+
+    observer.observe(targetNode, { attributes: true });
+
+    // Fallback scanner: Check status attribute periodically (every 200ms)
+    const checkInterval = setInterval(() => {
+      const status = targetNode.getAttribute("data-ad-status");
+      if (status === "filled") {
+        setHasLoadedAd(true);
+        clearInterval(checkInterval);
       }
-    }, 1500);
+    }, 200);
 
     return () => {
       clearTimeout(pushTimer);
-      clearTimeout(timer);
+      observer.disconnect();
+      clearInterval(checkInterval);
     };
   }, [mounted, isAdFreeUser]);
 
@@ -70,20 +91,6 @@ export const AdSlot: React.FC<AdSlotProps> = ({ slotId, userRole, variant = "hor
     );
   }
 
-  if (isBlocked) {
-    return (
-      <div className={`border border-neon-purple/20 bg-[#121214]/65 rounded-xl p-4 text-center space-y-3 relative overflow-hidden ${
-        variant === "card" ? "h-full flex flex-col justify-center" : ""
-      }`}>
-        <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest">[Support detected]</div>
-        <p className="text-xs text-zinc-400">Upgrade to Premium to remove ads and unlock unlimited coordinate boards.</p>
-        <Link href="/activate-voucher">
-          <Button variant="gradient" className="px-3.5 py-1.5 text-[10px] h-auto mt-2 cursor-pointer">Glow Premium</Button>
-        </Link>
-      </div>
-    );
-  }
-
   // If in local development, render a beautiful preview card instead of a blank container
   if ((process.env.NODE_ENV as string) === "development") {
     return (
@@ -92,7 +99,7 @@ export const AdSlot: React.FC<AdSlotProps> = ({ slotId, userRole, variant = "hor
       }`}>
         <div className="absolute top-1 left-2 text-[8px] font-mono text-neon-cyan/60 uppercase tracking-wider">[Sponsor Preview]</div>
         <div className="text-center space-y-1.5 z-10">
-          <div className="text-xs font-heading font-semibold text-zinc-300">Google AdSense Placement</div>
+          <div className="text-xs font-heading font-semibold text-zinc-350">Google AdSense Placement</div>
           <div className="text-[9px] font-mono text-zinc-500 uppercase">Slot ID: {slotId} • Client: {pubId}</div>
           <p className="text-[9px] text-zinc-500 max-w-md mx-auto leading-relaxed">
             Test mode active. Real advertisements will load here when compiled on production host domains.
@@ -104,19 +111,48 @@ export const AdSlot: React.FC<AdSlotProps> = ({ slotId, userRole, variant = "hor
   }
 
   return (
-    <div className={`border border-white/5 bg-[#09090b] rounded-xl p-3 relative ${
-      variant === "card" ? "h-full flex items-center justify-center min-h-[250px]" : "w-full min-h-[90px]"
+    <div className={`relative overflow-hidden rounded-xl transition-all duration-300 ${
+      hasLoadedAd 
+        ? "border border-white/5 bg-[#09090b] p-3" 
+        : "border border-neon-purple/20 bg-[#121214]/65 p-4 text-center"
+    } ${
+      variant === "card" ? "h-full flex flex-col justify-center min-h-[250px]" : "w-full min-h-[90px]"
     }`}>
-      <div className="absolute top-1 left-2 text-[8px] font-mono text-zinc-600 uppercase tracking-wider">[Sponsor]</div>
-      <ins
-        className="adsbygoogle"
-        style={{ display: "block" }}
-        data-ad-client={pubId}
-        data-ad-slot={slotId}
-        data-ad-format="auto"
-        data-full-width-responsive="true"
-        data-ad-test={(process.env.NODE_ENV as string) === "development" ? "on" : "off"}
-      />
+      
+      {/* 1. Premium Upgrade Content (Visible ONLY when no ad has successfully loaded) */}
+      {!hasLoadedAd && (
+        <div className="space-y-3 flex flex-col items-center justify-center h-full animate-in fade-in duration-300">
+          <div className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest">
+            [Plano.hi Premium]
+          </div>
+          <p className="text-xs text-zinc-400 max-w-md mx-auto leading-relaxed">
+            Upgrade to Premium to remove ads and unlock unlimited coordinate boards.
+          </p>
+          <Link href="/activate-voucher">
+            <Button variant="gradient" className="px-3.5 py-1.5 text-[10px] h-auto mt-2 cursor-pointer">
+              Glow Premium
+            </Button>
+          </Link>
+        </div>
+      )}
+
+      {/* 2. Google Ad Container (Mounted to background to load, but hidden until filled) */}
+      <div className={hasLoadedAd ? "block w-full h-full" : "absolute inset-0 opacity-0 pointer-events-none w-full h-full"}>
+        {hasLoadedAd && (
+          <div className="absolute top-1 left-2 text-[8px] font-mono text-zinc-600 uppercase tracking-wider">[Sponsor]</div>
+        )}
+        <ins
+          ref={insRef}
+          className="adsbygoogle"
+          style={{ display: "block" }}
+          data-ad-client={pubId}
+          data-ad-slot={slotId}
+          data-ad-format="auto"
+          data-full-width-responsive="true"
+          data-ad-test={(process.env.NODE_ENV as string) === "development" ? "on" : "off"}
+        />
+      </div>
+
     </div>
   );
 };
