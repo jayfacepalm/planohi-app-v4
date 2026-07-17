@@ -114,3 +114,16 @@ variable "google_client_id" {
   description = "Google Client ID for OAuth login"
 }
 
+variable "adsense_publisher_id" {
+  type        = string
+  sensitive   = true
+  description = "Google AdSense Publisher ID (e.g. pub-1595992491270463)"
+  default     = "pub-0000000000000000"
+}
+
+variable "acm_certificate_arn" {
+  type        = string
+  description = "ACM Certificate ARN for the custom domain in N. Virginia (us-east-1)"
+  default     = ""
+}
+

@@ -2,6 +2,7 @@ import React from "react";
 import { cookies } from "next/headers";
 import { Navbar } from "@/components/ui/Navbar";
 import { Footer } from "@/components/ui/Footer";
+import { AdSlot } from "@/components/ui/AdSlot";
 
 export default async function EventsLayout({
   children,
@@ -47,6 +48,11 @@ export default async function EventsLayout({
       <main className="flex-1 flex flex-col justify-start items-center px-1 md:px-6 py-12 relative z-10 w-full">
         {children}
       </main>
+
+      {/* Footer Ad Banner */}
+      <div className="w-full max-w-7xl mx-auto px-4 md:px-6 mb-6 relative z-0">
+        <AdSlot slotId="8492048591" userRole={role} variant="horizontal" />
+      </div>
 
       {/* Footer */}
       <Footer />

@@ -15,6 +15,7 @@ resource "aws_cloudfront_distribution" "web" {
   enabled             = true
   is_ipv6_enabled     = true
   comment             = "CloudFront Distribution for Plano.hi app in ${var.environment}"
+  aliases             = var.acm_certificate_arn != "" ? [var.domain_name] : []
 
   # Default Cache Behavior: Dynamic Content and APIs (Caching Disabled, forward everything)
   default_cache_behavior {
@@ -61,7 +62,10 @@ resource "aws_cloudfront_distribution" "web" {
   }
 
   viewer_certificate {
-    cloudfront_default_certificate = true
+    cloudfront_default_certificate = var.acm_certificate_arn == "" ? true : false
+    acm_certificate_arn            = var.acm_certificate_arn != "" ? var.acm_certificate_arn : null
+    ssl_support_method             = var.acm_certificate_arn != "" ? "sni-only" : null
+    minimum_protocol_version       = var.acm_certificate_arn != "" ? "TLSv1.2_2021" : "TLSv1"
   }
 
   tags = {

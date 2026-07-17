@@ -258,7 +258,7 @@ Next.js Layout components are server-rendered. The `layout.tsx` wrapper inside `
 3. Inject the decoded `alias` into the layout's `<Navbar userAlias={alias} />` render call.
 
 ### 2. Profile Dropdown Menu Component
-Inside [Navbar.tsx](file:///c:/Users/jayma/Documents/GitRepo-1/planohi-app-v4/web/components/ui/Navbar.tsx):
+Inside [Navbar.tsx](/planohi-app-v4/web/components/ui/Navbar.tsx):
 * Replace standard Sign In/Docs buttons with a glassmorphic user profile card when a `userAlias` is passed.
 * Triggering the profile card opens a dropdown menu containing:
   - Header showing profile icon and `"Logged in as: <userAlias>"`.

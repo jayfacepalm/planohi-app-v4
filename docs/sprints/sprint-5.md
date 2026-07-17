@@ -146,7 +146,7 @@ To maintain read consistency across updates, the services will coordinate the fo
 * **Next.js Hydration safety**: To prevent Next.js hydration warning mismatches between server UTC pre-rendering and local client timezones, all React client components formatting dates must only render dates after mounting (`mounted` state check) or apply `suppressHydrationWarning` on the respective HTML date wrapper elements.
 
 ### 4. Edit/Delete Modals & Controls
-* **Workspace Page Header**: Add "Edit Workspace" and "Delete Workspace" triggers. The delete option must be shown only when the event workspace is selected (within the event details view, not on the dashboard cards) and must trigger a custom [Modal.tsx](file:///c:/Users/jayma/Documents/GitRepo-1/planohi-app-v4/web/components/ui/Modal.tsx) confirmation overlay.
+* **Workspace Page Header**: Add "Edit Workspace" and "Delete Workspace" triggers. The delete option must be shown only when the event workspace is selected (within the event details view, not on the dashboard cards) and must trigger a custom [Modal.tsx](/planohi-app-v4/web/components/ui/Modal.tsx) confirmation overlay.
 * **Budget Canvas**:
   - Row controls to edit component names/estimates.
   - Sub-row controls to edit/delete logged actual spendings.

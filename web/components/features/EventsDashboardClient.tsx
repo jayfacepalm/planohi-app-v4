@@ -10,6 +10,7 @@ import { Button } from "../ui/Button";
 import { CreateEventModal } from "./CreateEventModal";
 import { Calendar } from "lucide-react";
 import { InvitationsBanner } from "./InvitationsBanner";
+import { AdSlot } from "../ui/AdSlot";
 
 interface EventItem {
   id: string;
@@ -101,6 +102,7 @@ export const EventsDashboardClient: React.FC<EventsDashboardClientProps> = ({
           {events.map((event) => (
             <EventCard key={event.id} event={event} />
           ))}
+          <AdSlot variant="card" slotId="0294859102" userRole={userRole} />
         </div>
 
         {/* Pagination */}

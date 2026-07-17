@@ -15,7 +15,7 @@ services:
     networks:
       - app-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-planohiuser} -d ${POSTGRES_DB:-planohidb}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-planohiuser} -d ${POSTGRES_DB:-planohidb}" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -31,7 +31,7 @@ services:
     networks:
       - app-network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -105,6 +105,7 @@ services:
       CSP_ALLOWED_CONNECT_SOURCES: "${CSP_ALLOWED_CONNECT_SOURCES:-'self' ws: http://localhost:8080 http://localhost:3000}"
       SECURITY_API_KEY: ${SECURITY_API_KEY}
       NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      NEXT_PUBLIC_ADSENSE_PUBLISHER_ID: ${ADSENSE_PUBLISHER_ID}
     depends_on:
       - api
     networks:

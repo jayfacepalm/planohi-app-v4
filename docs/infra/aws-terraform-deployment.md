@@ -2,7 +2,7 @@
 
 This guide is a beginner-friendly, step-by-step walkthrough for deploying the **planohi-app-v4** application stack to AWS (Amazon Web Services) using **Terraform** by HashiCorp. 
 
-It maps the local environment defined in your [docker-compose.yml](file:///c:/Users/jayma/Documents/GitRepo-1/planohi-app-v4/docker-compose.yml) into production-ready, managed AWS services, keeping security, scalability, and ease of maintenance in mind.
+It maps the local environment defined in your [docker-compose.yml](/planohi-app-v4/docker-compose.yml) into production-ready, managed AWS services, keeping security, scalability, and ease of maintenance in mind.
 
 ---
 
@@ -1241,7 +1241,7 @@ Once complete, Terraform will print outputs, including the **`alb_dns_name`** (e
 
 ## 7. Post-Deployment: Database Migrations
 
-By default, the Spring Boot API is configured with **Flyway enabled** (`spring.flyway.enabled: true` in your [application.yaml](file:///c:/Users/jayma/Documents/GitRepo-1/planohi-app-v4/api/src/main/resources/application.yaml#L29)). 
+By default, the Spring Boot API is configured with **Flyway enabled** (`spring.flyway.enabled: true` in your [application.yaml](/planohi-app-v4/api/src/main/resources/application.yaml#L29)). 
 
 When the ECS `api` service launches:
 1. It automatically establishes connection to the new PostgreSQL RDS database.
@@ -1291,7 +1291,7 @@ This repository is structured as a monorepo containing multiple independent sub-
 We configure a path filter to listen for commits on the `staging` and `prod` branches. Only the specific container that has modifications in its folder will be compiled, pushed to ECR, and redeployed on Fargate.
 
 ### How it Works
-The workflow is saved in [.github/workflows/deploy.yml](file:///c:/Users/jayma/Documents/GitRepo-1/planohi-app-v4/.github/workflows/deploy.yml) in the project root:
+The workflow is saved in [.github/workflows/deploy.yml](/planohi-app-v4/.github/workflows/deploy.yml) in the project root:
 1. **GitHub Secrets**: You must add your AWS credentials as Secrets in your GitHub repository:
    * Go to your repository on GitHub -> **Settings** -> **Secrets and variables** -> **Actions** -> **New repository secret**.
    * Add `AWS_ACCESS_KEY_ID` (your AWS access key).
