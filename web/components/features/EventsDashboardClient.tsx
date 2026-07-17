@@ -43,6 +43,7 @@ interface EventsDashboardClientProps {
   search: string;
   errorMsg: string | null;
   userRole?: string;
+  adsensePubId?: string;
 }
 
 export const EventsDashboardClient: React.FC<EventsDashboardClientProps> = ({
@@ -56,6 +57,7 @@ export const EventsDashboardClient: React.FC<EventsDashboardClientProps> = ({
   search,
   errorMsg,
   userRole,
+  adsensePubId,
 }) => {
   const router = useRouter();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -102,7 +104,7 @@ export const EventsDashboardClient: React.FC<EventsDashboardClientProps> = ({
           {events.map((event) => (
             <EventCard key={event.id} event={event} />
           ))}
-          <AdSlot variant="card" slotId="0294859102" userRole={userRole} />
+          <AdSlot variant="card" slotId="0294859102" userRole={userRole} pubId={adsensePubId} />
         </div>
 
         {/* Pagination */}

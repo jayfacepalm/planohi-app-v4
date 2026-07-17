@@ -69,6 +69,8 @@ export default async function EventsPage({ searchParams }: Readonly<PageProps>) 
   const hasNext = eventPageData ? !eventPageData.last : false;
   const hasPrevious = eventPageData ? !eventPageData.first : false;
 
+  const adsensePubId = process.env.ADSENSE_PUBLISHER_ID || process.env.NEXT_PUBLIC_ADSENSE_PUBLISHER_ID || "pub-0000000000000000";
+
   return (
     <EventsDashboardClient
       events={events}
@@ -81,6 +83,7 @@ export default async function EventsPage({ searchParams }: Readonly<PageProps>) 
       search={search}
       errorMsg={errorMsg}
       userRole={role}
+      adsensePubId={adsensePubId}
     />
   );
 }

@@ -124,8 +124,8 @@ resource "aws_ecs_task_definition" "web" {
       environment = [
         { name = "BACKEND_API_URL", value = "http://localhost:8080" },
         { name = "NEXT_PUBLIC_API_URL", value = "/api/proxy" },
-        { name = "CSP_ALLOWED_IMAGE_SOURCES", value = "'self' data: blob: https://${aws_s3_bucket.banners.bucket_regional_domain_name} https://s3.amazonaws.com https://*.s3.amazonaws.com https://pagead2.googlesyndication.com https://googleads.g.doubleclick.net" },
-        { name = "CSP_ALLOWED_CONNECT_SOURCES", value = "'self' ws: wss: https://pagead2.googlesyndication.com" }
+        { name = "CSP_ALLOWED_IMAGE_SOURCES", value = "'self' data: blob: https://${aws_s3_bucket.banners.bucket_regional_domain_name} https://s3.amazonaws.com https://*.s3.amazonaws.com https://pagead2.googlesyndication.com https://googleads.g.doubleclick.net https://*.googlesyndication.com https://*.doubleclick.net" },
+        { name = "CSP_ALLOWED_CONNECT_SOURCES", value = "'self' ws: wss: https://pagead2.googlesyndication.com https://*.adtrafficquality.google https://*.googlesyndication.com https://*.doubleclick.net" }
       ]
       secrets = [
         {
@@ -137,7 +137,7 @@ resource "aws_ecs_task_definition" "web" {
           valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:google_client_id::"
         },
         {
-          name      = "NEXT_PUBLIC_ADSENSE_PUBLISHER_ID"
+          name      = "ADSENSE_PUBLISHER_ID"
           valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:adsense_publisher_id::"
         }
       ]

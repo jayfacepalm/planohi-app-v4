@@ -8,12 +8,13 @@ interface AdSlotProps {
   slotId: string;
   userRole?: string;
   variant?: "horizontal" | "card";
+  pubId?: string;
 }
 
-export const AdSlot: React.FC<AdSlotProps> = ({ slotId, userRole, variant = "horizontal" }) => {
+export const AdSlot: React.FC<AdSlotProps> = ({ slotId, userRole, variant = "horizontal", pubId: propPubId }) => {
   const [mounted, setMounted] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
-  const pubId = process.env.NEXT_PUBLIC_ADSENSE_PUBLISHER_ID || "pub-0000000000000000";
+  const pubId = propPubId || process.env.NEXT_PUBLIC_ADSENSE_PUBLISHER_ID || "pub-0000000000000000";
 
   // Check if account is PREMIUM or ADMIN to hide ads
   const getRole = () => {
@@ -28,22 +29,32 @@ export const AdSlot: React.FC<AdSlotProps> = ({ slotId, userRole, variant = "hor
 
   useEffect(() => {
     setMounted(true);
-    if (isAdFreeUser) return;
+  }, []);
 
-    try {
-      ((window as any).adsbygoogle = (window as any).adsbygoogle || []).push({});
-    } catch (e) {
-      setIsBlocked(true);
-    }
-    
+  useEffect(() => {
+    if (!mounted || isAdFreeUser) return;
+
+    // Trigger AdSense loader array push after a small timeout to let the container layout render fully
+    const pushTimer = setTimeout(() => {
+      try {
+        ((window as any).adsbygoogle = (window as any).adsbygoogle || []).push({});
+      } catch (e) {
+        setIsBlocked(true);
+      }
+    }, 150);
+
     // Verify script loaded successfully after 1.5 seconds
     const timer = setTimeout(() => {
       if (!(window as any).adsbygoogle?.loaded) {
         setIsBlocked(true);
       }
     }, 1500);
-    return () => clearTimeout(timer);
-  }, [isAdFreeUser]);
+
+    return () => {
+      clearTimeout(pushTimer);
+      clearTimeout(timer);
+    };
+  }, [mounted, isAdFreeUser]);
 
   // Render absolutely nothing for Premium or Admin tiers
   if (isAdFreeUser) {

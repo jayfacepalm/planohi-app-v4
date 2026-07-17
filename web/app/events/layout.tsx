@@ -31,6 +31,8 @@ export default async function EventsLayout({
     }
   }
 
+  const adsensePubId = process.env.ADSENSE_PUBLISHER_ID || process.env.NEXT_PUBLIC_ADSENSE_PUBLISHER_ID || "pub-0000000000000000";
+
   return (
     <div className="min-h-screen flex flex-col justify-between bg-[#070708] text-[#f4f4f5] selection:bg-neon-purple selection:text-white relative overflow-hidden">
       {/* Background Decorative Cyber-Glows */}
@@ -51,7 +53,7 @@ export default async function EventsLayout({
 
       {/* Footer Ad Banner */}
       <div className="w-full max-w-7xl mx-auto px-4 md:px-6 mb-6 relative z-0">
-        <AdSlot slotId="8492048591" userRole={role} variant="horizontal" />
+        <AdSlot slotId="8492048591" userRole={role} variant="horizontal" pubId={adsensePubId} />
       </div>
 
       {/* Footer */}
