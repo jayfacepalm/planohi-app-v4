@@ -31,9 +31,15 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import com.planohi.api.service.WorkspaceSecurityService;
 import com.planohi.api.enums.EventCuratorRole;
-import org.springframework.web.bind.annotation.RequestHeader;
-import com.planohi.api.service.cached.EventSpendingCachedService;
+import com.planohi.api.dto.CreateWorkspaceCommentRequest;
+import com.planohi.api.dto.EventShareSummaryDto;
 import com.planohi.api.dto.EventSpendingDto;
+import com.planohi.api.dto.WorkspaceCommentDto;
+import com.planohi.api.service.cached.EventSpendingCachedService;
+import com.planohi.api.service.cached.WorkspaceCommentCachedService;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -45,6 +51,7 @@ public class EventController {
     private final EventCachedService eventService;
     private final EventComponentCachedService eventComponentService;
     private final EventSpendingCachedService eventSpendingCachedService;
+    private final WorkspaceCommentCachedService workspaceCommentCachedService;
     private final WorkspaceSecurityService workspaceSecurityService;
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -150,5 +157,53 @@ public class EventController {
                 pageable
         );
         return ResponseEntity.ok(ApiResponse.success("Chronological spendings retrieved successfully", spendings));
+    }
+
+    @GetMapping("/{eventId}/comments")
+    public ResponseEntity<ApiResponse<List<WorkspaceCommentDto>>> getComments(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PathVariable("eventId") UUID eventId,
+            @RequestParam("targetType") String targetType,
+            @RequestParam("targetId") UUID targetId) {
+
+        log.info("Request received to get comments for event {}, targetType {}, targetId {} by user {}", eventId, targetType, targetId, userPrincipal.getId());
+        List<WorkspaceCommentDto> comments = workspaceCommentCachedService.getComments(userPrincipal.getId(), eventId, targetType, targetId);
+        return ResponseEntity.ok(ApiResponse.success("Comments retrieved successfully", comments));
+    }
+
+    @PostMapping("/{eventId}/comments")
+    public ResponseEntity<ApiResponse<WorkspaceCommentDto>> createComment(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestHeader(value = WorkspaceSecurityService.ROLE_TOKEN_HEADER, required = false) String roleToken,
+            @PathVariable("eventId") UUID eventId,
+            @Valid @RequestBody CreateWorkspaceCommentRequest request) {
+
+        log.info("Request received to create comment in event {} by user {}", eventId, userPrincipal.getId());
+        workspaceSecurityService.validateRoleToken(roleToken, userPrincipal.getId(), eventId, EventCuratorRole.COLLABORATOR);
+        WorkspaceCommentDto created = workspaceCommentCachedService.createComment(userPrincipal.getId(), eventId, request);
+        return ResponseEntity.status(201).body(ApiResponse.success("Comment posted successfully", created));
+    }
+
+    @DeleteMapping("/{eventId}/comments/{commentId}")
+    public ResponseEntity<ApiResponse<Void>> deleteComment(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestHeader(value = WorkspaceSecurityService.ROLE_TOKEN_HEADER, required = false) String roleToken,
+            @PathVariable("eventId") UUID eventId,
+            @PathVariable("commentId") UUID commentId) {
+
+        log.info("Request received to delete comment {} in event {} by user {}", commentId, eventId, userPrincipal.getId());
+        workspaceSecurityService.validateRoleToken(roleToken, userPrincipal.getId(), eventId, EventCuratorRole.COLLABORATOR);
+        workspaceCommentCachedService.deleteComment(userPrincipal.getId(), eventId, commentId);
+        return ResponseEntity.ok(ApiResponse.success("Comment deleted successfully", null));
+    }
+
+    @GetMapping("/{eventId}/share-summary")
+    public ResponseEntity<ApiResponse<EventShareSummaryDto>> getShareSummary(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PathVariable("eventId") UUID eventId) {
+
+        log.info("Request received to get share summary for event {} by user {}", eventId, userPrincipal.getId());
+        EventShareSummaryDto summary = eventService.getShareSummary(userPrincipal.getId(), eventId);
+        return ResponseEntity.ok(ApiResponse.success("Share summary retrieved successfully", summary));
     }
 }

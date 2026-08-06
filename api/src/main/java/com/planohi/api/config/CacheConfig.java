@@ -136,6 +136,7 @@ public class CacheConfig {
             .withCacheConfiguration("event_metrics", config.entryTtl(Duration.ofMinutes(10)))
             .withCacheConfiguration("public_rsvp", config.entryTtl(Duration.ofMinutes(10)))
             .withCacheConfiguration("email_templates", config.entryTtl(Duration.ofMinutes(10)))
+            .withCacheConfiguration("workspace_comments", config.entryTtl(Duration.ofMinutes(15)))
             .build();
     }
 }

@@ -10,6 +10,9 @@ import com.planohi.api.entity.EventSpending;
 import com.planohi.api.entity.Invitee;
 import com.planohi.api.entity.TimelineItem;
 
+import com.planohi.api.dto.EventShareSummaryDto;
+import com.planohi.api.entity.EventComponent;
+import com.planohi.api.repository.EventComponentRepository;
 import com.planohi.api.exception.EntityNotFoundException;
 import com.planohi.api.exception.FieldValidationException;
 import com.planohi.api.repository.EventRepository;
@@ -38,8 +41,10 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -51,6 +56,7 @@ public class EventServiceImpl implements EventService {
     private final InviteeRepository inviteeRepository;
     private final TimelineItemRepository timelineItemRepository;
     private final EventSpendingRepository eventSpendingRepository;
+    private final EventComponentRepository eventComponentRepository;
     private final S3StorageService s3StorageService;
     private final WorkspaceSecurityService workspaceSecurityService;
     private final JwtService jwtService;
@@ -290,5 +296,63 @@ public class EventServiceImpl implements EventService {
         if (bannerUrl != null) {
             s3StorageService.deleteBanner(bannerUrl);
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public EventShareSummaryDto getShareSummary(UUID userId, UUID eventId) {
+        log.info("Fetching share summary for event {} by user {}", eventId, userId);
+
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new EntityNotFoundException("Event not found"));
+
+        workspaceSecurityService.checkReadAccess(userId, eventId);
+
+        List<TimelineItem> timelineItems = timelineItemRepository.findByEventIdOrderByDueAtAsc(eventId);
+        List<Object[]> componentResults = eventComponentRepository.findComponentsWithSpendingByEventId(eventId);
+
+        BigDecimal totalPlanned = BigDecimal.ZERO;
+        BigDecimal totalActual = BigDecimal.ZERO;
+
+        List<EventShareSummaryDto.ComponentBudgetShareDto> componentsShare = new ArrayList<>();
+        for (Object[] row : componentResults) {
+            EventComponent component = (EventComponent) row[0];
+            BigDecimal actualSpent = (BigDecimal) row[1];
+
+            BigDecimal estCost = component.getEstimatedCost() != null ? component.getEstimatedCost() : BigDecimal.ZERO;
+            BigDecimal spent = actualSpent != null ? actualSpent : BigDecimal.ZERO;
+
+            totalPlanned = totalPlanned.add(estCost);
+            totalActual = totalActual.add(spent);
+
+            componentsShare.add(EventShareSummaryDto.ComponentBudgetShareDto.builder()
+                    .name(component.getName())
+                    .estimatedCost(estCost)
+                    .actualSpent(spent)
+                    .build());
+        }
+
+        List<EventShareSummaryDto.TimelineItemShareDto> timelineShare = timelineItems.stream()
+                .map(item -> EventShareSummaryDto.TimelineItemShareDto.builder()
+                        .title(item.getTitle())
+                        .dueAt(item.getDueAt())
+                        .isDone(item.isDone())
+                        .build())
+                .collect(Collectors.toList());
+
+        String currency = (event.getCurrency() != null && !event.getCurrency().isBlank()) ? event.getCurrency() : "USD";
+        String shareUrl = "https://planohi.com/events/" + eventId.toString();
+
+        return EventShareSummaryDto.builder()
+                .eventId(eventId)
+                .title(event.getTitle())
+                .description(event.getDescription())
+                .currency(currency)
+                .shareUrl(shareUrl)
+                .totalPlannedCost(totalPlanned)
+                .totalActualSpent(totalActual)
+                .timeline(timelineShare)
+                .components(componentsShare)
+                .build();
     }
 }

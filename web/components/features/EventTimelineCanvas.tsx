@@ -6,8 +6,9 @@ import { Button } from "../ui/Button";
 import { GlowCard } from "../ui/GlowCard";
 import { AddTimelineItemModal } from "./AddTimelineItemModal";
 import { EditTimelineItemModal } from "./EditTimelineItemModal";
+import { MilestoneCommentsAccordion } from "./MilestoneCommentsAccordion";
 import { Modal } from "../ui/Modal";
-import { Calendar, Plus, AlertCircle, CheckCircle2, Circle, Edit, Trash2 } from "lucide-react";
+import { Calendar, Plus, AlertCircle, CheckCircle2, Circle, Edit, Trash2, MessageSquare } from "lucide-react";
 import { fetchApi, setRoleToken } from "../../lib/api-client";
 import { UserRole, USER_ROLES, PROPOSAL_STATUSES, PROPOSAL_ACTIONS, PROPOSAL_TARGETS } from "../../lib/constants";
 import { decodeRoleToken } from "../../lib/security";
@@ -57,6 +58,24 @@ export const EventTimelineCanvas: React.FC<EventTimelineCanvasProps> = ({
 
   const decodedRole = decodeRoleToken(userRole);
   const canEdit = decodedRole === USER_ROLES.OWNER || decodedRole === USER_ROLES.ORGANIZER || decodedRole === USER_ROLES.COLLABORATOR;
+  const canComment = decodedRole !== USER_ROLES.VIEWER && decodedRole !== null;
+
+  const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
+
+  const toggleCommentsAccordion = (itemId: string) => {
+    setExpandedComments((prev) => ({
+      ...prev,
+      [itemId]: !prev[itemId],
+    }));
+  };
+
+  const handleCommentsCountChange = React.useCallback((itemId: string, count: number) => {
+    setCommentCounts((prev) => {
+      if (prev[itemId] === count) return prev;
+      return { ...prev, [itemId]: count };
+    });
+  }, []);
   
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -258,6 +277,8 @@ export const EventTimelineCanvas: React.FC<EventTimelineCanvasProps> = ({
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (percent / 100) * circumference;
 
+
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 w-full max-w-7xl mx-auto">
       {/* Timeline Items Checklist column */}
@@ -329,84 +350,119 @@ export const EventTimelineCanvas: React.FC<EventTimelineCanvasProps> = ({
                   </div>
  
                   {/* Node content block */}
-                  <div className={`flex-1 bg-[#121214] border rounded-xl p-4 flex items-center justify-between gap-4 transition-all shadow-[0_4px_12px_rgba(0,0,0,0.15)] ${
-                    item.isPendingCreate 
-                      ? "border-yellow-500/20 bg-yellow-500/2 border-dashed"
-                      : item.pendingToggle
-                        ? "border-yellow-500/20 bg-yellow-500/2"
-                        : item.isDone 
-                          ? "border-white/5 opacity-60" 
-                          : overdue 
-                            ? "border-red-500/20 bg-red-950/2" 
-                            : "border-white/5 hover:border-white/10"
-                  }`}>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`text-sm font-sans font-medium transition-all ${
-                          item.isDone ? "text-zinc-500 line-through" : "text-white"
-                        }`}>
-                          {item.title}
+                  <div className="flex-1 flex flex-col min-w-0">
+                    <div className={`bg-[#121214] border rounded-xl p-4 flex items-center justify-between gap-4 transition-all shadow-[0_4px_12px_rgba(0,0,0,0.15)] ${
+                      item.isPendingCreate 
+                        ? "border-yellow-500/20 bg-yellow-500/2 border-dashed"
+                        : item.pendingToggle
+                          ? "border-yellow-500/20 bg-yellow-500/2"
+                          : item.isDone 
+                            ? "border-white/5 opacity-60" 
+                            : overdue 
+                              ? "border-red-500/20 bg-red-950/2" 
+                              : "border-white/5 hover:border-white/10"
+                    }`}>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`text-sm font-sans font-medium transition-all ${
+                            item.isDone ? "text-zinc-500 line-through" : "text-white"
+                          }`}>
+                            {item.title}
+                          </span>
+                          {overdue && (
+                            <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20">
+                              Overdue
+                            </span>
+                          )}
+                          {item.isPendingCreate && (
+                            <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded border border-yellow-500/20 shadow-[0_0_5px_rgba(234,179,8,0.2)]">
+                              Pending Creation
+                            </span>
+                          )}
+                          {item.pendingToggle && (
+                            <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded border border-yellow-500/20 shadow-[0_0_5px_rgba(234,179,8,0.2)]">
+                              Pending Check Toggle ({item.pendingToggle.proposedData?.isDone === true || item.pendingToggle.proposedData?.isDone === "true" ? "Complete" : "Incomplete"})
+                            </span>
+                          )}
+                          {item.pendingUpdate && (
+                            <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded border border-yellow-500/20 shadow-[0_0_5px_rgba(234,179,8,0.2)]">
+                              Pending Detail Update
+                            </span>
+                          )}
+                          {item.pendingDelete && (
+                            <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20 shadow-[0_0_5px_rgba(239,68,68,0.2)]">
+                              Pending Deletion
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[10px] font-mono text-zinc-550 block">
+                          Due: {formatDueAt(item.dueAt)}
                         </span>
-                        {overdue && (
-                          <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20">
-                            Overdue
-                          </span>
-                        )}
-                        {item.isPendingCreate && (
-                          <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded border border-yellow-500/20 shadow-[0_0_5px_rgba(234,179,8,0.2)]">
-                            Pending Creation
-                          </span>
-                        )}
-                        {item.pendingToggle && (
-                          <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded border border-yellow-500/20 shadow-[0_0_5px_rgba(234,179,8,0.2)]">
-                            Pending Check Toggle ({item.pendingToggle.proposedData?.isDone === true || item.pendingToggle.proposedData?.isDone === "true" ? "Complete" : "Incomplete"})
-                          </span>
-                        )}
-                        {item.pendingUpdate && (
-                          <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded border border-yellow-500/20 shadow-[0_0_5px_rgba(234,179,8,0.2)]">
-                            Pending Detail Update
-                          </span>
-                        )}
-                        {item.pendingDelete && (
-                          <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20 shadow-[0_0_5px_rgba(239,68,68,0.2)]">
-                            Pending Deletion
-                          </span>
-                        )}
                       </div>
-                      <span className="text-[10px] font-mono text-zinc-550 block">
-                        Due: {formatDueAt(item.dueAt)}
-                      </span>
+   
+                      <div className="flex items-center gap-2 shrink-0">
+                        {!item.isPendingCreate && (
+                          <button
+                            type="button"
+                            onClick={() => toggleCommentsAccordion(item.id)}
+                            className={`p-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 text-[11px] font-mono ${
+                              expandedComments[item.id]
+                                ? "bg-neon-purple/10 border-neon-purple/40 text-neon-purple"
+                                : "text-zinc-500 border-transparent hover:border-neon-purple/20 hover:bg-neon-purple/5 hover:text-neon-purple"
+                            }`}
+                            aria-label="Milestone discussion"
+                            title={expandedComments[item.id] ? "Collapse Discussion" : "Expand Discussion"}
+                          >
+                            <MessageSquare className="w-3.5 h-3.5" />
+                            {commentCounts[item.id] !== undefined && commentCounts[item.id] > 0 && (
+                              <span className="text-[9px] bg-neon-purple/20 text-neon-purple px-1.5 py-0.5 rounded-full font-bold">
+                                {commentCounts[item.id]}
+                              </span>
+                            )}
+                          </button>
+                        )}
+                        {canEdit && !item.isPendingCreate && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleEditClick(item)}
+                              disabled={!!togglingIds[item.id] || item.isPendingCreate || !!item.pendingToggle || !!item.pendingUpdate || !!item.pendingDelete}
+                              className="text-zinc-500 hover:text-neon-cyan p-1 rounded-lg border border-transparent hover:border-neon-cyan/20 hover:bg-neon-cyan/5 transition-all cursor-pointer disabled:opacity-30 disabled:hover:border-transparent disabled:hover:bg-transparent"
+                              aria-label="Edit milestone"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteClick(item.id)}
+                              disabled={!!togglingIds[item.id] || item.isPendingCreate || !!item.pendingToggle || !!item.pendingUpdate || !!item.pendingDelete}
+                              className="text-zinc-500 hover:text-red-400 p-1 rounded-lg border border-transparent hover:border-red-500/20 hover:bg-red-500/5 transition-all cursor-pointer disabled:opacity-30 disabled:hover:border-transparent disabled:hover:bg-transparent mr-1"
+                              aria-label="Delete milestone"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        )}
+                        <Checkbox
+                          checked={item.isDone}
+                          disabled={!!togglingIds[item.id] || !canEdit || item.isPendingCreate || !!item.pendingToggle || !!item.pendingUpdate || !!item.pendingDelete}
+                          onChange={() => handleToggle(item.id, item.isDone)}
+                        />
+                      </div>
                     </div>
- 
-                    <div className="flex items-center gap-2 shrink-0">
-                      {canEdit && !item.isPendingCreate && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => handleEditClick(item)}
-                            disabled={!!togglingIds[item.id] || item.isPendingCreate || !!item.pendingToggle || !!item.pendingUpdate || !!item.pendingDelete}
-                            className="text-zinc-500 hover:text-neon-cyan p-1 rounded-lg border border-transparent hover:border-neon-cyan/20 hover:bg-neon-cyan/5 transition-all cursor-pointer disabled:opacity-30 disabled:hover:border-transparent disabled:hover:bg-transparent"
-                            aria-label="Edit milestone"
-                          >
-                            <Edit className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteClick(item.id)}
-                            disabled={!!togglingIds[item.id] || item.isPendingCreate || !!item.pendingToggle || !!item.pendingUpdate || !!item.pendingDelete}
-                            className="text-zinc-500 hover:text-red-400 p-1 rounded-lg border border-transparent hover:border-red-500/20 hover:bg-red-500/5 transition-all cursor-pointer disabled:opacity-30 disabled:hover:border-transparent disabled:hover:bg-transparent mr-1"
-                            aria-label="Delete milestone"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </>
-                      )}
-                      <Checkbox
-                        checked={item.isDone}
-                        disabled={!!togglingIds[item.id] || !canEdit || item.isPendingCreate || !!item.pendingToggle || !!item.pendingUpdate || !!item.pendingDelete}
-                        onChange={() => handleToggle(item.id, item.isDone)}
+
+                    {/* Accordion Component Parented directly to this milestone item */}
+                    {!item.isPendingCreate && (
+                      <MilestoneCommentsAccordion
+                        isOpen={!!expandedComments[item.id]}
+                        eventId={eventId}
+                        targetId={item.id}
+                        canComment={canComment}
+                        userRole={userRole}
+                        onCommentsCountChange={(count) => handleCommentsCountChange(item.id, count)}
+                        onClose={() => toggleCommentsAccordion(item.id)}
                       />
-                    </div>
+                    )}
                   </div>
                 </div>
               );

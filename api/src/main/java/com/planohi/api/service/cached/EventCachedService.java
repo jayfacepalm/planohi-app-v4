@@ -15,6 +15,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import java.util.UUID;
 
+import com.planohi.api.dto.EventShareSummaryDto;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -32,6 +34,10 @@ public class EventCachedService {
     public EventDto getEventDetails(UUID userId, UUID eventId) {
         log.info("Cache miss: fetching event details for event: {}", eventId);
         return eventService.getEventDetails(userId, eventId);
+    }
+
+    public EventShareSummaryDto getShareSummary(UUID userId, UUID eventId) {
+        return eventService.getShareSummary(userId, eventId);
     }
 
     @CacheEvict(value = "events_list", allEntries = true)
