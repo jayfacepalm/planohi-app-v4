@@ -31,6 +31,8 @@ public class EventShareSummaryDto {
     public static class TimelineItemShareDto {
         private String title;
         private Instant dueAt;
+        
+        @com.fasterxml.jackson.annotation.JsonProperty("isDone")
         private boolean isDone;
     }
 

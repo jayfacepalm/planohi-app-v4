@@ -7,6 +7,7 @@ import com.planohi.api.dto.UpdateTimelineItemRequest;
 import com.planohi.api.service.TimelineService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -25,9 +26,16 @@ public class TimelineCachedService {
         return timelineService.getEventTimeline(userId, eventId);
     }
 
-    @CacheEvict(value = "event_timeline", key = "#userId.toString() + ':' + #eventId.toString()")
+    @Caching(evict = {
+        @CacheEvict(value = "event_timeline", key = "#userId.toString() + ':' + #eventId.toString()"),
+        @CacheEvict(value = "event_budget_summary", key = "#userId.toString() + ':' + #eventId.toString()", condition = "#request.spending != null"),
+        @CacheEvict(value = "events_detail", key = "#userId.toString() + ':' + #eventId.toString()", condition = "#request.spending != null"),
+        @CacheEvict(value = "event_components", key = "#userId.toString() + ':' + #eventId.toString()", condition = "#request.spending != null"),
+        @CacheEvict(value = "event_chronological_spendings", allEntries = true, condition = "#request.spending != null"),
+        @CacheEvict(value = "events_list", allEntries = true, condition = "#request.spending != null")
+    })
     public TimelineItemDto createTimelineItem(UUID userId, UUID eventId, CreateTimelineItemRequest request) {
-        log.info("Evicting event_timeline cache due to new timeline item in event: {}", eventId);
+        log.info("Evicting caches due to new timeline item in event: {}", eventId);
         return timelineService.createTimelineItem(userId, eventId, request);
     }
 

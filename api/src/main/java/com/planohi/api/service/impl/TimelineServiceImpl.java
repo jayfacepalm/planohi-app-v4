@@ -13,7 +13,9 @@ import com.planohi.api.entity.TimelineItem;
 import com.planohi.api.exception.EntityNotFoundException;
 import com.planohi.api.exception.FieldValidationException;
 import com.planohi.api.exception.ProposalSubmittedException;
+import com.planohi.api.entity.EventSpending;
 import com.planohi.api.repository.EventRepository;
+import com.planohi.api.repository.EventSpendingRepository;
 import com.planohi.api.repository.TimelineItemRepository;
 import com.planohi.api.service.ChangeProposalService;
 import com.planohi.api.service.TimelineService;
@@ -36,6 +38,7 @@ public class TimelineServiceImpl implements TimelineService {
 
     private final EventRepository eventRepository;
     private final TimelineItemRepository timelineItemRepository;
+    private final EventSpendingRepository eventSpendingRepository;
     private final WorkspaceSecurityService workspaceSecurityService;
     private final ChangeProposalService changeProposalService;
     private final ActivityLogPublisher activityLogPublisher;
@@ -82,6 +85,19 @@ public class TimelineServiceImpl implements TimelineService {
 
         TimelineItem saved = timelineItemRepository.save(item);
         log.info("Timeline item created successfully with ID: {}", saved.getId());
+
+        if (request.getSpending() != null) {
+            EventSpending spending = EventSpending.builder()
+                    .componentId(request.getSpending().getComponentId())
+                    .description(request.getSpending().getDescription())
+                    .amount(request.getSpending().getAmount())
+                    .spentAt(saved.getDueAt())
+                    .build();
+            EventSpending savedSpending = eventSpendingRepository.save(spending);
+            log.info("Timeline associated spending recorded successfully with ID: {}", savedSpending.getId());
+
+            activityLogPublisher.publish(userId, null, "SPENDING_CREATE", "SPENDING", savedSpending.getId(), eventId, "SUCCESS", java.util.Map.of("description", savedSpending.getDescription(), "amount", savedSpending.getAmount(), "componentId", savedSpending.getComponentId()));
+        }
 
         activityLogPublisher.publish(userId, null, "TIMELINE_ITEM_CREATE", "TIMELINE_ITEM", saved.getId(), eventId, "SUCCESS", java.util.Map.of("title", saved.getTitle(), "dueAt", saved.getDueAt().toString()));
 

@@ -240,7 +240,16 @@ public class ChangeProposalServiceImpl implements ChangeProposalService {
                             .dueAt(req.getDueAt())
                             .isDone(false)
                             .build();
-                    timelineItemRepository.save(item);
+                    TimelineItem savedItem = timelineItemRepository.save(item);
+                    if (req.getSpending() != null) {
+                        EventSpending spending = EventSpending.builder()
+                                .componentId(req.getSpending().getComponentId())
+                                .description(req.getSpending().getDescription())
+                                .amount(req.getSpending().getAmount())
+                                .spentAt(savedItem.getDueAt())
+                                .build();
+                        eventSpendingRepository.save(spending);
+                    }
                 } else if (action == ChangeProposalAction.UPDATE) {
                     TimelineItem item = timelineItemRepository.findById(proposal.getTargetId())
                             .orElseThrow(() -> new EntityNotFoundException("Timeline milestone not found"));

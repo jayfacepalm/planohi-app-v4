@@ -21,4 +21,22 @@ public class CreateTimelineItemRequest {
 
     @NotNull(message = "Due date is required")
     private Instant dueAt;
+
+    private SpendingPayload spending;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class SpendingPayload {
+        @NotNull(message = "Component ID is required when spending is provided")
+        private java.util.UUID componentId;
+
+        @NotNull(message = "Amount is required when spending is provided")
+        private java.math.BigDecimal amount;
+
+        @NotBlank(message = "Description is required when spending is provided")
+        @Size(min = 2, max = 255, message = "Description must be between 2 and 255 characters")
+        private String description;
+    }
 }
