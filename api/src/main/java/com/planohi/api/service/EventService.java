@@ -14,6 +14,8 @@ public interface EventService {
     EventDto createEvent(UUID userId, CreateEventRequest request, MultipartFile bannerFile);
     Page<EventDto> getEvents(UUID userId, String search, Pageable pageable);
     EventDto getEventDetails(UUID userId, UUID eventId);
+    
+    EventDto getEventDetailsInternal(UUID eventId);
     byte[] getEventBanner(UUID userId, UUID eventId);
     byte[] getEventBannerByToken(String token);
     EventDto updateEvent(UUID userId, UUID eventId, UpdateEventRequest request, MultipartFile bannerFile);

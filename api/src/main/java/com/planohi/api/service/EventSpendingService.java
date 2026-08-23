@@ -12,4 +12,5 @@ public interface EventSpendingService {
     EventSpendingDto updateSpending(UUID userId, UUID componentId, UUID spendingId, UpdateSpendingRequest request);
     EventSpendingDto deleteSpending(UUID userId, UUID componentId, UUID spendingId);
     Page<EventSpendingDto> getChronologicalSpendings(UUID userId, UUID eventId, String search, Pageable pageable);
+    Page<EventSpendingDto> getChronologicalSpendingsInternal(UUID eventId, String search, Pageable pageable);
 }

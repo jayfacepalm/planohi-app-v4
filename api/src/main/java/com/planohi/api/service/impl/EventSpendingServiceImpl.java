@@ -223,6 +223,27 @@ public class EventSpendingServiceImpl implements EventSpendingService {
         });
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Page<EventSpendingDto> getChronologicalSpendingsInternal(UUID eventId, String search, Pageable pageable) {
+        log.info("Fetching chronological spendings internally for event {}", eventId);
+
+        eventRepository.findById(eventId)
+                .orElseThrow(() -> new EntityNotFoundException("Event not found"));
+
+        java.util.List<EventComponent> components = eventComponentRepository.findByEventId(eventId);
+        java.util.Map<UUID, String> componentMap = components.stream()
+                .collect(java.util.stream.Collectors.toMap(EventComponent::getId, EventComponent::getName));
+
+        Page<EventSpending> spendingsPage = eventSpendingRepository.findByEventIdAndSearch(eventId, search, pageable);
+
+        return spendingsPage.map(spending -> {
+            EventSpendingDto dto = mapToDto(spending, eventId);
+            dto.setComponentName(componentMap.getOrDefault(spending.getComponentId(), "Unknown Component"));
+            return dto;
+        });
+    }
+
     private EventSpendingDto mapToDto(EventSpending spending, UUID eventId) {
         return EventSpendingDto.builder()
                 .id(spending.getId())

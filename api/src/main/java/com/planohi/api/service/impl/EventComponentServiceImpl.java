@@ -150,6 +150,30 @@ public class EventComponentServiceImpl implements EventComponentService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public EventComponentsResponse getComponentsInternal(UUID eventId) {
+        log.debug("Fetching components internally for event {}", eventId);
+        
+        eventRepository.findById(eventId)
+                .orElseThrow(() -> new EntityNotFoundException("Event not found"));
+
+        List<EventComponent> components = eventComponentRepository.findByEventId(eventId);
+        
+        List<EventComponentDto> dtos = components.stream()
+                .map(this::mapToDto)
+                .collect(Collectors.toList());
+
+        BigDecimal total = components.stream()
+                .map(EventComponent::getEstimatedCost)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return EventComponentsResponse.builder()
+                .components(dtos)
+                .totalEstimatedCost(total)
+                .build();
+    }
+
+    @Override
     @Transactional
     public void deleteComponent(UUID userId, UUID eventId, UUID componentId) {
         log.info("Deleting component {} from event {} by user {}", componentId, eventId, userId);
@@ -204,6 +228,59 @@ public class EventComponentServiceImpl implements EventComponentService {
                 .orElseThrow(() -> new EntityNotFoundException("Event not found"));
 
         workspaceSecurityService.checkReadAccess(userId, eventId);
+
+        List<Object[]> results = eventComponentRepository.findComponentsWithSpendingByEventId(eventId);
+        
+        List<UUID> componentIds = results.stream()
+                .map(row -> ((EventComponent) row[0]).getId())
+                .collect(Collectors.toList());
+
+        List<EventSpending> allSpendings = componentIds.isEmpty() ? 
+                new ArrayList<>() : 
+                eventSpendingRepository.findByComponentIdInOrderBySpentAtAsc(componentIds);
+
+        Map<UUID, List<EventSpending>> spendingsMap = allSpendings.stream()
+                .collect(Collectors.groupingBy(EventSpending::getComponentId));
+
+        BigDecimal totalEstimated = BigDecimal.ZERO;
+        BigDecimal totalActual = BigDecimal.ZERO;
+        List<BudgetSummaryResponse.ComponentBudgetSummary> componentsSummary = new ArrayList<>();
+        
+        for (Object[] row : results) {
+            EventComponent component = (EventComponent) row[0];
+            BigDecimal actualSpent = (BigDecimal) row[1];
+            
+            totalEstimated = totalEstimated.add(component.getEstimatedCost());
+            totalActual = totalActual.add(actualSpent);
+            
+            List<EventSpending> spendings = spendingsMap.getOrDefault(component.getId(), new ArrayList<>());
+            List<EventSpendingDto> spendingDtos = spendings.stream()
+                    .map(this::mapSpendingToDto)
+                    .collect(Collectors.toList());
+                    
+            componentsSummary.add(BudgetSummaryResponse.ComponentBudgetSummary.builder()
+                    .id(component.getId())
+                    .name(component.getName())
+                    .estimatedCost(component.getEstimatedCost())
+                    .actualSpent(actualSpent)
+                    .spendings(spendingDtos)
+                    .build());
+        }
+
+        return BudgetSummaryResponse.builder()
+                .totalEstimatedCost(totalEstimated)
+                .totalActualSpent(totalActual)
+                .components(componentsSummary)
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BudgetSummaryResponse getBudgetSummaryInternal(UUID eventId) {
+        log.debug("Fetching budget summary internally for event {}", eventId);
+        
+        eventRepository.findById(eventId)
+                .orElseThrow(() -> new EntityNotFoundException("Event not found"));
 
         List<Object[]> results = eventComponentRepository.findComponentsWithSpendingByEventId(eventId);
         

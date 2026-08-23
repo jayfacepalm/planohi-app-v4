@@ -1,50 +1,45 @@
 package com.planohi.api.service.impl;
 
-import com.planohi.api.dto.CreateEventRequest;
-import com.planohi.api.dto.UpdateEventRequest;
-import com.planohi.api.dto.EventDto;
-import com.planohi.api.entity.Event;
-import com.planohi.api.entity.UserAccount;
-import com.planohi.api.enums.EventCuratorRole;
-import com.planohi.api.entity.EventSpending;
-import com.planohi.api.entity.Invitee;
-import com.planohi.api.entity.TimelineItem;
-
-import com.planohi.api.dto.EventShareSummaryDto;
-import com.planohi.api.entity.EventComponent;
-import com.planohi.api.repository.EventComponentRepository;
-import com.planohi.api.exception.EntityNotFoundException;
-import com.planohi.api.exception.FieldValidationException;
-import com.planohi.api.repository.EventRepository;
-import com.planohi.api.repository.EventSpendingRepository;
-import com.planohi.api.repository.InviteeRepository;
-import com.planohi.api.repository.TimelineItemRepository;
-import com.planohi.api.repository.UserAccountRepository;
-import com.planohi.api.service.EventService;
-import com.planohi.api.service.S3StorageService;
-import com.planohi.api.service.WorkspaceSecurityService;
-import com.planohi.api.config.JwtService;
-import com.planohi.api.service.ActivityLogPublisher;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-import org.springframework.web.multipart.MultipartFile;
-import java.io.IOException;
 import java.math.BigDecimal;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import com.planohi.api.config.JwtService;
+import com.planohi.api.dto.CreateEventRequest;
+import com.planohi.api.dto.EventDto;
+import com.planohi.api.dto.EventShareSummaryDto;
+import com.planohi.api.dto.UpdateEventRequest;
+import com.planohi.api.entity.Event;
+import com.planohi.api.entity.EventComponent;
+import com.planohi.api.entity.Invitee;
+import com.planohi.api.entity.TimelineItem;
+import com.planohi.api.entity.UserAccount;
+import com.planohi.api.enums.EventCuratorRole;
+import com.planohi.api.exception.EntityNotFoundException;
+import com.planohi.api.exception.FieldValidationException;
+import com.planohi.api.repository.EventComponentRepository;
+import com.planohi.api.repository.EventRepository;
+import com.planohi.api.repository.EventSpendingRepository;
+import com.planohi.api.repository.InviteeRepository;
+import com.planohi.api.repository.TimelineItemRepository;
+import com.planohi.api.repository.UserAccountRepository;
+import com.planohi.api.service.ActivityLogPublisher;
+import com.planohi.api.service.EventService;
+import com.planohi.api.service.S3StorageService;
+import com.planohi.api.service.WorkspaceSecurityService;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
@@ -73,10 +68,10 @@ public class EventServiceImpl implements EventService {
         if (user.getRole() == com.planohi.api.enums.UserRole.NORMAL) {
             long existingCount = eventRepository.countByUserId(userId);
             if (existingCount >= 3) {
-                throw new IllegalArgumentException("Normal tier accounts are limited to a maximum of 3 events. Please activate a premium voucher to lift this limit.");
+                throw new IllegalArgumentException(
+                        "Normal tier accounts are limited to a maximum of 3 events. Please activate a premium voucher to lift this limit.");
             }
         }
-
 
         String bannerUrl = null;
         if (bannerFile != null && !bannerFile.isEmpty()) {
@@ -87,7 +82,8 @@ public class EventServiceImpl implements EventService {
         Instant startDate = request.getStartDate();
         Instant endDate = request.getEndDate();
 
-        // If dates are identical or on the same calendar day, treat as single-day: 00:00:00Z to 23:59:59Z
+        // If dates are identical or on the same calendar day, treat as single-day:
+        // 00:00:00Z to 23:59:59Z
         if (startDate.truncatedTo(ChronoUnit.DAYS).equals(endDate.truncatedTo(ChronoUnit.DAYS))) {
             startDate = startDate.truncatedTo(ChronoUnit.DAYS);
             endDate = startDate.plus(1, ChronoUnit.DAYS).minus(1, ChronoUnit.MILLIS);
@@ -107,7 +103,8 @@ public class EventServiceImpl implements EventService {
         Event saved = eventRepository.save(event);
         log.info("Event successfully created in DB: {} with ID: {}", saved.getTitle(), saved.getId());
 
-        activityLogPublisher.publish(userId, null, "EVENT_CREATE", "EVENT", saved.getId(), saved.getId(), "SUCCESS", java.util.Map.of("title", saved.getTitle()));
+        activityLogPublisher.publish(userId, null, "EVENT_CREATE", "EVENT", saved.getId(), saved.getId(), "SUCCESS",
+                java.util.Map.of("title", saved.getTitle()));
 
         return mapToDto(saved, userId);
     }
@@ -148,6 +145,25 @@ public class EventServiceImpl implements EventService {
 
     @Override
     @Transactional(readOnly = true)
+    public EventDto getEventDetailsInternal(UUID eventId) {
+        log.debug("Fetching event details internally for ID: {}", eventId);
+        List<Object[]> rows = eventRepository.findByIdWithBudget(eventId);
+        if (rows.isEmpty()) {
+            throw new EntityNotFoundException("Event not found");
+        }
+
+        Object[] row = rows.get(0);
+        Event event = (Event) row[0];
+        BigDecimal totalCost = (BigDecimal) row[1];
+
+        // Pass event's own userId to mapToDto so it resolves as OWNER
+        EventDto dto = mapToDto(event, event.getUserId());
+        dto.setTotalEstimatedCost(totalCost);
+        return dto;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public byte[] getEventBanner(UUID userId, UUID eventId) {
         log.debug("Securely loading banner for event: {}", eventId);
         Event event = eventRepository.findById(eventId)
@@ -170,8 +186,6 @@ public class EventServiceImpl implements EventService {
 
         return s3StorageService.fetchBannerBytes(event.getBannerUrl());
     }
-
-
 
     private EventDto mapToDto(Event event, UUID callerUserId) {
         EventCuratorRole role = EventCuratorRole.VIEWER;
@@ -218,21 +232,24 @@ public class EventServiceImpl implements EventService {
             throw new FieldValidationException("startDate", "Start date must be before or equal to end date");
         }
 
-        // Single-day alignment logic refactored: only normalizes if start & end are mathematically identical down to millisecond
+        // Single-day alignment logic refactored: only normalizes if start & end are
+        // mathematically identical down to millisecond
         if (startDate.equals(endDate)) {
             startDate = startDate.truncatedTo(ChronoUnit.DAYS);
             endDate = startDate.plus(1, ChronoUnit.DAYS).minus(1, ChronoUnit.MILLIS);
             log.info("Dates aligned for single-day event. Interval set: {} to {}", startDate, endDate);
         }
 
-        // Validate boundary against existing timeline items (GAP 18: with 24-hour buffer window)
+        // Validate boundary against existing timeline items (GAP 18: with 24-hour
+        // buffer window)
         Instant minBound = startDate.minus(24, ChronoUnit.HOURS);
         Instant maxBound = endDate.plus(24, ChronoUnit.HOURS);
         List<TimelineItem> milestones = timelineItemRepository.findByEventIdOrderByDueAtAsc(eventId);
         for (TimelineItem milestone : milestones) {
             if (milestone.getDueAt().isBefore(minBound) || milestone.getDueAt().isAfter(maxBound)) {
-                throw new FieldValidationException("startDate", 
-                        "New date range excludes existing milestone: '" + milestone.getTitle() + "' due at " + milestone.getDueAt());
+                throw new FieldValidationException("startDate",
+                        "New date range excludes existing milestone: '" + milestone.getTitle() + "' due at "
+                                + milestone.getDueAt());
             }
         }
 
@@ -257,7 +274,8 @@ public class EventServiceImpl implements EventService {
         Event saved = eventRepository.save(event);
         log.info("Event successfully updated in DB: {}", saved.getId());
 
-        activityLogPublisher.publish(userId, null, "EVENT_UPDATE", "EVENT", saved.getId(), saved.getId(), "SUCCESS", java.util.Map.of("title", saved.getTitle()));
+        activityLogPublisher.publish(userId, null, "EVENT_UPDATE", "EVENT", saved.getId(), saved.getId(), "SUCCESS",
+                java.util.Map.of("title", saved.getTitle()));
 
         List<Object[]> rows = eventRepository.findByIdWithBudget(eventId);
         if (!rows.isEmpty()) {
@@ -286,11 +304,13 @@ public class EventServiceImpl implements EventService {
 
         String bannerUrl = event.getBannerUrl();
 
-        // Delete the event record from database (triggers cascading deletes in DB schema)
+        // Delete the event record from database (triggers cascading deletes in DB
+        // schema)
         eventRepository.delete(event);
         log.info("Event successfully deleted from DB: {}", eventId);
 
-        activityLogPublisher.publish(userId, null, "EVENT_DELETE", "EVENT", eventId, eventId, "SUCCESS", java.util.Map.of("title", event.getTitle()));
+        activityLogPublisher.publish(userId, null, "EVENT_DELETE", "EVENT", eventId, eventId, "SUCCESS",
+                java.util.Map.of("title", event.getTitle()));
 
         // Delete banner file robustly (GAP 13)
         if (bannerUrl != null) {

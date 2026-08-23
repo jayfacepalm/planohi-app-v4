@@ -129,7 +129,29 @@ public class TimelineServiceImpl implements TimelineService {
                 .items(dtos)
                 .build();
     }
+    @Override
+    @Transactional(readOnly = true)
+    public EventTimelineResponse getEventTimelineInternal(UUID eventId) {
+        log.info("Fetching timeline internally for event {}", eventId);
 
+        eventRepository.findById(eventId)
+                .orElseThrow(() -> new EntityNotFoundException("Event not found"));
+
+        List<TimelineItem> items = timelineItemRepository.findByEventIdOrderByDueAtAsc(eventId);
+
+        List<TimelineItemDto> dtos = items.stream()
+                .map(this::mapToDto)
+                .collect(Collectors.toList());
+
+        long completedCount = dtos.stream().filter(TimelineItemDto::isDone).count();
+        long totalCount = dtos.size();
+
+        return EventTimelineResponse.builder()
+                .completedCount(completedCount)
+                .totalCount(totalCount)
+                .items(dtos)
+                .build();
+    }
     @Override
     @Transactional
     public TimelineItemDto toggleTimelineItem(UUID userId, UUID itemId, boolean isDone) {
